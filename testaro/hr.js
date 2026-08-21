@@ -24,8 +24,8 @@ const {doTest} = require('../procs/testaro');
 exports.reporter = async (page, report, _, withItems) => {
   const getBadWhat = element => {
     // Return a violation description.
-    return `hr element is used for vertical segmentation`;
-  }
+    return 'hr element is used for vertical segmentation';
+  };
   const whats = 'HR elements are used for vertical segmentation';
   return await doTest(
     page, report, withItems, 'hr', 'body hr', whats, 0, getBadWhat.toString()

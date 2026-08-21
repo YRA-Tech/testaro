@@ -23,7 +23,7 @@ const {doTest} = require('../procs/testaro');
 exports.reporter = async (page, report, _, withItems) => {
   const getBadWhat = element => {
     // Return a violation description.
-    return `Link has a target=_blank attribute`;
+    return 'Link has a target=_blank attribute';
   };
   const whats = 'Links have target=_blank attributes';
   return await doTest(

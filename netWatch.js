@@ -136,7 +136,7 @@ exports.netWatch = async (isForever, intervalInSeconds, isCertTolerant = true) =
                   if (! jobValidity.isValid) {
                     // Report this to the server.
                     respondWithObject({
-                      message: `invalidJob`,
+                      message: 'invalidJob',
                       error: jobValidity.error
                     }, response);
                     console.log(`${logStart}invalid job (${jobValidity.error})`);

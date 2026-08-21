@@ -7,7 +7,7 @@
 - **Run job**: `npm run run [jobID]`
 - **Directory watch**: `npm run dirWatch`
 - **Network watch**: `npm run netWatch`
-- **Lint**: `npx eslint <file>` (follows `.eslintrc.json`)
+- **Lint**: `npm run lint` (follows `eslint.config.mjs`)
 
 ## Architecture
 

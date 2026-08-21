@@ -155,7 +155,7 @@ exports.reporter = async (page, report, actIndex) => {
             error
           },
           result: {}
-        }
+        };
       }
       // Otherwise, i.e. if they were trimmable, and if standard results are to be reported:
       if (standard) {
@@ -190,7 +190,7 @@ exports.reporter = async (page, report, actIndex) => {
     return {
       data: runReport,
       result: {}
-    }
+    };
   }
   // If an error occurred:
   catch(error) {

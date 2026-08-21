@@ -11,7 +11,8 @@
     "test": "node validation/executors/test",
     "run": "node validation/executors/run",
     "dirWatch": "node validation/executors/dirWatch",
-    "netWatch": "node validation/executors/netWatch"
+    "netWatch": "node validation/executors/netWatch",
+    "lint": "eslint ."
   },
   "repository": {
     "type": "git",
@@ -53,9 +54,11 @@
     "vnu-jar": "*"
   },
   "devDependencies": {
+    "@eslint/js": "*",
     "dom-accessibility-api": "*",
     "esbuild": "*",
-    "eslint": "*"
+    "eslint": "*",
+    "globals": "*"
   },
   "overrides": {
     "adm-zip": "^0.6.0"

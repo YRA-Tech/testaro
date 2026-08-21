@@ -357,7 +357,7 @@ exports.doActs = async (report, opts = {}) => {
               child.kill('SIGTERM');
               killTimer = setTimeout(() => {
                 if (! closed) {
-                  console.log('ERROR: Failed to exit on SIGTERM from parent')
+                  console.log('ERROR: Failed to exit on SIGTERM from parent');
                 }
                 child.kill('SIGKILL');
               }, 2000);
@@ -691,8 +691,8 @@ exports.doActs = async (report, opts = {}) => {
             });
             // Add the PNG base-64 encoding, image index, or file path to the act result.
             act.result = shotInfo !== ''
-            ? {success: true, shotInfo}
-            : {success: false, prevented: true};
+              ? {success: true, shotInfo}
+              : {success: false, prevented: true};
           }
           // Otherwise, if the act is a move:
           else if (moves[type]) {

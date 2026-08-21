@@ -47,7 +47,7 @@ const ordinalSeverities = {
     'warning': 0,
     'failed': 1
   }
-}
+};
 
 // FUNCTIONS
 

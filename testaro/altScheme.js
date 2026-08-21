@@ -33,8 +33,8 @@ exports.reporter = async (page, report, _, withItems) => {
       // If it is a URL or file name:
       if (isURL || isFileName) {
         const valueType = isURL && isFileName
-        ? 'the URL of an image file'
-        : (isURL ? 'a URL' : 'a file name');
+          ? 'the URL of an image file'
+          : (isURL ? 'a URL' : 'a file name');
         // Return a violation description.
         return `img element has an alt attribute with ${valueType} as its value`;
       }

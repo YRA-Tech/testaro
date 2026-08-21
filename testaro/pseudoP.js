@@ -45,7 +45,7 @@ exports.reporter = async (page, report, _, withItems) => {
     // If the element is a violator:
     if (isBad) {
       // Return a violation description.
-      return `Element follows another br element, possibly constituting a pseudo-paragraph`;
+      return 'Element follows another br element, possibly constituting a pseudo-paragraph';
     }
   };
   const whats = 'br elements follow other br elements, possibly constituting pseudo-paragraphs';

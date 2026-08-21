@@ -122,7 +122,7 @@ exports.reporter = async (page, report, actIndex) => {
         }
         // Add the standard instance to the standard result.
         standardResult.instances.push(standardInstance);
-      })
+      });
     }
   }
   // Otherwise, i.e. if the page content was not obtained:

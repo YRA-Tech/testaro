@@ -486,8 +486,8 @@ exports.reporter = async (page, report, actIndex) => {
     // Get the rules to be tested for and their execution order.
     const excludeIDs = ruleSpec.slice(1);
     const jobRuleIDs = ruleSpec[0] === 'y'
-    ? excludeIDs
-    : allRules
+      ? excludeIDs
+      : allRules
       .filter(rule => rule.defaultOn && ! excludeIDs.includes(rule.id))
       .map(rule => rule.id);
     const jobRules = allRules.filter(rule => jobRuleIDs.includes(rule.id));

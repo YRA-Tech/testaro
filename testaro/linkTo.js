@@ -29,7 +29,7 @@ exports.reporter = async (page, report, _, withItems) => {
     // If the element is visible:
     if (isVisible) {
       // Return a violation description.
-      return `Element has no href attribute`;
+      return 'Element has no href attribute';
     }
   };
   const whats = 'Links are missing href attributes';

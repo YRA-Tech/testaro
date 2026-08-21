@@ -97,13 +97,13 @@ exports.doTest = async (
       data,
       totals,
       protoInstances
-    }
+    };
   }, [
-      withItems,
-      candidateSelector,
-      severity,
-      getBadWhatString
-    ]
+    withItems,
+    candidateSelector,
+    severity,
+    getBadWhatString
+  ]
   );
   // Initialize the standard instances.
   let standardInstances = [];

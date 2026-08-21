@@ -44,11 +44,11 @@ const getContext = text => {
 // Returns violations using the rule-based fallback (8+ consecutive uppercase letters).
 const getRuleBasedViolations = catalog =>
   Object.entries(catalog)
-    .filter(([, entry]) => entry.text && /\p{Lu}{8,}/u.test(entry.text))
-    .map(([index]) => ({
-      catalogIndex: index,
-      what: '[No AI available] Element contains all-capital text'
-    }));
+  .filter(([, entry]) => entry.text && /\p{Lu}{8,}/u.test(entry.text))
+  .map(([index]) => ({
+    catalogIndex: index,
+    what: '[No AI available] Element contains all-capital text'
+  }));
 
 // Sends qualifying entries to Claude Haiku and returns confidence scores.
 const classifyWithAI = entries => new Promise((resolve, reject) => {
@@ -81,7 +81,9 @@ const classifyWithAI = entries => new Promise((resolve, reject) => {
   };
   const req = https.request(options, res => {
     let body = '';
-    res.on('data', chunk => { body += chunk; });
+    res.on('data', chunk => {
+      body += chunk; 
+    });
     res.on('end', () => {
       try {
         const parsed = JSON.parse(body);

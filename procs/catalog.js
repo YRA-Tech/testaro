@@ -125,8 +125,8 @@ exports.getCatalog = async report => {
           && ! element.closest('svg')
           && ! ['SCRIPT', 'STYLE', 'svg'].includes(element.tagName);
           const innerText = isTextable
-          ? element.innerText.trim() || (element.parentElement?.innerText?.trim() ?? '')
-          : '';
+            ? element.innerText.trim() || (element.parentElement?.innerText?.trim() ?? '')
+            : '';
           let text = '';
           // If it is eligible and has an inner text:
           if (innerText) {
@@ -145,13 +145,13 @@ exports.getCatalog = async report => {
           // and content-visibility: hidden subtrees), and such a box disagrees with the
           // page image, overlapping unrelated visible elements.
           const isVisible = typeof element.checkVisibility === 'function'
-          ? element.checkVisibility({checkVisibilityCSS: true, visibilityProperty: true})
-          : true;
+            ? element.checkVisibility({checkVisibilityCSS: true, visibilityProperty: true})
+            : true;
           const domRect = isVisible ? element.getBoundingClientRect() : null;
           // Get its box ID.
           const boxID = domRect
-          ? ['x', 'y', 'width', 'height'].map(key => Math.round(domRect[key])).join(':')
-          : '';
+            ? ['x', 'y', 'width', 'height'].map(key => Math.round(domRect[key])).join(':')
+            : '';
           // Get its path ID.
           const pathID = window.getXPath(element) ?? '/html';
           // If it is a heading that nullifies an existing current heading index:

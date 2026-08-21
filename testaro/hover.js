@@ -68,23 +68,23 @@ const getViolationDescription = (change, elapsedTime) =>
 exports.reporter = async (page, report, _, withItems) => {
   // Initialize the locators and result.
   const candidateLocs = await page.locator([
-   '[aria-controls]:visible',
-   '[aria-expanded]:visible',
-   '[aria-haspopup]:visible',
-   '[onmouseenter]:visible',
-   '[onmouseover]:visible',
-   '[onpointerenter]:visible',
-   '[onpointerover]:visible',
-   '[role="menu"]:visible',
-   '[role="menubar"]:visible',
-   '[role="menuitem"]:visible',
-   '[data-tooltip]:visible',
-   '[data-popover]:visible',
-   '[data-hover]:visible',
-   '[data-menu]:visible',
-   '[data-dropdown]:visible',
-   '[role=tab]:visible',
-   '[role=combobox]:visible'
+    '[aria-controls]:visible',
+    '[aria-expanded]:visible',
+    '[aria-haspopup]:visible',
+    '[onmouseenter]:visible',
+    '[onmouseover]:visible',
+    '[onpointerenter]:visible',
+    '[onpointerover]:visible',
+    '[role="menu"]:visible',
+    '[role="menubar"]:visible',
+    '[role="menuitem"]:visible',
+    '[data-tooltip]:visible',
+    '[data-popover]:visible',
+    '[data-hover]:visible',
+    '[data-menu]:visible',
+    '[data-dropdown]:visible',
+    '[role=tab]:visible',
+    '[role=combobox]:visible'
   ].join(', '));
   const allLocs = await candidateLocs.all();
   const violations = [];

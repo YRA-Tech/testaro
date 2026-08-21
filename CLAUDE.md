@@ -12,7 +12,7 @@ npm run deps
 npm run build
 
 # Lint (ESLint)
-npx eslint .
+npm run lint
 
 # Validate a single Testaro rule (replace <ruleID> with the rule name, e.g. allSlanted)
 npm test <ruleID>
@@ -87,7 +87,7 @@ Key variables:
 
 ## Code style
 
-ESLint (`eslintrc.json`): 2-space indent, single quotes, semicolons, Stroustrup brace style (`else`/`catch` on a new line after `}`), `no-use-before-define`. The `htmlcs/HTMLCS.js` file uses a separate, looser ESLint config and must not be reformatted.
+ESLint (`eslint.config.mjs`): 2-space indent, single quotes, semicolons, Stroustrup brace style (`else`/`catch` on a new line after `}`), `no-use-before-define`. The vendored `htmlcs/HTMLCS.js` and `ed11y` bundles are excluded from linting; `htmlcs/HTMLCS.js` must not be reformatted.
 
 Long comments are not broken into multiple lines per paragraph.
 
