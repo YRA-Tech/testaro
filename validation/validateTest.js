@@ -1,5 +1,6 @@
 /*
   © 2022–2025 CVS Health and/or one of its affiliates. All rights reserved.
+  © 2026 Jeff Witt.
   © 2025–2026 Jonathan Robert Pool.
 
   Licensed under the MIT License. See LICENSE file at the project root or
@@ -15,13 +16,11 @@
 
 // IMPORTS
 
-// Module to process files.
-const fs = require('fs').promises;
 // Module to run Testaro jobs.
 const {doJob} = require('../run');
 
 // CONSTANTS
-const job = {
+const jobTemplate = {
   id: '250101T0000-aaa-00',
   what: '',
   strict: true,
@@ -52,18 +51,21 @@ const job = {
 
 // FUNCTIONS
 
-// Validates a Testaro test.
+// Validates a Testaro test and returns a result summary.
 exports.validateTest = async testID => {
   // Get data for a job for the test.
   const jobProperties = require(`./tests/jobProperties/${testID}.json`);
-  // Use the data to complete the job.
+  // Use the data to complete a copy of the job template, so jobs cannot contaminate each other.
+  const job = structuredClone(jobTemplate);
   if (jobProperties.standard) {
     job.standard = jobProperties.standard;
   }
   job.what = `validate Testaro test ${jobProperties.rule}`;
   job.acts = jobProperties.acts;
-  // Perform it.
-  report = await doJob(job);
+  // Initialize the failure descriptions.
+  const failures = [];
+  // Perform the job.
+  const report = await doJob(job);
   // Report whether the end time was reported.
   const {acts, jobData} = report;
   if (jobData.endTime && /^(?:\d{2}-){2}\d{2}T\d{2}:\d{2}$/.test(jobData.endTime)) {
@@ -71,6 +73,7 @@ exports.validateTest = async testID => {
   }
   else {
     console.log('Failure: End time empty or invalid');
+    failures.push('End time empty or invalid');
   }
   // If the test acts were correctly reported:
   const testActs = acts.filter(act => act.type && act.type === 'test');
@@ -93,6 +96,7 @@ exports.validateTest = async testID => {
       console.log(
         '######## Failure: The test has at least one failure (see “"passed": false” below)\n'
       );
+      failures.push('At least one expectation was not satisfied');
       // Output the acts that had failures.
       console.log(
         JSON.stringify(
@@ -103,6 +107,13 @@ exports.validateTest = async testID => {
   }
   else {
     console.log('Failure: Act results empty or invalid');
+    failures.push('Act results empty or invalid');
     console.log(JSON.stringify(acts, null, 2));
   }
+  // Return the result summary.
+  return {
+    testID,
+    success: ! failures.length,
+    failures
+  };
 };
