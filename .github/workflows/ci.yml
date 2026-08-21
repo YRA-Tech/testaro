@@ -1,0 +1,58 @@
+# © 2026 Jeff Witt.
+#
+# Licensed under the MIT License. See LICENSE file at the project root or
+# https://opensource.org/license/mit/ for details.
+#
+# SPDX-License-Identifier: MIT
+
+# CI: lints the code and validates the Testaro rules on every push and pull request.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      # Postinstall scripts only download browsers and a JRE, which linting does not need.
+      - run: npm ci --ignore-scripts
+      - run: npm run lint
+
+  validate:
+    name: Validate Testaro rules
+    runs-on: ubuntu-latest
+    # The image tag must match the playwright version in package-lock.json (see CONTAINERS.md).
+    # The next step enforces that; when Playwright is updated, update the tag here, too.
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.1-noble
+    timeout-minutes: 45
+    env:
+      # The default Docker seccomp profile blocks the namespace cloning of the Chromium sandbox.
+      TESTARO_CHROMIUM_NO_SANDBOX: 'true'
+    steps:
+      - uses: actions/checkout@v5
+      - name: Require the container image to match the pinned Playwright version
+        run: |
+          lockVersion=$(node -p "require('./package-lock.json').packages['node_modules/playwright'].version")
+          imageVersion='1.62.1'
+          if [ "$lockVersion" != "$imageVersion" ]; then
+            echo "package-lock.json pins playwright $lockVersion, but this workflow uses the v$imageVersion image."
+            echo "Update the container image tag and imageVersion in .github/workflows/ci.yml (see CONTAINERS.md)."
+            exit 1
+          fi
+      - run: npm ci
+      - run: npm run tests
