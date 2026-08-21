@@ -1,5 +1,6 @@
 /*
   © 2023 CVS Health and/or one of its affiliates. All rights reserved.
+  © 2026 Jeff Witt.
   © 2026 Jonathan Robert Pool.
 
   Licensed under the MIT License. See LICENSE file at the project root or   https://opensource.org/license/mit/ for details.
@@ -19,7 +20,7 @@
 // FUNCTIONS
 
 exports.reporter = async (
-  page, _, _, detailLevel = 0, tagName = null, onlyVisible = false, attribute
+  page, _0, _1, detailLevel = 0, tagName = null, onlyVisible = false, attribute
 ) => {
   // Determine a selector of the specified elements, including any descendants of open shadow roots.
   let selector = `body ${tagName ? tagName.toLowerCase() : '*'}`;
