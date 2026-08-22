@@ -26,10 +26,16 @@ services:
       # Send nuVal requests to the sidecar instead of the W3C service.
       TESTARO_NU_URL: "http://nu:8888/?parser=html&out=json"
       # JODBIR and REPORTDIR from Dockerfile override those from .env.
-      # Import other specific environment variables from .env file.
-      AGENT: ${AGENT}
+      # Import other specific environment variables from .env file. The
+      # NETWATCH_* variables default to empty so that directory-watch use
+      # needs no .env entries for them; set them in .env for server polling.
       WAVE_KEY: ${WAVE_KEY}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      NETWATCH_URL_JOB: ${NETWATCH_URL_JOB:-}
+      NETWATCH_URL_REPORT: ${NETWATCH_URL_REPORT:-}
+      NETWATCH_AUTH_TYPE: ${NETWATCH_AUTH_TYPE:-}
+      NETWATCH_WORKER_ID: ${NETWATCH_WORKER_ID:-}
+      NETWATCH_WORKER_SECRET: ${NETWATCH_WORKER_SECRET:-}
     volumes:
       # Host directories for jobs and reports. The container runs as the
       # unprivileged pwuser; the host directories must be writable by it

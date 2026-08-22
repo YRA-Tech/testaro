@@ -15,7 +15,7 @@
 - **Key files**: `run.js` (main executor), `actSpecs.js` (act specifications), `call.js` (CLI entry), `tests/testaro.js` (Testaro tool rules)
 - **Tools**: Integrates these accessibility tools: Axe, Alfa, IBM Checker, QualWeb, ASLint, WAVE, Ed11y, HTML CodeSniffer, Nu Html Checker API, Nu Html Checker, Testaro
 - **Data flow**: Jobs (JSON) → run.js → tool tests → reports (with standardized results)
-- **Env vars**: Required for WAVE (`WAVE_KEY`); optional `DEBUG`, `WAITS`, `JOBDIR`, `REPORTDIR`
+- **Env vars**: Required for WAVE (`WAVE_KEY`); optional `DEBUG`, `WAITS`, `JOBDIR`, `REPORTDIR`; for server polling `NETWATCH_URL_JOB`, `NETWATCH_URL_REPORT`, `NETWATCH_AUTH_TYPE`, `NETWATCH_WORKER_ID`, `NETWATCH_WORKER_SECRET`
 
 ## Code Style
 

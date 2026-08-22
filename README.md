@@ -295,25 +295,27 @@ To allow Testaro to poll a server for jobs, define the environment variables doc
 `NETWATCH_AUTH_TYPE` selects how Testaro authenticates to the server:
 
 - `none`: no credentials are sent. `NETWATCH_WORKER_ID` and `NETWATCH_WORKER_SECRET` are not required.
-- `pathBody`: the ID of the Testaro instance may be part of the URL path, as required by the server, and the password (`NETWATCH_WORKER_SECRET`) is transmitted in the request body as the value of an `agentPW` property.
-- `header`: the request carries an `authorization` header whose value is `Basic`, followed by a space and the base64 encoding of `NETWATCH_WORKER_ID:NETWATCH_WORKER_SECRET`.
+- `pathBody`: the password (`NETWATCH_WORKER_SECRET`) is transmitted in the request body as the value of an `agentPW` property. If the server requires the ID of the Testaro instance in the URL path, include it in `NETWATCH_URL_JOB` and `NETWATCH_URL_REPORT` yourself; Testaro does not insert it.
+- `header`: the request carries an `authorization` header whose value is `Basic`, followed by a space and the base64 encoding of `NETWATCH_WORKER_ID:NETWATCH_WORKER_SECRET`. The worker ID must not contain a colon.
 
-Testaro sends job requests and completed reports as `POST` requests. When Testaro sends a report to the server, the report is the value of a `report` property in the request body.
+Testaro sends job requests and completed reports as `POST` requests. When Testaro sends a report to the server, the report is the value of a `report` property in the request body. If `NETWATCH_WORKER_ID` is defined, Testaro also records it as the `sources.agent` property of the report, so the server can attribute the report to this instance under any auth type.
+
+The `AGENT` and `NETWATCH_URL_AUTH` variables of earlier versions are deprecated. Testaro still honors them (as `NETWATCH_WORKER_ID` and as a `pathBody` password, respectively) but warns; rename them.
 
 An application can make Testaro poll a server for jobs with:
 
 ```javaScript
 const {netWatch} = require('testaro/netWatch');
-netWatch(true, 300, true);
+netWatch(true, 300);
 ```
 
 A user can make Testaro poll a server for jobs with:
 
 ```bash
-node call netWatch true 300 true
+node call netWatch true 300
 ```
 
-The first argument of `netWatch` tells Testaro whether to continue polling after performing the first job. The second argument tells Testaro how many seconds to wait after receiving a no-jobs response before polling again. The third argument tells Testaro whether to be certificate-tolerant, i.e. to accept SSL certificates that fail verification against a list of certificate authorities (the default is `true`).
+The first argument of `netWatch` tells Testaro whether to continue polling after performing the first job. The second argument tells Testaro how many seconds to wait after receiving a no-jobs response before polling again. The optional third argument tells Testaro whether to be certificate-tolerant, i.e. to accept SSL certificates that fail verification against a list of certificate authorities (the default is `false`). Certificate tolerance disables the protection of an `https` connection, exposing credentials and reports to interception, so use it only against servers you control, such as local test servers with self-signed certificates.
 
 ## Reports
 

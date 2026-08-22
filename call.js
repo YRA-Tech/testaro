@@ -74,7 +74,7 @@ const callDirWatch = async (isForever, intervalInSeconds) => {
 };
 // Starts a network watch, converting the interval argument to a number.
 const callNetWatch = async (isForever, intervalInSeconds, isCertTolerant) => {
-  await netWatch(
+  return await netWatch(
     isForever === 'true',
     Number.parseInt(intervalInSeconds, 10),
     isCertTolerant ? isCertTolerant === 'true' : undefined
@@ -100,9 +100,10 @@ else if (fn === 'dirWatch' && fnArgs.length === 2) {
 }
 else if (fn === 'netWatch' && [2, 3].includes(fnArgs.length)) {
   callNetWatch(... fnArgs)
-  .then(() => {
+  .then(isOK => {
     console.log('Network watch ended');
-    process.exit(0);
+    // Exit with a failure code if the watch was misconfigured or aborted, so supervisors notice.
+    process.exit(isOK ? 0 : 1);
   });
 }
 else {

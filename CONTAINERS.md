@@ -72,8 +72,10 @@ docker run --rm --init \
   -e NETWATCH_AUTH_TYPE=header \
   -e NETWATCH_WORKER_ID=worker1 \
   -e NETWATCH_WORKER_SECRET=seekRut \
-  testaro node call netWatch true 300 true
+  testaro node call netWatch true 300
 ```
+
+The same variables can be supplied through the Compose stack instead: define them in `.env` and run `docker compose run testaro node call netWatch true 300`. A third `netWatch` argument of `true` would disable certificate verification; leave it off except against servers you control.
 
 ## Operational notes
 
