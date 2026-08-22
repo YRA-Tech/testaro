@@ -81,6 +81,23 @@ const wait = exports.wait = ms => {
 // Removes any trailing slashes from a URL, for redirection comparison.
 const deSlash = url => (url || '').replace(/\/+$/, '');
 // Close a browser context and/or its browser, if they exist.
+// Grace period for browser-close operations. Chromium can acknowledge a page
+// close without performing it when the close races a navigation commit
+// (https://issues.chromium.org/issues/536385539, observed on pages that
+// navigate via meta refresh during testing); the close promise then never
+// settles — it neither resolves nor rejects — so an unguarded await would
+// hang the act forever. Errors are discarded, as before.
+const CLOSE_GRACE_MS = 10000;
+const settleWithin = promise => Promise.race([
+  promise.catch(error => {}),
+  new Promise(resolve => {
+    const timer = setTimeout(resolve, CLOSE_GRACE_MS);
+    // Do not keep the process alive for an abandoned close.
+    if (typeof timer.unref === 'function') {
+      timer.unref();
+    }
+  })
+]);
 const browserClose = exports.browserClose = async page => {
   if (page) {
     // Get the context (i.e. window) of the page and the browser of the context. These are methods, not properties; referencing them as properties made this function silently fail to close anything, because a function object has no close method and the resulting TypeError was caught and discarded.
@@ -88,15 +105,9 @@ const browserClose = exports.browserClose = async page => {
     if (browserContext) {
       // The browser is null for a context not owned by a browser, such as a persistent context.
       const browser = browserContext.browser();
-      try {
-        await browserContext.close();
-      }
-      catch(error) {}
+      await settleWithin(browserContext.close());
       if (browser) {
-        try {
-          await browser.close();
-        }
-        catch(error) {}
+        await settleWithin(browser.close());
       }
     }
   }

@@ -53,6 +53,7 @@ const xPathNeeds = {
   ibm: 'attribute',
   nuVal: 'attribute',
   nuVnu: 'attribute',
+  pour: 'script',
   qualWeb: 'attribute',
   wave: 'script'
 };
