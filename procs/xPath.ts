@@ -1,0 +1,97 @@
+/*
+  © 2024 CVS Health and/or one of its affiliates. All rights reserved.
+  © 2026 Jeff Witt.
+  © 2026 Jonathan Robert Pool.
+
+  Licensed under the MIT License. See LICENSE file at the project root or
+  https://opensource.org/license/mit/ for details.
+
+  SPDX-License-Identifier: MIT
+*/
+
+// IMPORTS
+
+import type {Catalog, Report} from '../types';
+
+/*
+  xPath
+  Processes element XPaths. Compiled to xPath.js by tsc (issue #73); edit this
+  file, not the emitted one.
+*/
+
+// FUNCTIONS
+
+// Normalizes an XPath.
+export const getNormalizedXPath = (xPath: string | null | undefined): string => {
+  if (xPath) {
+    if (xPath === '/') {
+      xPath = '/html';
+    }
+    xPath = xPath.replace(/^\.\/\//, '/');
+    const segments = xPath.split('/');
+    // Initialize an array of normalized segments.
+    const normalizedSegments: string[] = [];
+    // For each segment of the XPath:
+    segments.forEach(segment => {
+      // If the segment is html[1] or body[1]:
+      if (/html\[1\]|body\[1\]/.test(segment)) {
+        // Add it without its subscript to the array.
+        normalizedSegments.push(segment.replace(/\[1\]/, ''));
+      }
+      // Otherwise, if the segment is empty or html or body or ends with a subscript:
+      else if (segment === '' || ['html', 'body'].includes(segment) || segment.endsWith(']')) {
+        // Add it to the array.
+        normalizedSegments.push(segment);
+      }
+      // Otherwise, i.e. if the segment is a tag name with no subscript:
+      else {
+        // Add it with a subscript 1 to the array.
+        normalizedSegments.push(`${segment}[1]`);
+      }
+    });
+    // If the final segment contains any nonstandard character:
+    if (/[[^\]A-Za-z0-9]/.test(segments[segments.length - 1])) {
+      // Remove it.
+      normalizedSegments.pop();
+    }
+    // Return the concatenated segments as the normalized XPath.
+    return normalizedSegments.join('/');
+  }
+  else {
+    return '/html';
+  }
+};
+// Gets an XPath from a data-xpath attribute in an HTML excerpt.
+export const getAttributeXPath = (html: string | null | undefined): string => {
+  // If there is no excerpt (e.g. a Nu Html Checker message without an extract):
+  if (! html) {
+    // Return the fallback XPath, as for an excerpt without a data-xpath attribute.
+    return '/html';
+  }
+  const match = html.match(/ data-xpath="([^" ]+)"/);
+  return match ? match[1] : '/html';
+};
+// Gets a tag name from an XPath.
+const getXPathTagName = (xPath: string): string => {
+  return (xPath.split('/').pop() as string).replace(/\[.+/, '').toUpperCase();
+};
+// Gets a catalog index as a string from an XPath.
+export const getXPathCatalogIndex = (report: Report, xPath: string): string => {
+  // The catalog always exists by the time tests cite elements (getCatalog ran first).
+  const {catalog} = report as Report & {catalog: Catalog};
+  report.pathIDs ??= {};
+  // Get the index of the catalog item with the XPath.
+  const index = report.pathIDs[xPath];
+  // If no such item exists (an index of '0' is a match, so test for absence, not falsity):
+  if (index === undefined) {
+    // Add an item to the catalog, keyed by the count of items already in it.
+    const newIndex = `${Object.keys(catalog).length}`;
+    catalog[newIndex] = {
+      pathID: xPath,
+      tagName: getXPathTagName(xPath)
+    };
+    report.pathIDs[xPath] = newIndex;
+    return newIndex;
+  }
+  return index;
+};

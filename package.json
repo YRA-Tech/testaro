@@ -12,7 +12,9 @@
     "run": "node validation/executors/run",
     "dirWatch": "node validation/executors/dirWatch",
     "netWatch": "node validation/executors/netWatch",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build:ts": "tsc",
+    "prepublishOnly": "npm run build:ts"
   },
   "repository": {
     "type": "git",
