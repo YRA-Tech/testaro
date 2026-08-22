@@ -19,7 +19,7 @@
 // FUNCTIONS
 
 exports.reporter = async (
-  page, _, _, detailLevel = 0, tagName = null, onlyVisible = false, attribute
+  page, _0, _1, detailLevel = 0, tagName = null, onlyVisible = false, attribute
 ) => {
   // Determine a selector of the specified elements, including any descendants of open shadow roots.
   let selector = `body ${tagName ? tagName.toLowerCase() : '*'}`;
