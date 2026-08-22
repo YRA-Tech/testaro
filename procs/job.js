@@ -235,7 +235,7 @@ exports.isValidJob = job => {
       };
     }
     if (
-      ! (executionTimeStamp && typeof executionTimeStamp === 'string') && dateOf(executionTimeStamp)
+      ! (executionTimeStamp && typeof executionTimeStamp === 'string' && dateOf(executionTimeStamp))
     ) {
       return {
         isValid: false,
