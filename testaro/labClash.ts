@@ -1,0 +1,54 @@
+/*
+  © 2021–2023 CVS Health and/or one of its affiliates. All rights reserved.
+  © 2026 Jeff Witt.
+  © 2025–2026 Jonathan Robert Pool.
+
+  Licensed under the MIT License. See LICENSE file at the project root or
+  https://opensource.org/license/mit/ for details.
+
+  SPDX-License-Identifier: MIT
+*/
+
+// IMPORTS
+
+import type {Page} from 'playwright';
+import {doTest} from '../procs/testaro';
+import type {BadWhat, Report} from '../types';
+
+/*
+  labClash
+  This test reports redundant labeling of buttons, non-hidden inputs, select lists, and text areas. Redundant labels are labels that are superseded by other labels. Explicit and implicit (wrapped) labels are additive, not conflicting.
+  Compiled to labClash.js by tsc (issue #73); edit this file, not the emitted one.
+*/
+
+// FUNCTIONS
+
+// Runs the test and returns the result.
+export const reporter = async (page: Page, report: Report, _: unknown, withItems: boolean) => {
+  // The candidate selector guarantees labelable form controls.
+  const getBadWhat = (element: HTMLInputElement): BadWhat => {
+    // Get the label types of the element.
+    const labelTypes = [];
+    // Attribute and reference labels.
+    ['aria-label', 'aria-labelledby'].forEach(type => {
+      if (element.hasAttribute(type)) {
+        labelTypes.push(type);
+      }
+    });
+    // Explicit and implicit labels.
+    const labels = Array.from(element.labels!);
+    if (labels.length) {
+      labelTypes.push('label');
+    }
+    // If it has more than 1 label type:
+    if (labelTypes.length > 1) {
+      // Return a violation description.
+      return `Element has inconsistent label types (${labelTypes.join(', ')})`;
+    }
+  };
+  const selector = 'body button, body input:not([type=hidden]), body select, body textarea';
+  const whats = 'Elements have inconsistent label types';
+  return await doTest(
+    page, report, withItems, 'labClash', selector, whats, 2, getBadWhat.toString()
+  );
+};
