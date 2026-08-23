@@ -37,6 +37,14 @@ export const reporter = async (page: Page, report: Report) => {
   if (report.images?.length) {
     let violationWhat = '';
     let ordinalSeverity = 0;
+    // Expand all closed details elements, for comparability.
+    await page.evaluate(() => {
+      document.querySelectorAll('details:not([open])').forEach(details => {
+        details.setAttribute('open', '');
+      });
+    }).catch(error => {
+      console.log(`ERROR: Expanding details elements failed (${error.message})`);
+    });
     // Make an image with the same color type as the initial one and get its base64 encoding.
     const png = await shoot(page, report, {
       exclusionSelector: null,
@@ -69,16 +77,12 @@ export const reporter = async (page: Page, report: Report) => {
               threshold: 0.1
             }
           );
-          // Get the ratio of differing to all pixels as a percentage.
-          const changePercent = Math.round(
-            100 * pixelChanges / (initialPNG.width * initialPNG.height)
-          );
           // If any pixels were changed:
           if (pixelChanges) {
             // Describe the violation.
-            violationWhat = `Content changes spontaneously (${changePercent}% of pixels changed)`;
+            violationWhat = `Content changes spontaneously (${pixelChanges} pixels changed)`;
             // Get the ordinal severity from the fractional pixel change.
-            ordinalSeverity = Math.floor(Math.min(3, 0.4 * Math.sqrt(changePercent)));
+            ordinalSeverity = Math.min(3, Math.floor(Math.log10(pixelChanges) - 2));
           }
         } catch (err) {
           console.log(`pixelmatch error: ${(err as Error).message}, ${(err as Error).stack}`);

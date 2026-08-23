@@ -359,17 +359,6 @@ const allRules: RuleMeta[] = [
     defaultOn: true
   },
   {
-    id: 'motion',
-    what: 'motion without user request',
-    contaminates: false,
-    needsAccessibleName: false,
-    // The budget must cover a full-page screenshot (itself allowed 4 seconds in
-    // procs/shoot.js), decoding two full-page PNGs, and a pixel comparison; 5
-    // seconds made the rule time out whenever an initial image existed.
-    timeOut: 30,
-    defaultOn: true
-  },
-  {
     id: 'dupAtt',
     what: 'duplicate attribute values',
     contaminates: false,
@@ -391,6 +380,17 @@ const allRules: RuleMeta[] = [
     contaminates: false,
     needsAccessibleName: true,
     timeOut: 5,
+    defaultOn: true
+  },
+  {
+    id: 'motion',
+    what: 'motion without user request',
+    contaminates: true,
+    needsAccessibleName: false,
+    // The budget must cover a full-page screenshot (itself allowed 4 seconds in
+    // procs/shoot.js), decoding two full-page PNGs, and a pixel comparison; 5
+    // seconds made the rule time out whenever an initial image existed.
+    timeOut: 30,
     defaultOn: true
   },
   {
