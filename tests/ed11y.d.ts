@@ -16,7 +16,10 @@ interface Ed11yNativeResult {
     error?: string;
 }
 export declare const reporter: (page: Page, report: Report, actIndex: number) => Promise<{
-    data: {};
+    data: {
+        prevented?: boolean;
+        error?: string;
+    };
     result: {
         nativeResult: Ed11yNativeResult;
         standardResult: StandardResult;
