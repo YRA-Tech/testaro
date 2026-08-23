@@ -83,3 +83,7 @@ testaro/focAll.js linguist-generated=true
 testaro/focAll.d.ts linguist-generated=true
 testaro/styleDiff.js linguist-generated=true
 testaro/styleDiff.d.ts linguist-generated=true
+testaro/buttonMenu.js linguist-generated=true
+testaro/buttonMenu.d.ts linguist-generated=true
+testaro/tabNav.js linguist-generated=true
+testaro/tabNav.d.ts linguist-generated=true
