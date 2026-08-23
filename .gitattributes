@@ -79,3 +79,7 @@ testaro/elements.js linguist-generated=true
 testaro/elements.d.ts linguist-generated=true
 testaro/allCaps.js linguist-generated=true
 testaro/allCaps.d.ts linguist-generated=true
+testaro/focAll.js linguist-generated=true
+testaro/focAll.d.ts linguist-generated=true
+testaro/styleDiff.js linguist-generated=true
+testaro/styleDiff.d.ts linguist-generated=true
