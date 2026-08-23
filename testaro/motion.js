@@ -38,7 +38,7 @@ exports.reporter = async (page, report) => {
         details.setAttribute('open', '');
       });
     }).catch(error => {
-        console.log(`ERROR: Expanding details elements failed (${error.message})`);
+      console.log(`ERROR: Expanding details elements failed (${error.message})`);
     });
     // Make an image with the same color type as the initial one and get its base64 encoding.
     const png = await shoot(page, report, {
@@ -72,12 +72,16 @@ exports.reporter = async (page, report) => {
               threshold: 0.1
             }
           );
+          // Get the ratio of differing to all pixels as a percentage.
+          const changePercent = Math.round(
+            100 * pixelChanges / (initialPNG.width * initialPNG.height)
+          );
           // If any pixels were changed:
           if (pixelChanges) {
             // Describe the violation.
-            violationWhat = `Content changes spontaneously (${pixelChanges}% pixels changed)`;
-            // Get the ordinal severity from the count of changed pixels.
-            ordinalSeverity = Math.floor(Math.min(3, 0.4 * Math.sqrt(pixelChanges / 100)));
+            violationWhat = `Content changes spontaneously (${changePercent}% of pixels changed)`;
+            // Get the ordinal severity from the fractional pixel change.
+            ordinalSeverity = Math.floor(Math.min(3, 0.4 * Math.sqrt(changePercent)));
           }
         } catch (err) {
           console.log(`pixelmatch error: ${err.message}, ${err.stack}`);
