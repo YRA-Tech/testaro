@@ -16,7 +16,7 @@
 // IMPORTS
 
 const {addError} = require('./error');
-const {getNonce, goTo, launch, wait} = require('./launch');
+const {browserClose, getNonce, goTo, launch, wait} = require('./launch');
 const {tools} = require('./job');
 const {fork} = require('child_process');
 const {pruneCatalog} = require('./catalog');
@@ -1140,6 +1140,19 @@ exports.doActs = async (report, opts = {}) => {
     }
   }
   console.log('Acts completed');
+  /*
+    Close the browser that a launch act created in this process. Only the child process that
+    performs a test act was closing its own browser, so every job left a browser process running:
+    it kept the event loop alive, so that a validator or any other caller of doJob never exited,
+    and it accumulated one browser per job in a watch that runs forever.
+  */
+  try {
+    await browserClose(page);
+  }
+  catch(error) {
+    console.log(`ERROR: Could not close the browser (${error.message})`);
+  }
+  page = null;
   // If the results were standardized:
   if (['also', 'only'].includes(standard)) {
     // If the native results are not to be included in the report:
