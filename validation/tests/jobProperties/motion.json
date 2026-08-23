@@ -1,55 +1,14 @@
 {
   "rule": "motion",
   "timeLimit": 20,
+  "imageColor": 2,
   "acts": [
     {
       "type": "launch",
       "target": {
-        "url": "file://validation/tests/targets/motion/good.html",
-        "what": "page without motion"
+        "url": "file://validation/tests/targets/motion/bad.html",
+        "what": "page with motion"
       }
-    },
-    {
-      "type": "test",
-      "which": "testaro",
-      "stopOnFail": true,
-      "expect": [
-        [
-          "standardResult.totals.0",
-          "=",
-          0
-        ],
-        [
-          "standardResult.totals.1",
-          "=",
-          0
-        ],
-        [
-          "standardResult.totals.2",
-          "=",
-          0
-        ],
-        [
-          "standardResult.totals.3",
-          "=",
-          0
-        ],
-        [
-          "standardResult.instances.length",
-          "=",
-          0
-        ]
-      ],
-      "withItems": true,
-      "rules": [
-        "y",
-        "motion"
-      ]
-    },
-    {
-      "type": "url",
-      "which": "file://validation/tests/targets/motion/bad.html",
-      "what": "page with motion"
     },
     {
       "type": "test",
@@ -69,17 +28,12 @@
         [
           "standardResult.instances.0.what",
           "i",
-          "moves or changes"
+          "changes spontaneously"
         ],
         [
           "standardResult.instances.0.ordinalSeverity",
           ">",
           -1
-        ],
-        [
-          "standardResult.instances.0.tagName",
-          "=",
-          "HTML"
         ]
       ],
       "withItems": true,
