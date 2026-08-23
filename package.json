@@ -14,7 +14,8 @@
     "netWatch": "node validation/executors/netWatch",
     "typecheck": "tsc --noEmit",
     "build:ts": "tsc",
-    "prepublishOnly": "npm run build:ts"
+    "prepublishOnly": "npm run build:registry && npm run build:ts",
+    "build:registry": "node procs/generateRuleRegistry.js"
   },
   "repository": {
     "type": "git",
