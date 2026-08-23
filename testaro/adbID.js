@@ -1,3 +1,4 @@
+"use strict";
 /*
   © 2025 CVS Health and/or one of its affiliates. All rights reserved.
   © 2025 Juan S. Casado.
@@ -9,55 +10,51 @@
 
   SPDX-License-Identifier: MIT
 */
-
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.reporter = void 0;
+const testaro_1 = require("../procs/testaro");
 /*
   adbID
   Clean-room rule
   This test reports elements referencing aria-describedby targets that are missing or, because of duplicate IDs, ambiguous. An earlier version of this test was originally developed under a clean-room procedure to ensure its independence from the implementation of a test for a similar rule in the Tenon tool.
+  Compiled to adbID.js by tsc (issue #73); edit this file, not the emitted one.
 */
-
-// IMPORTS
-
-const {doTest} = require('../procs/testaro');
-
 // FUNCTIONS
-
 // Runs the test and returns the result.
-exports.reporter = async (page, report, _, withItems) => {
-  const getBadWhat = element => {
-    // Get the IDs in the aria-describedby attribute of the element.
-    const IDs = element.getAttribute('aria-describedby').trim().split(/\s+/).filter(Boolean);
-    // If there are none:
-    if (! IDs.length) {
-      // Return a violation description.
-      return 'Element has an aria-describedby attribute with no value';
-    }
-    // Otherwise, i.e. if there is at least 1 ID:
-    else {
-      // For each ID:
-      for (const id of IDs) {
-        // Get the element with that ID.
-        const describer = document.getElementById(id);
-        // If it doesn't exist:
-        if (! describer) {
-          // Return a violation description.
-          return `No element has the aria-describedby ID ${id}`;
-        }
-        // Otherwise, i.e. if it exists:
-        else {
-          // Get the elements with that ID.
-          const sameIDElements = document.querySelectorAll(`#${id}`);
-          // If there is more than one:
-          if (sameIDElements.length > 1) {
+const reporter = async (page, report, _, withItems) => {
+    const getBadWhat = element => {
+        // Get the IDs in the aria-describedby attribute of the element.
+        const IDs = element.getAttribute('aria-describedby').trim().split(/\s+/).filter(Boolean);
+        // If there are none:
+        if (!IDs.length) {
             // Return a violation description.
-            return `Multiple elements share the aria-describedby ID ${id}`;
-          }
+            return 'Element has an aria-describedby attribute with no value';
         }
-      }
-    }
-  };
-  const whats = 'Elements have aria-describedby attributes with missing or invalid id values';
-  return await doTest(
-    page, report, withItems, 'adbID', 'body [aria-describedby]', whats, 3, getBadWhat.toString()
-  );
+        // Otherwise, i.e. if there is at least 1 ID:
+        else {
+            // For each ID:
+            for (const id of IDs) {
+                // Get the element with that ID.
+                const describer = document.getElementById(id);
+                // If it doesn't exist:
+                if (!describer) {
+                    // Return a violation description.
+                    return `No element has the aria-describedby ID ${id}`;
+                }
+                // Otherwise, i.e. if it exists:
+                else {
+                    // Get the elements with that ID.
+                    const sameIDElements = document.querySelectorAll(`#${id}`);
+                    // If there is more than one:
+                    if (sameIDElements.length > 1) {
+                        // Return a violation description.
+                        return `Multiple elements share the aria-describedby ID ${id}`;
+                    }
+                }
+            }
+        }
+    };
+    const whats = 'Elements have aria-describedby attributes with missing or invalid id values';
+    return await (0, testaro_1.doTest)(page, report, withItems, 'adbID', 'body [aria-describedby]', whats, 3, getBadWhat.toString());
 };
+exports.reporter = reporter;
