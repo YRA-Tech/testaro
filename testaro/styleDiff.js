@@ -62,12 +62,13 @@ const linksByType = async (page) => await page.evaluateHandle(() => {
     lists.forEach(list => {
         // If it is a list of links:
         if (isLinkList(list)) {
-            // Choose one of the links randomly, assuming they have uniform styles.
+            // Choose the first link as the representative, assuming the links have uniform styles.
+            // A deterministic choice makes results reproducible on pages that violate the
+            // assumption, where a random choice made totals vary run to run (issue #113).
             const links = Array.from(list.querySelectorAll('a'));
-            const randomIndex = Math.floor(Math.random() * links.length);
-            const randomLink = links[randomIndex];
+            const firstLink = links[0];
             // Add it to the array.
-            listLinks.push(randomLink);
+            listLinks.push(firstLink);
         }
     });
     // Identify the inline links in the page.
