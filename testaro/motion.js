@@ -83,7 +83,8 @@ exports.reporter = async (page, report) => {
             // Get the ordinal severity from the fractional pixel change.
             ordinalSeverity = Math.floor(Math.min(3, 0.4 * Math.sqrt(changePercent)));
           }
-        } catch (err) {
+        }
+        catch (err) {
           console.log(`pixelmatch error: ${err.message}, ${err.stack}`);
           data.prevented = true;
           data.error = `Pixel comparison failed: ${err.message}`;
