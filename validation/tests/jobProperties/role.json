@@ -72,7 +72,7 @@
           0
         ],
         [
-          "standardResult.instances.1.tagName",
+          "standardResult.instances.1.catalogEntry.tagName",
           "=",
           "H2"
         ],
@@ -92,7 +92,7 @@
           0
         ],
         [
-          "standardResult.instances.2.tagName",
+          "standardResult.instances.2.catalogEntry.tagName",
           "=",
           "H3"
         ],
@@ -107,19 +107,14 @@
           0
         ],
         [
-          "standardResult.instances.4.tagName",
+          "standardResult.instances.4.catalogEntry.tagName",
           "=",
           "H3"
         ],
         [
-          "standardResult.instances.7.tagName",
+          "standardResult.instances.7.catalogEntry.tagName",
           "i",
           "INPUT"
-        ],
-        [
-          "standardResult.instances.4.ordinalSeverity",
-          "=",
-          0
         ]
       ],
       "withItems": true,

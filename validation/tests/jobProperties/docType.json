@@ -67,14 +67,9 @@
           3
         ],
         [
-          "standardResult.instances.0.tagName",
+          "standardResult.instances.0.catalogEntry.tagName",
           "=",
           "HTML"
-        ],
-        [
-          "standardResult.instances.0.location.spec",
-          "=",
-          "html"
         ]
       ],
       "withItems": true,

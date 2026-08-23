@@ -86,17 +86,17 @@
           "standardResult.instances.0.count"
         ],
         [
-          "standardResult.instances.0.tagName",
+          "standardResult.instances.0.catalogEntry.tagName",
           "=",
           "BUTTON"
         ],
         [
-          "standardResult.instances.0.id",
+          "standardResult.instances.0.catalogEntry.id",
           "=",
           "ul"
         ],
         [
-          "standardResult.instances.0.excerpt",
+          "standardResult.instances.0.catalogEntry.text",
           "i",
           "ul"
         ],
@@ -111,7 +111,7 @@
           1
         ],
         [
-          "standardResult.instances.1.id",
+          "standardResult.instances.1.catalogEntry.id",
           "=",
           "section"
         ]

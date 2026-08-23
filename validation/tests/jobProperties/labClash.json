@@ -73,32 +73,17 @@
           "aria-labelledby"
         ],
         [
-          "standardResult.instances.0.tagName",
+          "standardResult.instances.0.catalogEntry.tagName",
           "=",
           "BUTTON"
         ],
         [
-          "standardResult.instances.0.id",
+          "standardResult.instances.0.catalogEntry.id",
           "=",
           "labButton"
         ],
         [
-          "standardResult.instances.0.location.doc",
-          "=",
-          "dom"
-        ],
-        [
-          "standardResult.instances.0.location.type",
-          "=",
-          "selector"
-        ],
-        [
-          "standardResult.instances.0.location.spec",
-          "=",
-          "#labButton"
-        ],
-        [
-          "standardResult.instances.0.excerpt",
+          "standardResult.instances.0.catalogEntry.text",
           "i",
           "button"
         ]

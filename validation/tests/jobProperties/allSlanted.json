@@ -36,7 +36,7 @@
           "Element contains"
         ],
         [
-          "standardResult.instances.0.tagName",
+          "standardResult.instances.0.catalogEntry.tagName",
           "=",
           "P"
         ],
@@ -46,42 +46,22 @@
           0
         ],
         [
-          "standardResult.instances.0.location.type",
-          "=",
-          "box"
-        ],
-        [
-          "standardResult.instances.0.location.spec.y",
+          "standardResult.instances.0.catalogEntry.box.y",
           ">",
           0
         ],
         [
-          "standardResult.instances.2.tagName",
+          "standardResult.instances.2.catalogEntry.tagName",
           "=",
           "EM"
         ],
         [
-          "standardResult.instances.2.id",
+          "standardResult.instances.2.catalogEntry.id",
           "=",
           "indirect"
         ],
         [
-          "standardResult.instances.2.location.doc",
-          "=",
-          "dom"
-        ],
-        [
-          "standardResult.instances.2.location.type",
-          "=",
-          "selector"
-        ],
-        [
-          "standardResult.instances.2.location.spec",
-          "=",
-          "#indirect"
-        ],
-        [
-          "standardResult.instances.2.excerpt",
+          "standardResult.instances.2.catalogEntry.text",
           "i",
           "user agent"
         ]

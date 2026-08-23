@@ -41,32 +41,17 @@
           0
         ],
         [
-          "standardResult.instances.0.tagName",
+          "standardResult.instances.0.catalogEntry.tagName",
           "=",
           "BUTTON"
         ],
         [
-          "standardResult.instances.0.id",
+          "standardResult.instances.0.catalogEntry.id",
           "=",
           "defaultbutton"
         ],
         [
-          "standardResult.instances.0.location.doc",
-          "=",
-          "dom"
-        ],
-        [
-          "standardResult.instances.0.location.type",
-          "=",
-          "selector"
-        ],
-        [
-          "standardResult.instances.0.location.spec",
-          "=",
-          "#defaultbutton"
-        ],
-        [
-          "standardResult.instances.0.excerpt",
+          "standardResult.instances.0.catalogEntry.text",
           "i",
           "Default (small)"
         ],
@@ -76,28 +61,28 @@
           "is less than"
         ],
         [
-          "standardResult.instances.2.tagName",
+          "standardResult.instances.2.catalogEntry.tagName",
           "=",
           "INPUT"
         ],
         [
-          "standardResult.instances.2.excerpt",
+          "standardResult.instances.2.catalogEntry.text",
           "i",
           "Small box:"
         ],
         [
-          "standardResult.instances.2.location.spec.y",
+          "standardResult.instances.2.catalogEntry.box.y",
           ">",
           0
         ],
         [
-          "standardResult.instances.4.tagName",
+          "standardResult.instances.4.catalogEntry.tagName",
           "=",
           "A"
         ],
         [
-          "standardResult.instances.4.excerpt",
-          "=",
+          "standardResult.instances.4.catalogEntry.text",
+          "i",
           "Wikimedia Foundation (small)"
         ]
       ],

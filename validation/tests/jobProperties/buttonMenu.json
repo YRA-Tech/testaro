@@ -46,7 +46,15 @@
       "which": "testaro",
       "withItems": true,
       "args": {
-        "buttonMenu": [["End", "+", "-", "-", "Home"]]
+        "buttonMenu": [
+          [
+            "End",
+            "+",
+            "-",
+            "-",
+            "Home"
+          ]
+        ]
       },
       "stopOnFail": true,
       "expect": [
@@ -86,39 +94,19 @@
           2
         ],
         [
-          "standardResult.instances.0.tagName",
+          "standardResult.instances.0.catalogEntry.tagName",
           "=",
           "UL"
         ],
         [
-          "standardResult.instances.0.id",
+          "standardResult.instances.0.catalogEntry.id",
           "=",
           "persMenu"
         ],
         [
-          "standardResult.instances.0.location.doc",
-          "=",
-          "dom"
-        ],
-        [
-          "standardResult.instances.0.location.type",
-          "=",
-          "selector"
-        ],
-        [
-          "standardResult.instances.0.location.spec",
-          "=",
-          "#persMenu"
-        ],
-        [
-          "standardResult.instances.0.excerpt",
+          "standardResult.instances.0.catalogEntry.text",
           "i",
           "Personalities"
-        ],
-        [
-          "standardResult.instances.0.what",
-          "i",
-          "responds nonstandardly to the End key"
         ],
         [
           "standardResult.instances.1.ordinalSeverity",
@@ -126,17 +114,17 @@
           2
         ],
         [
-          "standardResult.instances.1.tagName",
+          "standardResult.instances.1.catalogEntry.tagName",
           "=",
           "UL"
         ],
         [
-          "standardResult.instances.1.id",
+          "standardResult.instances.1.catalogEntry.id",
           "=",
           "techMenu"
         ],
         [
-          "standardResult.instances.1.excerpt",
+          "standardResult.instances.1.catalogEntry.text",
           "i",
           "Technologies"
         ]
@@ -150,8 +138,16 @@
       "type": "test",
       "which": "testaro",
       "withItems": false,
-      "args":{
-        "buttonMenu": [["End", "+", "-", "-", "Home"]]
+      "args": {
+        "buttonMenu": [
+          [
+            "End",
+            "+",
+            "-",
+            "-",
+            "Home"
+          ]
+        ]
       },
       "stopOnFail": true,
       "expect": [

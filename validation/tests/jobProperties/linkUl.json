@@ -105,32 +105,17 @@
           1
         ],
         [
-          "standardResult.instances.0.tagName",
+          "standardResult.instances.0.catalogEntry.tagName",
           "=",
           "A"
         ],
         [
-          "standardResult.instances.0.id",
+          "standardResult.instances.0.catalogEntry.id",
           "=",
           "overline"
         ],
         [
-          "standardResult.instances.0.location.doc",
-          "=",
-          "dom"
-        ],
-        [
-          "standardResult.instances.0.location.type",
-          "=",
-          "selector"
-        ],
-        [
-          "standardResult.instances.0.location.spec",
-          "=",
-          "#overline"
-        ],
-        [
-          "standardResult.instances.0.excerpt",
+          "standardResult.instances.0.catalogEntry.text",
           "i",
           "English"
         ],
@@ -140,27 +125,17 @@
           "but has no"
         ],
         [
-          "standardResult.instances.1.tagName",
+          "standardResult.instances.1.catalogEntry.tagName",
           "=",
           "A"
         ],
         [
-          "standardResult.instances.1.location.doc",
-          "=",
-          "dom"
-        ],
-        [
-          "standardResult.instances.1.location.type",
-          "=",
-          "box"
-        ],
-        [
-          "standardResult.instances.1.location.spec.y",
+          "standardResult.instances.1.catalogEntry.box.y",
           ">",
           0
         ],
         [
-          "standardResult.instances.1.excerpt",
+          "standardResult.instances.1.catalogEntry.text",
           "i",
           "French"
         ]
@@ -212,14 +187,9 @@
           2
         ],
         [
-          "standardResult.instances.0.tagName",
+          "standardResult.instances.0.catalogEntry.tagName",
           "=",
           "A"
-        ],
-        [
-          "standardResult.instances.0.location.doc",
-          "=",
-          ""
         ]
       ],
       "rules": [

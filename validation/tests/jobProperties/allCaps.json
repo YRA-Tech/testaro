@@ -36,7 +36,7 @@
           "Element contains"
         ],
         [
-          "standardResult.instances.0.tagName",
+          "standardResult.instances.0.catalogEntry.tagName",
           "=",
           "P"
         ],
@@ -46,42 +46,27 @@
           0
         ],
         [
-          "standardResult.instances.1.tagName",
+          "standardResult.instances.1.catalogEntry.tagName",
           "=",
           "SPAN"
         ],
         [
-          "standardResult.instances.1.location.type",
-          "=",
-          "box"
-        ],
-        [
-          "standardResult.instances.1.location.spec.x",
+          "standardResult.instances.1.catalogEntry.box.x",
           ">",
           0
         ],
         [
-          "standardResult.instances.1.location.spec.width",
+          "standardResult.instances.1.catalogEntry.box.width",
           ">",
           0
         ],
         [
-          "standardResult.instances.3.id",
+          "standardResult.instances.3.catalogEntry.id",
           "=",
           "allUC"
         ],
         [
-          "standardResult.instances.3.location.type",
-          "=",
-          "selector"
-        ],
-        [
-          "standardResult.instances.3.location.spec",
-          "=",
-          "#allUC"
-        ],
-        [
-          "standardResult.instances.3.excerpt",
+          "standardResult.instances.3.catalogEntry.text",
           "i",
           "ENTIRELY"
         ]

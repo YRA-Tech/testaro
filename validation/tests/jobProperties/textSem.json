@@ -41,38 +41,28 @@
           0
         ],
         [
-          "standardResult.instances.0.tagName",
+          "standardResult.instances.0.catalogEntry.tagName",
           "=",
           "I"
         ],
         [
-          "standardResult.instances.0.location.doc",
-          "=",
-          "dom"
-        ],
-        [
-          "standardResult.instances.0.location.type",
-          "=",
-          "box"
-        ],
-        [
-          "standardResult.instances.0.location.spec.width",
+          "standardResult.instances.0.catalogEntry.box.width",
           ">",
           0
         ],
         [
-          "standardResult.instances.0.excerpt",
-          "=",
+          "standardResult.instances.0.catalogEntry.text",
+          "i",
           "tag"
         ],
         [
-          "standardResult.instances.1.tagName",
+          "standardResult.instances.1.catalogEntry.tagName",
           "=",
           "I"
         ],
         [
-          "standardResult.instances.1.excerpt",
-          "=",
+          "standardResult.instances.1.catalogEntry.text",
+          "i",
           "Never"
         ],
         [
@@ -81,23 +71,23 @@
           0
         ],
         [
-          "standardResult.instances.2.tagName",
+          "standardResult.instances.2.catalogEntry.tagName",
           "=",
           "B"
         ],
         [
-          "standardResult.instances.2.excerpt",
-          "=",
+          "standardResult.instances.2.catalogEntry.text",
+          "i",
           "accessible"
         ],
         [
-          "standardResult.instances.3.tagName",
+          "standardResult.instances.3.catalogEntry.tagName",
           "=",
           "SMALL"
         ],
         [
-          "standardResult.instances.3.excerpt",
-          "=",
+          "standardResult.instances.3.catalogEntry.text",
+          "i",
           "This situation is rare and probably does not apply to you."
         ]
       ],

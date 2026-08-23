@@ -42,6 +42,28 @@ The second item in each array, if there are 3 items, is an operator, drawn from:
 
 The third item in each array, if there are 3 items in the array, is the criterion with which the value of the first property is compared.
 
+#### Facts about the element of an instance
+
+A standard instance does not repeat the tag name, text, ID, and location of the element it reports. It identifies that element with a `catalogIndex`, which is a key into the `catalog` of the report, where those facts are held once per element rather than once per violation.
+
+Therefore an expectation about the element is stated through a `catalogEntry` segment, which the validator resolves by looking the `catalogIndex` of the instance up in the catalog:
+
+```javaScript
+'expect': [
+  ['standardResult.instances.0.catalogEntry.tagName', '=', 'HR'],
+  ['standardResult.instances.0.catalogEntry.id', '=', 'mainRule'],
+  ['standardResult.instances.0.catalogEntry.text', 'i', 'a substring of the text'],
+  ['standardResult.instances.0.catalogEntry.box.height', '>', 0]
+]
+```
+
+A catalog entry has the properties `tagName`, `id`, `startTag`, `text`, `textLinkable`, `boxID`, `pathID`, and `headingIndex`. In addition, the validator adds a `box` property, parsing the `x:y:width:height` of the `boxID`, so that an expectation can state a fact about one dimension of the element.
+
+Two cautions:
+
+- `text` is the entire text of the element, whereas the former `excerpt` property of an instance was an excerpt of it, so `i` is usually the appropriate operator.
+- The catalog describes the target of the job, which the validator makes the target of the first `launch` act of the fixture. An element on a page that a later `url` act visits is not in the catalog, so its entry holds only a `pathID` and a `tagName`, both derived from the XPath that the rule reported.
+
 A typical use for an `expect` property is checking the correctness of a Testaro test. Thus, the validation jobs in the `validation/tests/jobs` directory all contain `test` acts with `expect` properties. See the “Validation” section below.
 
 ### Validators

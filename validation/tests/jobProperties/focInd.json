@@ -64,27 +64,17 @@
           1
         ],
         [
-          "standardResult.instances.0.tagName",
+          "standardResult.instances.0.catalogEntry.tagName",
           "=",
           "INPUT"
         ],
         [
-          "standardResult.instances.0.location.doc",
+          "standardResult.instances.0.catalogEntry.id",
           "=",
-          "dom"
+          "textInput"
         ],
         [
-          "standardResult.instances.0.location.type",
-          "=",
-          "selector"
-        ],
-        [
-          "standardResult.instances.0.location.spec",
-          "=",
-          "#textInput"
-        ],
-        [
-          "standardResult.instances.0.excerpt",
+          "standardResult.instances.0.catalogEntry.text",
           "i",
           "narrative"
         ],
@@ -99,19 +89,14 @@
           1
         ],
         [
-          "standardResult.instances.2.tagName",
+          "standardResult.instances.2.catalogEntry.tagName",
           "=",
           "INPUT"
         ],
         [
-          "standardResult.instances.2.id",
+          "standardResult.instances.2.catalogEntry.id",
           "=",
           "thickOutlineInput"
-        ],
-        [
-          "standardResult.instances.2.location.spec",
-          "=",
-          "#thickOutlineInput"
         ]
       ],
       "rules": [

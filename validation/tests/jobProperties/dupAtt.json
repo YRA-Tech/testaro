@@ -58,37 +58,22 @@
           "attributes with the same name"
         ],
         [
-          "standardResult.instances.0.tagName",
+          "standardResult.instances.0.catalogEntry.tagName",
           "=",
           "P"
         ],
         [
-          "standardResult.instances.1.tagName",
+          "standardResult.instances.1.catalogEntry.tagName",
           "=",
           "BUTTON"
         ],
         [
-          "standardResult.instances.1.id",
+          "standardResult.instances.1.catalogEntry.id",
           "=",
           "twiceLabeled"
         ],
         [
-          "standardResult.instances.1.location.doc",
-          "=",
-          "source"
-        ],
-        [
-          "standardResult.instances.1.location.type",
-          "=",
-          "selector"
-        ],
-        [
-          "standardResult.instances.1.location.spec",
-          "=",
-          "#twiceLabeled"
-        ],
-        [
-          "standardResult.instances.1.excerpt",
+          "standardResult.instances.1.catalogEntry.text",
           "i",
           "aria-label"
         ]

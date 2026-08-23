@@ -31,32 +31,17 @@
           "Element distorts"
         ],
         [
-          "standardResult.instances.1.tagName",
+          "standardResult.instances.1.catalogEntry.tagName",
           "=",
           "P"
         ],
         [
-          "standardResult.instances.1.id",
+          "standardResult.instances.1.catalogEntry.id",
           "=",
           "matrixp"
         ],
         [
-          "standardResult.instances.1.location.type",
-          "=",
-          "selector"
-        ],
-        [
-          "standardResult.instances.1.location.spec",
-          "=",
-          "#matrixp"
-        ],
-        [
-          "standardResult.instances.2.location.type",
-          "=",
-          "box"
-        ],
-        [
-          "standardResult.instances.2.excerpt",
+          "standardResult.instances.2.catalogEntry.text",
           "i",
           "z-axis"
         ],
@@ -66,7 +51,7 @@
           1
         ],
         [
-          "standardResult.instances.4.tagName",
+          "standardResult.instances.4.catalogEntry.tagName",
           "=",
           "SPAN"
         ]

@@ -15,7 +15,7 @@
       "stopOnFail": true,
       "expect": [
         [
-          "result.elements.data.total",
+          "data.ruleData.elements.total",
           "=",
           21
         ]
@@ -26,7 +26,12 @@
         "elements"
       ],
       "args": {
-        "elements": [0, null, false, null]
+        "elements": [
+          0,
+          null,
+          false,
+          null
+        ]
       }
     },
     {
@@ -35,7 +40,7 @@
       "stopOnFail": true,
       "expect": [
         [
-          "result.elements.data.total",
+          "data.ruleData.elements.total",
           "=",
           5
         ]
@@ -46,7 +51,12 @@
         "elements"
       ],
       "args": {
-        "elements": [0, "P", true, null]
+        "elements": [
+          0,
+          "P",
+          true,
+          null
+        ]
       }
     },
     {
@@ -55,7 +65,7 @@
       "stopOnFail": true,
       "expect": [
         [
-          "result.elements.data.total",
+          "data.ruleData.elements.total",
           "=",
           2
         ]
@@ -66,7 +76,12 @@
         "elements"
       ],
       "args": {
-        "elements": [0, "LI", true, null]
+        "elements": [
+          0,
+          "LI",
+          true,
+          null
+        ]
       }
     },
     {
@@ -76,7 +91,7 @@
       "stopOnFail": true,
       "expect": [
         [
-          "result.elements.data.total",
+          "data.ruleData.elements.total",
           "=",
           2
         ]
@@ -87,7 +102,12 @@
         "elements"
       ],
       "args": {
-        "elements": [0, "P", false, "class"]
+        "elements": [
+          0,
+          "P",
+          false,
+          "class"
+        ]
       }
     },
     {
@@ -97,37 +117,37 @@
       "stopOnFail": true,
       "expect": [
         [
-          "result.elements.data.total",
+          "data.ruleData.elements.total",
           "=",
           1
         ],
         [
-          "result.elements.data.items.0.tagName",
+          "data.ruleData.elements.items.0.tagName",
           "=",
           "LI"
         ],
         [
-          "result.elements.data.items.0.parentTagName",
+          "data.ruleData.elements.items.0.parentTagName",
           "=",
           "UL"
         ],
         [
-          "result.elements.data.items.0.code",
+          "data.ruleData.elements.items.0.code",
           "i",
           "first"
         ],
         [
-          "result.elements.data.items.0.attributes.0.name",
+          "data.ruleData.elements.items.0.attributes.0.name",
           "=",
           "class"
         ],
         [
-          "result.elements.data.items.0.attributes.0.value",
+          "data.ruleData.elements.items.0.attributes.0.value",
           "=",
           "first"
         ],
         [
-          "result.elements.data.items.0.textContent",
+          "data.ruleData.elements.items.0.textContent",
           "=",
           "Io"
         ]
@@ -138,7 +158,12 @@
         "elements"
       ],
       "args": {
-        "elements": [1, "LI", false, "class=first"]
+        "elements": [
+          1,
+          "LI",
+          false,
+          "class=first"
+        ]
       }
     },
     {
@@ -148,17 +173,17 @@
       "stopOnFail": true,
       "expect": [
         [
-          "result.elements.data.total",
+          "data.ruleData.elements.total",
           "=",
           2
         ],
         [
-          "result.elements.data.items.0.labels.1",
+          "data.ruleData.elements.items.0.labels.1",
           "i",
           "anything"
         ],
         [
-          "result.elements.data.items.1.labelers.0",
+          "data.ruleData.elements.items.1.labelers.0",
           "i",
           "something else"
         ]
@@ -169,7 +194,12 @@
         "elements"
       ],
       "args": {
-        "elements": [1, "INPUT", false, null]
+        "elements": [
+          1,
+          "INPUT",
+          false,
+          null
+        ]
       }
     },
     {
@@ -179,12 +209,12 @@
       "stopOnFail": true,
       "expect": [
         [
-          "result.elements.data.items.0.textContent",
+          "data.ruleData.elements.items.0.textContent",
           "=",
           "Io"
         ],
         [
-          "result.elements.data.items.0.parentTextContent",
+          "data.ruleData.elements.items.0.parentTextContent",
           "i",
           "tute"
         ]
@@ -195,7 +225,12 @@
         "elements"
       ],
       "args": {
-        "elements": [2, "LI", false, "class=first"]
+        "elements": [
+          2,
+          "LI",
+          false,
+          "class=first"
+        ]
       }
     },
     {
@@ -206,17 +241,17 @@
       "stopOnFail": true,
       "expect": [
         [
-          "result.elements.data.total",
+          "data.ruleData.elements.total",
           "=",
           1
         ],
         [
-          "result.elements.data.items.0.parentTextContent",
+          "data.ruleData.elements.items.0.parentTextContent",
           "i",
           "alia"
         ],
         [
-          "result.elements.data.items.0.parentTextContent",
+          "data.ruleData.elements.items.0.parentTextContent",
           "i",
           "tute"
         ]
@@ -227,7 +262,12 @@
         "elements"
       ],
       "args": {
-        "elements": [2, "LI", true, "class"]
+        "elements": [
+          2,
+          "LI",
+          true,
+          "class"
+        ]
       }
     },
     {
@@ -237,47 +277,47 @@
       "stopOnFail": true,
       "expect": [
         [
-          "result.elements.data.items.0.textContent",
+          "data.ruleData.elements.items.0.textContent",
           "=",
           "This is a paragraph."
         ],
         [
-          "result.elements.data.items.0.parentTagName",
+          "data.ruleData.elements.items.0.parentTagName",
           "=",
           "MAIN"
         ],
         [
-          "result.elements.data.items.0.parentTextContent",
+          "data.ruleData.elements.items.0.parentTextContent",
           "i",
           "something."
         ],
         [
-          "result.elements.data.items.0.siblings.before.0.type",
+          "data.ruleData.elements.items.0.siblings.before.0.type",
           "=",
           3
         ],
         [
-          "result.elements.data.items.0.siblings.before.1.type",
+          "data.ruleData.elements.items.0.siblings.before.1.type",
           "=",
           1
         ],
         [
-          "result.elements.data.items.0.siblings.before.1.tagName",
+          "data.ruleData.elements.items.0.siblings.before.1.tagName",
           "=",
           "H1"
         ],
         [
-          "result.elements.data.items.0.siblings.after.12.type",
+          "data.ruleData.elements.items.0.siblings.after.12.type",
           "=",
           1
         ],
         [
-          "result.elements.data.items.0.siblings.after.12.tagName",
+          "data.ruleData.elements.items.0.siblings.after.12.tagName",
           "=",
           "LABEL"
         ],
         [
-          "result.elements.data.items.0.siblings.after.12.attributes.0.name",
+          "data.ruleData.elements.items.0.siblings.after.12.attributes.0.name",
           "=",
           "for"
         ]
@@ -288,7 +328,12 @@
         "elements"
       ],
       "args": {
-        "elements": [3, "P", false, "class=first"]
+        "elements": [
+          3,
+          "P",
+          false,
+          "class=first"
+        ]
       }
     }
   ],

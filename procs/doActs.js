@@ -65,8 +65,37 @@ const abortAssertively = process.env.ABORT_ASSERTIVELY === 'true';
 const debloat = string => string.replace(/\s/g, ' ').trim().replace(/ {2,}/g, ' ').toLowerCase();
 // Returns the first line of an error message.
 const errorStart = error => error.message.replace(/\n.+/s, '');
+/*
+  Returns the catalog entry that a standard instance references, or undefined. Standard instances
+  identify the element they report by a catalogIndex into the catalog of the report, instead of
+  repeating its tag name, its text, and its location, so an expectation about the element reads it
+  through a catalogEntry segment in its property path. The returned entry also has a box property,
+  parsing the x:y:width:height of the boxID, so an expectation can state a fact about one dimension.
+*/
+const getCatalogEntry = (instance, catalog) => {
+  const catalogIndex = instance && instance.catalogIndex;
+  if (catalogIndex === undefined || catalogIndex === null || ! catalog) {
+    return undefined;
+  }
+  const entry = catalog[catalogIndex];
+  if (! entry) {
+    return undefined;
+  }
+  const boxParts = typeof entry.boxID === 'string' && entry.boxID.length
+    ? entry.boxID.split(':')
+    : [];
+  const box = boxParts.length === 4
+    ? {
+      x: Number(boxParts[0]),
+      y: Number(boxParts[1]),
+      width: Number(boxParts[2]),
+      height: Number(boxParts[3])
+    }
+    : undefined;
+  return {... entry, box};
+};
 // Returns a property value and whether it satisfies an expectation.
-const isTrue = (object, specs) => {
+const isTrue = (object, specs, catalog) => {
   const property = specs[0];
   const propertyTree = property.split('.');
   // Test-act expectations reference results by property path. Most fixtures use the
@@ -88,7 +117,10 @@ const isTrue = (object, specs) => {
   // Identify the actual value of the specified property.
   while (propertyTree.length > 1 && actual !== undefined) {
     propertyTree.shift();
-    actual = actual[propertyTree[0]];
+    // A catalogEntry segment resolves the catalogIndex of the current instance.
+    actual = propertyTree[0] === 'catalogEntry'
+      ? getCatalogEntry(actual, catalog)
+      : actual[propertyTree[0]];
   }
   // If the expectation is that the property does not exist:
   if (specs.length === 1) {
@@ -313,7 +345,7 @@ exports.doActs = async (report, opts = {}) => {
           break;
         }
         // Determine whether its jump condition is true.
-        const truth = isTrue(acts[ifActIndex].result, condition);
+        const truth = isTrue(acts[ifActIndex].result, condition, tempReport.catalog);
         // Add the result to the act.
         act.result = {
           property: condition[0],
@@ -524,7 +556,7 @@ exports.doActs = async (report, opts = {}) => {
             // For each expectation:
             expectations.forEach(spec => {
               // Add its result to the act.
-              const truth = isTrue(act, spec);
+              const truth = isTrue(act, spec, tempReport.catalog);
               act.expectations.push({
                 property: spec[0],
                 relation: spec[1],

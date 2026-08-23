@@ -15,7 +15,7 @@
       "stopOnFail": true,
       "expect": [
         [
-          "result.textNodes.data.nodeCount",
+          "data.ruleData.textNodes.nodeCount",
           "=",
           35
         ]
@@ -26,7 +26,10 @@
         "textNodes"
       ],
       "args": {
-        "textNodes": [0, ""]
+        "textNodes": [
+          0,
+          ""
+        ]
       }
     },
     {
@@ -35,7 +38,7 @@
       "stopOnFail": true,
       "expect": [
         [
-          "result.textNodes.data.nodeCount",
+          "data.ruleData.textNodes.nodeCount",
           "=",
           2
         ]
@@ -46,7 +49,10 @@
         "textNodes"
       ],
       "args": {
-        "textNodes": [0, "alia"]
+        "textNodes": [
+          0,
+          "alia"
+        ]
       }
     },
     {
@@ -55,12 +61,12 @@
       "stopOnFail": true,
       "expect": [
         [
-          "result.textNodes.data.nodeCount",
+          "data.ruleData.textNodes.nodeCount",
           "=",
           2
         ],
         [
-          "result.textNodes.data.items.0.text",
+          "data.ruleData.textNodes.items.0.text",
           "=",
           "Io alia"
         ]
@@ -71,7 +77,10 @@
         "textNodes"
       ],
       "args": {
-        "textNodes": [1, "alia"]
+        "textNodes": [
+          1,
+          "alia"
+        ]
       }
     },
     {
@@ -80,73 +89,73 @@
       "stopOnFail": true,
       "expect": [
         [
-          "result.textNodes.data.nodeCount",
+          "data.ruleData.textNodes.nodeCount",
           "=",
           2
         ],
         [
-          "result.textNodes.data.items.0.text",
+          "data.ruleData.textNodes.items.0.text",
           "=",
           "This is the first button"
         ],
         [
-          "result.textNodes.data.items.1.text",
+          "data.ruleData.textNodes.items.1.text",
           "=",
           "This is the second button"
         ],
         [
-          "result.textNodes.data.items.0.ancestors.0.tagName",
+          "data.ruleData.textNodes.items.0.ancestors.0.tagName",
           "=",
           "BUTTON"
         ],
         [
-          "result.textNodes.data.items.1.ancestors.0.tagName",
+          "data.ruleData.textNodes.items.1.ancestors.0.tagName",
           "=",
           "BUTTON"
         ],
         [
-          "result.textNodes.data.items.0.ancestors.0.attributes.0.name",
+          "data.ruleData.textNodes.items.0.ancestors.0.attributes.0.name",
           "=",
           "id"
         ],
         [
-          "result.textNodes.data.items.0.ancestors.0.attributes.0.value",
+          "data.ruleData.textNodes.items.0.ancestors.0.attributes.0.value",
           "=",
           "button0"
         ],
         [
-          "result.textNodes.data.items.1.ancestors.0.attributes.1.name",
+          "data.ruleData.textNodes.items.1.ancestors.0.attributes.1.name",
           "=",
           "aria-labelledby"
         ],
         [
-          "result.textNodes.data.items.1.ancestors.0.attributes.1.value",
+          "data.ruleData.textNodes.items.1.ancestors.0.attributes.1.value",
           "=",
           "button1Label"
         ],
         [
-          "result.textNodes.data.items.0.ancestors.0.refLabels"
+          "data.ruleData.textNodes.items.0.ancestors.0.refLabels"
         ],
         [
-          "result.textNodes.data.items.1.ancestors.0.refLabels.0",
+          "data.ruleData.textNodes.items.1.ancestors.0.refLabels.0",
           "=",
           "Click the second button."
         ],
         [
-          "result.textNodes.data.items.0.ancestors.0.labels.0",
+          "data.ruleData.textNodes.items.0.ancestors.0.labels.0",
           "=",
           "Click the first button."
         ],
         [
-          "result.textNodes.data.items.0.ancestors.0.labels.1",
+          "data.ruleData.textNodes.items.0.ancestors.0.labels.1",
           "=",
           "Did you click it?"
         ],
         [
-          "result.textNodes.data.items.1.ancestors.0.labels"
+          "data.ruleData.textNodes.items.1.ancestors.0.labels"
         ],
         [
-          "result.textNodes.data.items.0.ancestors.0.children"
+          "data.ruleData.textNodes.items.0.ancestors.0.children"
         ]
       ],
       "withItems": true,
@@ -155,7 +164,10 @@
         "textNodes"
       ],
       "args": {
-        "textNodes": [2, "This is the"]
+        "textNodes": [
+          2,
+          "This is the"
+        ]
       }
     },
     {
@@ -164,52 +176,52 @@
       "stopOnFail": true,
       "expect": [
         [
-          "result.textNodes.data.nodeCount",
+          "data.ruleData.textNodes.nodeCount",
           "=",
           1
         ],
         [
-          "result.textNodes.data.items.0.text",
+          "data.ruleData.textNodes.items.0.text",
           "=",
           "Io tute alia"
         ],
         [
-          "result.textNodes.data.items.0.ancestors.0.tagName",
+          "data.ruleData.textNodes.items.0.ancestors.0.tagName",
           "=",
           "LI"
         ],
         [
-          "result.textNodes.data.items.0.ancestors.1.tagName",
+          "data.ruleData.textNodes.items.0.ancestors.1.tagName",
           "=",
           "UL"
         ],
         [
-          "result.textNodes.data.items.0.ancestors.0.attributes.0.name",
+          "data.ruleData.textNodes.items.0.ancestors.0.attributes.0.name",
           "=",
           "class"
         ],
         [
-          "result.textNodes.data.items.0.ancestors.0.attributes.0.value",
+          "data.ruleData.textNodes.items.0.ancestors.0.attributes.0.value",
           "=",
           "last"
         ],
         [
-          "result.textNodes.data.items.0.ancestors.1.attributes.0.name",
+          "data.ruleData.textNodes.items.0.ancestors.1.attributes.0.name",
           "=",
           "lang"
         ],
         [
-          "result.textNodes.data.items.0.ancestors.1.attributes.0.value",
+          "data.ruleData.textNodes.items.0.ancestors.1.attributes.0.value",
           "=",
           "eo"
         ],
         [
-          "result.textNodes.data.items.0.ancestors.1.children.1.tagName",
+          "data.ruleData.textNodes.items.0.ancestors.1.children.1.tagName",
           "=",
           "LI"
         ],
         [
-          "result.textNodes.data.items.0.ancestors.1.children.2.attributes.1.name",
+          "data.ruleData.textNodes.items.0.ancestors.1.children.2.attributes.1.name",
           "=",
           "hidden"
         ]
@@ -220,7 +232,10 @@
         "textNodes"
       ],
       "args": {
-        "textNodes": [3, "tute alia"]
+        "textNodes": [
+          3,
+          "tute alia"
+        ]
       }
     }
   ],

@@ -42,28 +42,18 @@
           3
         ],
         [
-          "standardResult.instances.0.tagName",
+          "standardResult.instances.0.catalogEntry.tagName",
           "=",
           "LEGEND"
         ],
         [
-          "standardResult.instances.0.location.doc",
-          "=",
-          "dom"
-        ],
-        [
-          "standardResult.instances.0.location.type",
-          "=",
-          "box"
-        ],
-        [
-          "standardResult.instances.0.location.spec.width",
+          "standardResult.instances.0.catalogEntry.box.width",
           ">",
           0
         ],
         [
-          "standardResult.instances.0.excerpt",
-          "=",
+          "standardResult.instances.0.catalogEntry.text",
+          "i",
           "Choose a food"
         ],
         [
@@ -72,8 +62,8 @@
           "legendLoc"
         ],
         [
-          "standardResult.instances.1.excerpt",
-          "=",
+          "standardResult.instances.1.catalogEntry.text",
+          "i",
           "Choose a gas"
         ]
       ],
@@ -124,7 +114,7 @@
           2
         ],
         [
-          "standardResult.instances.0.tagName",
+          "standardResult.instances.0.catalogEntry.tagName",
           "=",
           "LEGEND"
         ]

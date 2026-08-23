@@ -27,6 +27,13 @@ const jobPropertiesDir = `${__dirname}/tests/jobProperties`;
 const projectDir = `${__dirname}/..`;
 // Operators that isTrue() in procs/doActs.js implements.
 const operators = ['<', '=', '>', '!', 'i', '!i', 'e'];
+/*
+  Properties that a standard instance no longer has. It identifies the element it reports by a
+  catalogIndex into the catalog of the report, so an expectation about the element reads it through
+  a catalogEntry segment. An expectation naming one of these is always unsatisfied, and, before the
+  validators reported failures, that was invisible.
+*/
+const goneInstanceProperties = /instances\.\d+\.(tagName|excerpt|id|location)\b/;
 
 // FUNCTIONS
 
@@ -135,6 +142,13 @@ const checkFixture = (fileName, ruleIDs, errors) => {
           }
           if (typeof spec[0] !== 'string' || ! spec[0].length) {
             errors.push(`${specAt}: first item is not a nonempty property path`);
+          }
+          else if (goneInstanceProperties.test(spec[0])) {
+            errors.push(
+              `${specAt}: ${spec[0]} names a property that a standard instance no longer has; `
+              + 'state the fact about the element through catalogEntry, such as '
+              + 'instances.0.catalogEntry.tagName or instances.0.catalogEntry.box.height'
+            );
           }
           if (spec.length === 3 && ! operators.includes(spec[1])) {
             errors.push(`${specAt}: operator ${JSON.stringify(spec[1])} is not one of ${

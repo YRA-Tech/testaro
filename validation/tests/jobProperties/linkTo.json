@@ -41,27 +41,17 @@
           2
         ],
         [
-          "standardResult.instances.0.tagName",
+          "standardResult.instances.0.catalogEntry.tagName",
           "=",
           "A"
         ],
         [
-          "standardResult.instances.0.location.doc",
-          "=",
-          "dom"
-        ],
-        [
-          "standardResult.instances.0.location.type",
-          "=",
-          "box"
-        ],
-        [
-          "standardResult.instances.0.location.spec.x",
+          "standardResult.instances.0.catalogEntry.box.x",
           ">",
           0
         ],
         [
-          "standardResult.instances.0.excerpt",
+          "standardResult.instances.0.catalogEntry.text",
           "i",
           "nothing"
         ]
@@ -98,7 +88,7 @@
           "Links are missing"
         ],
         [
-          "standardResult.instances.0.tagName",
+          "standardResult.instances.0.catalogEntry.tagName",
           "=",
           "A"
         ],

@@ -51,32 +51,17 @@
           2
         ],
         [
-          "standardResult.instances.0.tagName",
+          "standardResult.instances.0.catalogEntry.tagName",
           "=",
           "A"
         ],
         [
-          "standardResult.instances.0.id",
+          "standardResult.instances.0.catalogEntry.id",
           "=",
           "trigger1"
         ],
         [
-          "standardResult.instances.0.location.doc",
-          "=",
-          "dom"
-        ],
-        [
-          "standardResult.instances.0.location.type",
-          "=",
-          "selector"
-        ],
-        [
-          "standardResult.instances.0.location.spec",
-          "=",
-          "#trigger1"
-        ],
-        [
-          "standardResult.instances.0.excerpt",
+          "standardResult.instances.0.catalogEntry.text",
           "i",
           "Trigger 1"
         ],
@@ -111,17 +96,12 @@
           1
         ],
         [
-          "standardResult.instances.3.tagName",
+          "standardResult.instances.3.catalogEntry.tagName",
           "=",
           "INPUT"
         ],
         [
-          "standardResult.instances.3.location.type",
-          "=",
-          "box"
-        ],
-        [
-          "standardResult.instances.3.excerpt",
+          "standardResult.instances.3.catalogEntry.text",
           "i",
           "Trigger 4: Enter"
         ],
@@ -141,17 +121,17 @@
           1
         ],
         [
-          "standardResult.instances.4.tagName",
+          "standardResult.instances.4.catalogEntry.tagName",
           "=",
           "BUTTON"
         ],
         [
-          "standardResult.instances.4.location.spec.x",
+          "standardResult.instances.4.catalogEntry.box.x",
           ">",
           0
         ],
         [
-          "standardResult.instances.4.excerpt",
+          "standardResult.instances.4.catalogEntry.text",
           "i",
           "Trigger 5"
         ]
@@ -161,7 +141,9 @@
         "hovInd"
       ],
       "args": {
-        "hovInd": [7]
+        "hovInd": [
+          7
+        ]
       }
     }
   ]

@@ -73,22 +73,22 @@
           0
         ],
         [
-          "standardResult.instances.0.tagName",
+          "standardResult.instances.0.catalogEntry.tagName",
           "=",
           "BUTTON"
         ],
         [
-          "standardResult.instances.0.location.spec.x",
+          "standardResult.instances.0.catalogEntry.box.x",
           ">",
           0
         ],
         [
-          "standardResult.instances.0.excerpt",
+          "standardResult.instances.0.catalogEntry.text",
           "i",
           "Button 0"
         ],
         [
-          "standardResult.instances.1.excerpt",
+          "standardResult.instances.1.catalogEntry.text",
           "i",
           "Button 1"
         ]

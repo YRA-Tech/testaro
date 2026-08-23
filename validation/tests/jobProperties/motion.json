@@ -77,7 +77,7 @@
           -1
         ],
         [
-          "standardResult.instances.0.tagName",
+          "standardResult.instances.0.catalogEntry.tagName",
           "=",
           "HTML"
         ]

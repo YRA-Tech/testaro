@@ -62,7 +62,7 @@ const getJob = () => ({
   sendReportTo: '',
   target: {
     what: 'page for test validation',
-    url: 'file://validation/tests/targets/adbID/index.html'
+    url: ''
   },
   sources: {
     script: 'test',
@@ -143,6 +143,22 @@ const validateTest = async testID => {
   }
   job.what = `validate Testaro test ${jobProperties.rule || testID}`;
   job.acts = jobProperties.acts;
+  /*
+    Make the target of the job the target of its first launch act. run.js catalogs job.target
+    before any act runs, so a fixed target made the catalog describe one page, that of the adbID
+    fixture, whatever page the acts then tested. Every XPath a rule reported therefore missed the
+    path IDs of the catalog, and every standard instance got a synthetic catalog entry holding
+    only a path ID and a tag name, instead of the text, ID, and box of the element.
+  */
+  const launchAct = jobProperties.acts.find(act => act.type === 'launch' && act.target);
+  if (launchAct) {
+    job.target = {... launchAct.target};
+  }
+  else {
+    failures.push('No launch act with a target, so the catalog would describe no page');
+    console.log(`Failure: ${failures[failures.length - 1]}`);
+    return {testID, passed: false, failures};
+  }
   let report;
   // Perform the job.
   try {

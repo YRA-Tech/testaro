@@ -36,7 +36,9 @@
         "hover"
       ],
       "args": {
-        "hover": [5]
+        "hover": [
+          5
+        ]
       }
     },
     {
@@ -76,27 +78,17 @@
           0
         ],
         [
-          "standardResult.instances.0.tagName",
+          "standardResult.instances.0.catalogEntry.tagName",
           "=",
           "BUTTON"
         ],
         [
-          "standardResult.instances.0.location.doc",
-          "=",
-          "dom"
-        ],
-        [
-          "standardResult.instances.0.location.type",
-          "=",
-          "box"
-        ],
-        [
-          "standardResult.instances.0.location.spec.height",
+          "standardResult.instances.0.catalogEntry.box.height",
           "<",
           "45"
         ],
         [
-          "standardResult.instances.0.excerpt",
+          "standardResult.instances.0.catalogEntry.text",
           "i",
           "Trigger 2"
         ],
@@ -111,27 +103,17 @@
           0
         ],
         [
-          "standardResult.instances.2.tagName",
+          "standardResult.instances.2.catalogEntry.tagName",
           "=",
           "SPAN"
         ],
         [
-          "standardResult.instances.2.location.doc",
-          "=",
-          "dom"
-        ],
-        [
-          "standardResult.instances.2.location.type",
-          "=",
-          "box"
-        ],
-        [
-          "standardResult.instances.2.location.spec.x",
+          "standardResult.instances.2.catalogEntry.box.x",
           ">",
           0
         ],
         [
-          "standardResult.instances.2.excerpt",
+          "standardResult.instances.2.catalogEntry.text",
           "i",
           "Hover over me"
         ]

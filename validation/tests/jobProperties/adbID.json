@@ -41,42 +41,32 @@
           3
         ],
         [
-          "standardResult.instances.0.tagName",
+          "standardResult.instances.0.catalogEntry.tagName",
           "=",
           "SPAN"
         ],
         [
-          "standardResult.instances.0.location.doc",
-          "=",
-          "dom"
-        ],
-        [
-          "standardResult.instances.0.location.type",
-          "=",
-          "box"
-        ],
-        [
-          "standardResult.instances.0.location.spec.height",
+          "standardResult.instances.0.catalogEntry.box.height",
           ">",
           0
         ],
         [
-          "standardResult.instances.0.excerpt",
-          "=",
+          "standardResult.instances.0.catalogEntry.text",
+          "i",
           "the World Wide Web"
         ],
         [
-          "standardResult.instances.1.tagName",
+          "standardResult.instances.1.catalogEntry.tagName",
           "=",
           "LI"
         ],
         [
-          "standardResult.instances.1.excerpt",
-          "=",
+          "standardResult.instances.1.catalogEntry.text",
+          "i",
           "Defect 2: United States of America"
         ],
         [
-          "standardResult.instances.1.location.spec.y",
+          "standardResult.instances.1.catalogEntry.box.y",
           ">",
           0
         ]

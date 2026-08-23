@@ -69,28 +69,18 @@
           2
         ],
         [
-          "standardResult.instances.0.tagName",
+          "standardResult.instances.0.catalogEntry.tagName",
           "=",
           "INPUT"
         ],
         [
-          "standardResult.instances.0.location.doc",
-          "=",
-          "dom"
-        ],
-        [
-          "standardResult.instances.0.location.type",
-          "=",
-          "box"
-        ],
-        [
-          "standardResult.instances.0.location.spec.width",
+          "standardResult.instances.0.catalogEntry.box.width",
           ">",
           0
         ],
         [
-          "standardResult.instances.0.excerpt",
-          "=",
+          "standardResult.instances.0.catalogEntry.text",
+          "i",
           "water"
         ],
         [
@@ -104,8 +94,8 @@
           "without a valid legend"
         ],
         [
-          "standardResult.instances.5.excerpt",
-          "=",
+          "standardResult.instances.5.catalogEntry.text",
+          "i",
           "apple"
         ],
         [
@@ -119,8 +109,8 @@
           2
         ],
         [
-          "standardResult.instances.6.excerpt",
-          "=",
+          "standardResult.instances.6.catalogEntry.text",
+          "i",
           "methane"
         ],
         [

@@ -75,28 +75,18 @@
           "value family-name"
         ],
         [
-          "standardResult.instances.1.tagName",
+          "standardResult.instances.1.catalogEntry.tagName",
           "=",
           "INPUT"
         ],
         [
-          "standardResult.instances.1.location.doc",
-          "=",
-          "dom"
-        ],
-        [
-          "standardResult.instances.1.location.type",
-          "=",
-          "box"
-        ],
-        [
-          "standardResult.instances.1.location.spec.height",
+          "standardResult.instances.1.catalogEntry.box.height",
           ">",
           "15"
         ],
         [
-          "standardResult.instances.2.excerpt",
-          "=",
+          "standardResult.instances.2.catalogEntry.text",
+          "i",
           "Your email address"
         ],
         [

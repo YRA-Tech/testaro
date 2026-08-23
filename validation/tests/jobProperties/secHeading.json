@@ -41,48 +41,38 @@
           1
         ],
         [
-          "standardResult.instances.0.tagName",
+          "standardResult.instances.0.catalogEntry.tagName",
           "=",
           "H2"
         ],
         [
-          "standardResult.instances.0.location.doc",
-          "=",
-          "dom"
-        ],
-        [
-          "standardResult.instances.0.location.type",
-          "=",
-          "box"
-        ],
-        [
-          "standardResult.instances.0.location.spec.y",
+          "standardResult.instances.0.catalogEntry.box.y",
           ">",
           0
         ],
         [
-          "standardResult.instances.0.excerpt",
-          "=",
+          "standardResult.instances.0.catalogEntry.text",
+          "i",
           "This heading is illogical"
         ],
         [
-          "standardResult.instances.1.tagName",
+          "standardResult.instances.1.catalogEntry.tagName",
           "=",
           "H1"
         ],
         [
-          "standardResult.instances.1.excerpt",
-          "=",
+          "standardResult.instances.1.catalogEntry.text",
+          "i",
           "This heading is fundamentally illogical"
         ],
         [
-          "standardResult.instances.2.tagName",
+          "standardResult.instances.2.catalogEntry.tagName",
           "=",
           "H2"
         ],
         [
-          "standardResult.instances.2.excerpt",
-          "=",
+          "standardResult.instances.2.catalogEntry.text",
+          "i",
           "This article heading is illogical"
         ]
       ],

@@ -41,32 +41,22 @@
           2
         ],
         [
-          "standardResult.instances.0.tagName",
+          "standardResult.instances.0.catalogEntry.tagName",
           "=",
           "P"
         ],
         [
-          "standardResult.instances.0.location.doc",
-          "=",
-          "dom"
-        ],
-        [
-          "standardResult.instances.0.location.type",
-          "=",
-          "box"
-        ],
-        [
-          "standardResult.instances.0.location.spec.y",
+          "standardResult.instances.0.catalogEntry.box.y",
           ">",
           0
         ],
         [
-          "standardResult.instances.0.excerpt",
+          "standardResult.instances.0.catalogEntry.text",
           "i",
           "in rem"
         ],
         [
-          "standardResult.instances.1.excerpt",
+          "standardResult.instances.1.catalogEntry.text",
           "i",
           "in px"
         ],
@@ -76,7 +66,7 @@
           "a font size of 7 pixels"
         ],
         [
-          "standardResult.instances.2.excerpt",
+          "standardResult.instances.2.catalogEntry.text",
           "i",
           "with a named constant"
         ]

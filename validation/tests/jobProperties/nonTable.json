@@ -41,27 +41,17 @@
           2
         ],
         [
-          "standardResult.instances.0.tagName",
+          "standardResult.instances.0.catalogEntry.tagName",
           "=",
           "TABLE"
         ],
         [
-          "standardResult.instances.0.location.doc",
-          "=",
-          "dom"
-        ],
-        [
-          "standardResult.instances.0.location.type",
-          "=",
-          "box"
-        ],
-        [
-          "standardResult.instances.0.location.spec.height",
+          "standardResult.instances.0.catalogEntry.box.height",
           ">",
           0
         ],
         [
-          "standardResult.instances.0.excerpt",
+          "standardResult.instances.0.catalogEntry.text",
           "i",
           "Given"
         ],
@@ -71,24 +61,9 @@
           "nonTable"
         ],
         [
-          "standardResult.instances.2.id",
+          "standardResult.instances.2.catalogEntry.id",
           "=",
           "ring"
-        ],
-        [
-          "standardResult.instances.2.location.doc",
-          "=",
-          "dom"
-        ],
-        [
-          "standardResult.instances.2.location.type",
-          "=",
-          "selector"
-        ],
-        [
-          "standardResult.instances.2.location.spec",
-          "=",
-          "#ring"
         ]
       ],
       "rules": [
@@ -128,7 +103,7 @@
           2
         ],
         [
-          "standardResult.instances.0.tagName",
+          "standardResult.instances.0.catalogEntry.tagName",
           "=",
           "TABLE"
         ]

@@ -46,28 +46,18 @@
           0
         ],
         [
-          "standardResult.instances.0.tagName",
+          "standardResult.instances.0.catalogEntry.tagName",
           "=",
           "A"
         ],
         [
-          "standardResult.instances.0.location.doc",
+          "standardResult.instances.0.catalogEntry.id",
           "=",
-          "dom"
+          "mapGIF"
         ],
         [
-          "standardResult.instances.0.location.type",
-          "=",
-          "selector"
-        ],
-        [
-          "standardResult.instances.0.location.spec",
-          "=",
-          "#mapGIF"
-        ],
-        [
-          "standardResult.instances.0.excerpt",
-          "=",
+          "standardResult.instances.0.catalogEntry.text",
+          "i",
           "an animated map of the USA"
         ],
         [
@@ -76,8 +66,8 @@
           "imageLink"
         ],
         [
-          "standardResult.instances.3.excerpt",
-          "=",
+          "standardResult.instances.3.catalogEntry.text",
+          "i",
           "a bird"
         ]
       ],
@@ -123,7 +113,7 @@
           "Links have image files as their destinations"
         ],
         [
-          "standardResult.instances.0.tagName",
+          "standardResult.instances.0.catalogEntry.tagName",
           "=",
           "A"
         ]

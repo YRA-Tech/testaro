@@ -31,7 +31,14 @@
         "attVal"
       ],
       "args": {
-        "attVal": ["lang", true, ["en-US", "de-CH"]]
+        "attVal": [
+          "lang",
+          true,
+          [
+            "en-US",
+            "de-CH"
+          ]
+        ]
       }
     },
     {
@@ -56,7 +63,14 @@
         "attVal"
       ],
       "args": {
-        "attVal": ["lang", true, ["en-US", "de-CH"]]
+        "attVal": [
+          "lang",
+          true,
+          [
+            "en-US",
+            "de-CH"
+          ]
+        ]
       }
     },
     {
@@ -76,7 +90,7 @@
           2
         ],
         [
-          "standardResult.instances.0.tagName",
+          "standardResult.instances.0.catalogEntry.tagName",
           "=",
           "HTML"
         ],
@@ -86,47 +100,22 @@
           "Element has attribute"
         ],
         [
-          "standardResult.instances.0.location.doc",
-          "=",
-          "dom"
-        ],
-        [
-          "standardResult.instances.0.location.type",
-          "=",
-          "box"
-        ],
-        [
-          "standardResult.instances.0.location.spec.x",
+          "standardResult.instances.0.catalogEntry.box.x",
           "<",
           1
         ],
         [
-          "standardResult.instances.1.tagName",
+          "standardResult.instances.1.catalogEntry.tagName",
           "=",
           "SPAN"
         ],
         [
-          "standardResult.instances.1.id",
+          "standardResult.instances.1.catalogEntry.id",
           "=",
           "velo"
         ],
         [
-          "standardResult.instances.1.location.doc",
-          "=",
-          "dom"
-        ],
-        [
-          "standardResult.instances.1.location.type",
-          "=",
-          "selector"
-        ],
-        [
-          "standardResult.instances.1.location.spec",
-          "=",
-          "#velo"
-        ],
-        [
-          "standardResult.instances.1.excerpt",
+          "standardResult.instances.1.catalogEntry.text",
           "i",
           "Veloparkieren"
         ]
@@ -136,7 +125,14 @@
         "attVal"
       ],
       "args": {
-        "attVal": ["lang", true, ["en-US", "de-CH"]]
+        "attVal": [
+          "lang",
+          true,
+          [
+            "en-US",
+            "de-CH"
+          ]
+        ]
       }
     },
     {
@@ -176,7 +172,14 @@
         "attVal"
       ],
       "args": {
-        "attVal": ["lang", true, ["en-US", "de-CH"]]
+        "attVal": [
+          "lang",
+          true,
+          [
+            "en-US",
+            "de-CH"
+          ]
+        ]
       }
     }
   ]
