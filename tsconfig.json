@@ -9,8 +9,9 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
-    "noEmit": true
+    "declaration": true,
+    "removeComments": false
   },
   "include": ["**/*.ts"],
-  "exclude": ["node_modules", "htmlcs", "ed11y", "dist", "validation/tests/targets"]
+  "exclude": ["node_modules", "htmlcs", "ed11y", "dist", "validation/tests/targets", "**/*.d.ts"]
 }

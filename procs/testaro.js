@@ -1,3 +1,4 @@
+"use strict";
 /*
   © 2023–2024 CVS Health and/or one of its affiliates. All rights reserved.
   © 2026 Jeff Witt.
@@ -7,209 +8,206 @@
 
   SPDX-License-Identifier: MIT
 */
-
-/*
-  testaro
-  Utilities for Testaro tests.
-*/
-
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.getBasicResult = exports.doTest = void 0;
 // ########## IMPORTS
-
 // Function to get a catalog index from an XPath.
-const {getXPathCatalogIndex} = require('./xPath');
-
+const xPath_1 = require("./xPath");
 // ########## FUNCTIONS
-
 // Tests for a testaro rule.
-exports.doTest = async (
-  page,
-  report,
-  withItems,
-  ruleID,
-  candidateSelector,
-  whats,
-  severity,
-  getBadWhatString
-) => {
-  const ruleData = await page.evaluate(async args => {
-    // Get the arguments.
-    const [
-      withItems,
-      candidateSelector,
-      severity,
-      getBadWhatString
-    ] = args;
-    // Get all violator candidates.
-    const candidates = document.querySelectorAll(candidateSelector);
-    let violationCount = 0;
-    // Initialize proto-instances.
-    const protoInstances = [];
-    // Parse the supplied string to get the classifier.
-    const getBadWhat = eval(`(${getBadWhatString})`);
-    // Initialize data on the rule.
-    let data = {};
-    const totals = [0, 0, 0, 0];
-    // For each candidate:
-    for (const candidate of candidates) {
-      // Classify it as and get a violation description if a violator or undefined if not.
-      const violationWhat = await getBadWhat(candidate);
-      // If the candidate violates the rule:
-      if (violationWhat) {
-        // Increment the violation count.
-        violationCount++;
-        let ruleWhat;
-        const violationType = typeof violationWhat;
-        // If data on the violation were provided (unusual):
-        if (violationType === 'object') {
-          // Get the description and add the data to the rule data.
-          ruleWhat = violationWhat.description;
-          data[violationCount - 1] = violationWhat.data;
+const doTest = async (page, report, withItems, ruleID, candidateSelector, whats, severity, getBadWhatString) => {
+    const ruleData = await page.evaluate(async (args) => {
+        // Get the arguments.
+        const [withItems, candidateSelector, severity, getBadWhatString] = args;
+        // Get all violator candidates.
+        const candidates = document.querySelectorAll(candidateSelector);
+        let violationCount = 0;
+        // Initialize proto-instances.
+        const protoInstances = [];
+        /*
+          Parse the supplied string to get the classifier. The predicate travels as
+          source text (serialized with toString() by the rule module) because it
+          must run inside the page; this cast is the single point where its type is
+          asserted rather than checked (issue #73, RFC decision 4). The eval input
+          is first-party rule-module source from this repository, never target-page
+          or user data; replacing the eval pipeline with a bundled artifact is the
+          Phase 3 reassessment recorded on issue #73.
+        */
+        const getBadWhat = eval(`(${getBadWhatString})`);
+        // Initialize data on the rule.
+        let data = {};
+        const totals = [0, 0, 0, 0];
+        // For each candidate:
+        for (const candidate of candidates) {
+            // Classify it as and get a violation description if a violator or undefined if not.
+            const violationWhat = await getBadWhat(candidate);
+            // If the candidate violates the rule:
+            if (violationWhat) {
+                // Increment the violation count.
+                violationCount++;
+                let ruleWhat;
+                const violationType = typeof violationWhat;
+                // If data on the violation were provided (unusual):
+                if (violationType === 'object') {
+                    // Get the description and add the data to the rule data.
+                    ruleWhat = violationWhat.description;
+                    data[violationCount - 1] = violationWhat.data;
+                }
+                // Otherwise, i.e. if only a description of the violation was provided:
+                else if (violationType === 'string') {
+                    // Get it.
+                    ruleWhat = violationWhat;
+                }
+                // A predicate that returns a truthy non-object non-string would make this throw,
+                // exactly as in the JavaScript original.
+                const ruleWhatStart = ruleWhat.slice(0, 2);
+                let ordinalSeverity = severity;
+                // If this violation has a custom severity:
+                if (/[0-3]:/.test(ruleWhatStart)) {
+                    // Get it.
+                    ordinalSeverity = Number(ruleWhat[0]);
+                    // Remove it from the violation description.
+                    ruleWhat = ruleWhat.slice(2);
+                }
+                // Increment the applicable rule-violation total.
+                totals[ordinalSeverity]++;
+                // If itemization is required:
+                if (withItems) {
+                    const protoInstance = {
+                        what: ruleWhat,
+                        ordinalSeverity,
+                        xPath: window.getXPath(candidate) ?? '/html'
+                    };
+                    // Add a proto-instance to the proto-instances.
+                    protoInstances.push(protoInstance);
+                }
+            }
         }
-        // Otherwise, i.e. if only a description of the violation was provided:
-        else if (violationType === 'string') {
-          // Get it.
-          ruleWhat = violationWhat;
-        }
-        const ruleWhatStart = ruleWhat.slice(0, 2);
-        let ordinalSeverity = severity;
-        // If this violation has a custom severity:
-        if (/[0-3]:/.test(ruleWhatStart)) {
-          // Get it.
-          ordinalSeverity = Number(ruleWhat[0]);
-          // Remove it from the violation description.
-          ruleWhat = ruleWhat.slice(2);
-        }
-        // Increment the applicable rule-violation total.
-        totals[ordinalSeverity]++;
-        // If itemization is required:
-        if (withItems) {
-          const protoInstance = {
-            what: ruleWhat,
-            ordinalSeverity,
-            xPath: window.getXPath(candidate) ?? '/html'
-          };
-          // Add a proto-instance to the proto-instances.
-          protoInstances.push(protoInstance);
-        }
-      }
-    }
-    return {
-      data,
-      totals,
-      protoInstances
-    }
-  }, [
-      withItems,
-      candidateSelector,
-      severity,
-      getBadWhatString
-    ]
-  );
-  // Initialize the standard instances.
-  let standardInstances = [];
-  const {data, totals, protoInstances} = ruleData;
-  // If itemization is required:
-  if (withItems) {
-    // For each proto-instance:
-    protoInstances.forEach(protoInstance => {
-      const {what, ordinalSeverity, xPath} = protoInstance;
-      // Initialize a standard instance.
-      const standardInstance = {
-        ruleID,
-        what,
-        ordinalSeverity,
-        count: 1
-      };
-      // If the proto-instance includes an XPath:
-      if (xPath) {
-        // Add the catalog index to the standard instance.
-        standardInstance.catalogIndex = getXPathCatalogIndex(report, xPath);
-      }
-      // Add the standard instance to the standard instances.
-      standardInstances.push(standardInstance);
-    });
-  }
-  // Otherwise, i.e. if itemization is not required:
-  else {
-    // For each ordinal severity:
-    for (const index in totals) {
-      // If there were any violations at that severity:
-      if (totals[index]) {
-        // Add a summary standard instance to the standard instances.
-        standardInstances.push({
-          ruleID,
-          what: whats,
-          ordinalSeverity: index,
-          count: totals[index]
+        return {
+            data,
+            totals,
+            protoInstances
+        };
+    }, [
+        withItems,
+        candidateSelector,
+        severity,
+        getBadWhatString
+    ]);
+    // Initialize the standard instances.
+    let standardInstances = [];
+    const { data, totals, protoInstances } = ruleData;
+    // If itemization is required:
+    if (withItems) {
+        // For each proto-instance:
+        protoInstances.forEach(protoInstance => {
+            const { what, ordinalSeverity, xPath } = protoInstance;
+            // Initialize a standard instance.
+            const standardInstance = {
+                ruleID,
+                what,
+                ordinalSeverity: ordinalSeverity,
+                count: 1
+            };
+            // If the proto-instance includes an XPath:
+            if (xPath) {
+                // Add the catalog index to the standard instance.
+                standardInstance.catalogIndex = (0, xPath_1.getXPathCatalogIndex)(report, xPath);
+            }
+            // Add the standard instance to the standard instances.
+            standardInstances.push(standardInstance);
         });
-      }
     }
-  }
-  // Return the data, totals, and standard instances.
-  return {
-    data,
-    totals,
-    standardInstances
-  };
+    // Otherwise, i.e. if itemization is not required:
+    else {
+        // For each ordinal severity:
+        for (const index in totals) {
+            // If there were any violations at that severity:
+            if (totals[index]) {
+                // Add a summary standard instance to the standard instances.
+                standardInstances.push({
+                    ruleID,
+                    what: whats,
+                    /*
+                      for...in yields the index as a string, so summary instances ship
+                      ordinalSeverity as '0'–'3', not 0–3. Preserved verbatim from the
+                      JavaScript original; flagged for a behavior-correcting follow-up.
+                    */
+                    ordinalSeverity: index,
+                    count: totals[index]
+                });
+            }
+        }
+    }
+    // Return the data, totals, and standard instances.
+    return {
+        data,
+        totals: totals,
+        standardInstances
+    };
 };
+exports.doTest = doTest;
 // Adds a catalog index or, if necessary, an XPath to a proto-instance.
 const addCatalogIndex = async (protoInstance, locator, report) => {
-  // Get the XPath of the element referenced by the locator.
-  const xPath = await locator.evaluate(element => window.getXPath(element) ?? '/html');
-  // Add a catalog index to the proto-instance.
-  protoInstance.catalogIndex = getXPathCatalogIndex(report, xPath);
-  // Return the proto-instance with any modification.
-  return protoInstance;
+    // Get the XPath of the element referenced by the locator.
+    const xPath = await locator.evaluate(element => window.getXPath(element) ?? '/html');
+    // Add a catalog index to the proto-instance.
+    protoInstance.catalogIndex = (0, xPath_1.getXPathCatalogIndex)(report, xPath);
+    // Return the proto-instance with any modification.
+    return protoInstance;
 };
 // Tests for a doTest-ineligible Testaro rule.
-exports.getBasicResult = async (
-  report, withItems, ruleID, ordinalSeverity, whats, data, violations
-) => {
-  // If the test was prevented:
-  if (data.prevented) {
-    // Return this.
-    return {
-      data,
-      totals: [0, 0, 0, 0],
-      standardInstances: []
-    };
-  }
-  // Otherwise, i.e. if the test was not prevented:
-  const totals = [0, 0, 0, 0];
-  totals[ordinalSeverity] = violations.length;
-  const standardInstances = [];
-  // If itemization is required:
-  if (withItems) {
-    // For each violation:
-    for (const violation of violations) {
-      const {loc, what} = violation;
-      // Initialize a standard instance.
-      const protoInstance = {
-        ruleID,
-        what,
-        ordinalSeverity,
-        count: 1
-      };
-      // Add a catalog index to it.
-      addCatalogIndex(protoInstance, loc, report);
-      // Add the standard instance to the standard instances.
-      standardInstances.push(protoInstance);
+const getBasicResult = async (report, withItems, ruleID, ordinalSeverity, whats, data, violations) => {
+    // If the test was prevented:
+    if (data.prevented) {
+        // Return this.
+        return {
+            data,
+            totals: [0, 0, 0, 0],
+            standardInstances: []
+        };
     }
-  }
-  // Otherwise, i.e. if itemization is not required:
-  else {
-    // Add a summary instance to the instances.
-    standardInstances.push({
-      ruleID,
-      what: whats,
-      ordinalSeverity,
-      count: violations.length
-    });
-  }
-  // Return the result.
-  return {
-    data,
-    totals,
-    standardInstances
-  };
+    // Otherwise, i.e. if the test was not prevented:
+    const totals = [0, 0, 0, 0];
+    totals[ordinalSeverity] = violations.length;
+    const standardInstances = [];
+    // If itemization is required:
+    if (withItems) {
+        // For each violation:
+        for (const violation of violations) {
+            const { loc, what } = violation;
+            // Initialize a standard instance.
+            const protoInstance = {
+                ruleID,
+                what,
+                ordinalSeverity,
+                count: 1
+            };
+            /*
+              Add a catalog index to it. The call is not awaited, exactly as in the
+              JavaScript original; flagged for a behavior-correcting follow-up,
+              because the report can be serialized before the index arrives.
+            */
+            addCatalogIndex(protoInstance, loc, report);
+            // Add the standard instance to the standard instances.
+            standardInstances.push(protoInstance);
+        }
+    }
+    // Otherwise, i.e. if itemization is not required:
+    else {
+        // Add a summary instance to the instances.
+        standardInstances.push({
+            ruleID,
+            what: whats,
+            ordinalSeverity,
+            count: violations.length
+        });
+    }
+    // Return the result.
+    return {
+        data,
+        totals,
+        standardInstances
+    };
 };
+exports.getBasicResult = getBasicResult;
