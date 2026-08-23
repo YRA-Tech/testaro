@@ -34,21 +34,23 @@ const reportDir = process.env.REPORTDIR;
 // Writes a directory report.
 const writeDirReport = async report => {
   const jobID = report && report.id;
-  if (jobID) {
-    try {
-      const reportJSON = JSON.stringify(report, null, 2);
-      const reportName = `${jobID}.json`;
-      const rawDir = `${reportDir}/raw`;
-      await fs.mkdir(rawDir, {recursive: true});
-      await fs.writeFile(`${rawDir}/${reportName}`, `${reportJSON}\n`);
-      console.log(`Report ${jobID} saved in ${rawDir}`);
-    }
-    catch(error) {
-      console.log(`ERROR: Failed to save report ${jobID} in ${rawDir} (${error.message})`);
-    }
-  }
-  else {
+  if (! jobID) {
     console.log('ERROR: Job has no ID');
+    return false;
+  }
+  // Declared outside the try block, so that the catch block can name it.
+  const rawDir = `${reportDir}/raw`;
+  try {
+    const reportJSON = JSON.stringify(report, null, 2);
+    const reportName = `${jobID}.json`;
+    await fs.mkdir(rawDir, {recursive: true});
+    await fs.writeFile(`${rawDir}/${reportName}`, `${reportJSON}\n`);
+    console.log(`Report ${jobID} saved in ${rawDir}`);
+    return true;
+  }
+  catch(error) {
+    console.log(`ERROR: Failed to save report ${jobID} in ${rawDir} (${error.message})`);
+    return false;
   }
 };
 // Archives a job.
@@ -79,12 +81,15 @@ const wait = ms => {
   Arguments:
   0. Whether to continue watching after a job is run.
   1: interval in seconds from a no-job check to the next check.
+  Returns whether the watch ended without a failure, so that a caller, such as the validator in
+  validation/executors/dirWatch.js, can distinguish a completed watch from an aborted one.
 */
 exports.dirWatch = async (isForever, intervalInSeconds) => {
   intervalInSeconds ||= 5;
   intervalInSeconds = Math.max(intervalInSeconds, 5);
   console.log(`Starting to watch directory ${jobDir}/todo for jobs`);
   let notYetRun = true;
+  let isOK = true;
   // As long as watching as to continue:
   while (isForever || notYetRun) {
     try {
@@ -113,6 +118,7 @@ exports.dirWatch = async (isForever, intervalInSeconds) => {
           }
           catch(error) {
             console.log(`ERROR processing directory job (${error.message})`);
+            isOK = false;
           }
           notYetRun = false;
         }
@@ -135,8 +141,10 @@ exports.dirWatch = async (isForever, intervalInSeconds) => {
     catch(error) {
       // Report this.
       console.log(`ERROR: Directory watching failed (${error.message}); watching aborted`);
+      isOK = false;
       // Quit watching.
       break;
     }
   }
+  return isOK;
 };

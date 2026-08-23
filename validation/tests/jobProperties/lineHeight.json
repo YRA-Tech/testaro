@@ -5,7 +5,7 @@
     {
       "type": "launch",
       "target": {
-        "url": "file://validation/tests/targets/lineheight/index.html",
+        "url": "file://validation/tests/targets/lineHeight/index.html",
         "what": "page with various line heights"
       }
     },

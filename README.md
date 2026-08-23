@@ -640,7 +640,7 @@ Report standardization could be performed by other software rather than by Testa
 
 ## Code style
 
-The JavaScript code in this project generally conforms to the ESLint configuration file `.eslintrc.json`. However, the `htmlcs/HTMLCS.js` file implements an older version of JavaScript. Its style is regulated by the `htmlcs/.eslintrc.json` file.
+The JavaScript code in this project generally conforms to the ESLint configuration file `eslint.config.js`. However, the `htmlcs/HTMLCS.js` file implements an older version of JavaScript, so that file has looser rules of its own in the same configuration file. The JavaScript that `tsc` emits from the TypeScript sources is not linted, because its formatting is `tsc`'s rather than this project's.
 
 ## History
 

@@ -522,9 +522,8 @@ exports.doActs = async (report, opts = {}) => {
       else if (page) {
         // If the act is navigation to a url:
         if (type === 'url') {
-          // Identify the URL.
-          const resolved = act.which.replace('__dirname', __dirname);
-          requestedURL = resolved;
+          // Identify the URL. Declared, so that it is local instead of an implicit global.
+          const requestedURL = act.which.replace('__dirname', __dirname);
           // Visit it and wait until the DOM is loaded.
           const navResult = await goTo(tempReport, page, requestedURL, 15000, 'domcontentloaded');
           // If the visit succeeded:

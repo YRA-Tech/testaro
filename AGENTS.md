@@ -2,12 +2,15 @@
 
 ## Commands
 
-- **Run all tests**: `npm run tests`
+- **Run all tests**: `npm run tests` (or `npm run tests -- <ruleID> ...` for some)
 - **Run single test**: `npm test <testname>` (e.g., `npm test hover`)
+- **Check fixtures**: `npm run checkFixtures` (static, no browser)
 - **Run job**: `npm run run [jobID]`
 - **Directory watch**: `npm run dirWatch`
 - **Network watch**: `npm run netWatch`
-- **Lint**: `npx eslint <file>` (follows `.eslintrc.json`)
+- **Lint**: `npm run lint`, or `npx eslint <file>` (follows `eslint.config.js`)
+
+Every validation executor exits nonzero on failure, so its exit status, not its output, is the verdict.
 
 ## Architecture
 

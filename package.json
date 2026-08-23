@@ -8,13 +8,15 @@
     "build": "npm run build:nameComputation",
     "deps": "npm update && npx playwright install && npm run build",
     "tests": "node validation/executors/tests",
+    "checkFixtures": "node validation/executors/checkFixtures",
     "test": "node validation/executors/test",
     "run": "node validation/executors/run",
     "dirWatch": "node validation/executors/dirWatch",
     "netWatch": "node validation/executors/netWatch",
     "typecheck": "tsc --noEmit",
     "build:ts": "tsc",
-    "prepublishOnly": "npm run build:ts"
+    "prepublishOnly": "npm run build:ts",
+    "lint": "eslint ."
   },
   "repository": {
     "type": "git",
@@ -33,11 +35,11 @@
   },
   "homepage": "https://github.com/jrpool/testaro#readme",
   "dependencies": {
-    "@qualweb/core": "^0.9.5",
     "@qualweb/act-rules": "^0.8.5",
+    "@qualweb/best-practices": "^0.7.13",
+    "@qualweb/core": "^0.9.5",
     "@qualweb/playwright-driver": "^1.0.1",
     "@qualweb/wcag-techniques": "^0.4.8",
-    "@qualweb/best-practices": "^0.7.13",
     "@siteimprove/alfa-act": "^0.119.0",
     "@siteimprove/alfa-playwright": "^0.84.2",
     "@siteimprove/alfa-rules": "^0.119.0",
@@ -56,11 +58,13 @@
     "vnu-jar": "^26.8.15"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^20.0.0",
     "dom-accessibility-api": "^0.7.1",
     "esbuild": "^0.28.2",
     "eslint": "^10.8.1",
-    "typescript": "^5.6.0",
-    "@types/node": "^20.0.0"
+    "globals": "^17.11.0",
+    "typescript": "^5.6.0"
   },
   "overrides": {
     "adm-zip": "^0.6.0"

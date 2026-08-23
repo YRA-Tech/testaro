@@ -53,13 +53,54 @@ The executor for a single test is `test`. To execute it for any test `xyz`, call
 The other executors are:
 
 - `run`: validates immediate test execution
-- `watchDir`: validates directory watching
-- `watchNet`: validates network watching
+- `dirWatch`: validates directory watching
+- `netWatch`: validates network watching
 - `tests`: validates all the Testaro tests
+- `checkFixtures`: statically checks the validation fixtures, without running a browser
 
 To execute any executor `xyz` among these, call it with the statement `npm run xyz`.
 
-The `tests` executor makes use of the jobs in the `validation/tests/jobs` directory, and they, in turn, run tests on HTML files in the `validation/tests/targets` directory.
+The `tests` executor validates the rules that the `allRules` registry in `tests/testaro.js` lists, rather than the rules that the names of the files in the `testaro` directory suggest, because that directory also contains TypeScript sources and declaration files. To validate only some rules, name them: `npm run tests -- focInd allCaps`.
+
+Each executor makes use of the job-properties files in the `validation/tests/jobProperties` directory, and they, in turn, run tests on HTML files in the `validation/tests/targets` directory. The name of each job-properties file is the ID of the rule it validates, and its `rule` property must be identical to that name.
+
+### Exit statuses
+
+Every executor exits with status 0 only if the validation succeeded, and with a nonzero status otherwise. Therefore, an executor can gate a commit or a continuous-integration workflow.
+
+A validation performed by the `test` or `tests` executor fails if any of these is true:
+
+- The job-properties file of the rule is missing, unparsable, or without a test act that states an expectation.
+- Performing the job threw an error.
+- The job was aborted, for example because no browser could be launched or the target could not be loaded.
+- Any test act was prevented, so that its expectations were never evaluated.
+- Any expectation was not satisfied.
+
+A failure is reported as a list of one-line descriptions. To make the executor also print the failing acts in their entirety, set the `TESTARO_VALIDATION_VERBOSE` environment variable to `true`.
+
+### Static checks of the fixtures
+
+The `checkFixtures` executor runs no browser and performs no job, so it takes about a second and its result does not depend on the environment. It reports these defects as errors:
+
+- A job-properties file whose `rule` property differs from its file name.
+- A job-properties file, or a `rules` array in a test act, that names a rule absent from the registry in `tests/testaro.js`.
+- A `file://` target that does not exist. The check is case-sensitive on every path segment, so a fixture that works on a case-insensitive file system, such as those of macOS and Windows, but would fail on the case-sensitive file system of the Linux runner that performs continuous integration, is reported.
+- A test act with no `expect` array, since such an act can never fail.
+- An expectation that is not an array of 1 or 3 items, whose property path is not a nonempty string, or whose operator is not one that `isTrue()` in `procs/doActs.js` implements.
+
+It reports a registered rule that no job-properties file validates as a warning, which does not affect the exit status.
+
+### Environment variables
+
+| Variable | Effect |
+| -------- | ------ |
+| `TESTARO_VALIDATION_BROWSER` | Browser to validate with, overriding the default `webkit` |
+| `TESTARO_VALIDATION_VERBOSE` | If `true`, print the failing acts in full |
+| `TESTARO_VALIDATION_TIMELIMIT` | Seconds after which the `dirWatch` executor gives up, default 600 |
+
+### Retired fixtures
+
+`validation/tests/retired` holds the job-properties files of rules that the registry no longer contains. They are not executable, and the `checkFixtures` executor ignores them. See the `README.md` file in that directory.
 
 ### Validation in Windows PowerShell
 

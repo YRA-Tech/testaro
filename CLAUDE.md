@@ -12,13 +12,17 @@ npm run deps
 npm run build
 
 # Lint (ESLint)
-npx eslint .
+npm run lint
+
+# Statically check the validation fixtures (no browser, about a second)
+npm run checkFixtures
 
 # Validate a single Testaro rule (replace <ruleID> with the rule name, e.g. allSlanted)
 npm test <ruleID>
 
-# Validate all Testaro rules
+# Validate all Testaro rules, or only the named ones
 npm run tests
+npm run tests -- allSlanted focInd
 
 # Run a job from JOBDIR/todo (optionally prefix-match by timestamp)
 node call run [jobIDStart]
@@ -59,9 +63,11 @@ Two implementation patterns exist:
 
 ### Validation
 
-A revision of the validation architecture is currently being planned. In the meantime the next paragraph describes its current design, not guaranteed to work without error.
+A revision of the validation architecture is currently being planned. In the meantime this section describes its current design.
 
-Validation tests live in `validation/tests/jobs/` (jobs with `expect` arrays) and `validation/tests/targets/` (static HTML pages served locally as test targets). Running `npm test <ruleID>` executes `validation/executors/test.js` → `validation/validateTest.js`, which runs the job and compares `result` fields against `expect` clauses.
+Validation fixtures live in `validation/tests/jobProperties/` (job properties with `expect` arrays) and `validation/tests/targets/` (static HTML pages loaded as `file://` test targets). Running `npm test <ruleID>` executes `validation/executors/test.js` → `validation/validateTest.js`, which runs the job and compares `result` fields against `expect` clauses.
+
+Every executor exits nonzero when the validation fails, and a prevented act, an aborted job, or a missing fixture counts as a failure, so an executor can gate CI. `npm run checkFixtures` performs the static checks that need no browser: a fixture naming an unregistered rule, a missing or wrongly cased target file, and a malformed expectation. `validation/tests/retired/` holds fixtures for rules the registry no longer contains. See `VALIDATION.md` for the full contract and the environment variables.
 
 ### Tool XPath strategy
 
@@ -86,7 +92,7 @@ Key variables:
 
 ## Code style
 
-ESLint (`eslintrc.json`): 2-space indent, single quotes, semicolons, Stroustrup brace style (`else`/`catch` on a new line after `}`), `no-use-before-define`. The `htmlcs/HTMLCS.js` file uses a separate, looser ESLint config and must not be reformatted.
+ESLint (`eslint.config.js`): 2-space indent, single quotes, semicolons, Stroustrup brace style (`else`/`catch` on a new line after `}`), `no-use-before-define`. The `htmlcs/HTMLCS.js` file uses a separate, looser ESLint config and must not be reformatted.
 
 Long comments are not broken into multiple lines per paragraph.
 
@@ -113,6 +119,8 @@ Long comments are not broken into multiple lines per paragraph.
 | `tests/testaro.js` | `allRules` registry for the testaro tool |
 | `testaro/<ruleID>.js` | One file per Testaro rule |
 | `validation/validateTest.js` | Core validation harness |
+| `validation/checkFixtures.js` | Static checks of the validation fixtures |
+| `eslint.config.js` | ESLint configuration for the whole project |
 
 ## License
 

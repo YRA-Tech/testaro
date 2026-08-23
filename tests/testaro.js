@@ -442,6 +442,14 @@ process.on('unhandledRejection', reason => {
   console.error(`ERROR: Unhandled Promise Rejection (${reason})`);
 });
 
+// EXPORTS
+
+/*
+  Metadata of all rules, exported so that validators and other callers can enumerate the rules from
+  their single source of truth instead of inferring them from file names.
+*/
+exports.allRules = allRules;
+
 // FUNCTIONS
 
 // Conducts and reports Testaro tests.
