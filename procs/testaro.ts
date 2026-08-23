@@ -30,7 +30,7 @@ interface ProtoInstance {
   xPath: string;
 }
 // What doTest and getBasicResult return to the calling rule module.
-interface RuleResult {
+export interface RuleResult {
   data: Record<string, unknown>;
   totals: SeverityTotals;
   standardInstances: StandardInstance[];

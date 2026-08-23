@@ -1,3 +1,4 @@
+"use strict";
 /*
   © 2023–2024 CVS Health and/or one of its affiliates. All rights reserved.
   © 2026 Jeff Witt.
@@ -8,26 +9,22 @@
 
   SPDX-License-Identifier: MIT
 */
-
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.reporter = void 0;
+const testaro_1 = require("../procs/testaro");
 /*
   hr
-  This test reports the use of hr elements.
+  This test reports the use of hr elements. Compiled to hr.js by tsc (issue #73); edit this
+  file, not the emitted one.
 */
-
-// IMPORTS
-
-const {doTest} = require('../procs/testaro');
-
 // FUNCTIONS
-
 // Runs the test and returns the result.
-exports.reporter = async (page, report, _, withItems) => {
-  const getBadWhat = element => {
-    // Return a violation description.
-    return `hr element is used for vertical segmentation`;
-  }
-  const whats = 'HR elements are used for vertical segmentation';
-  return await doTest(
-    page, report, withItems, 'hr', 'body hr', whats, 0, getBadWhat.toString()
-  );
+const reporter = async (page, report, _, withItems) => {
+    const getBadWhat = element => {
+        // Return a violation description.
+        return `hr element is used for vertical segmentation`;
+    };
+    const whats = 'HR elements are used for vertical segmentation';
+    return await (0, testaro_1.doTest)(page, report, withItems, 'hr', 'body hr', whats, 0, getBadWhat.toString());
 };
+exports.reporter = reporter;
