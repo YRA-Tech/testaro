@@ -1,3 +1,4 @@
+"use strict";
 /*
   © 2023 CVS Health and/or one of its affiliates. All rights reserved.
   © 2026 Jeff Witt.
@@ -8,37 +9,33 @@
 
   SPDX-License-Identifier: MIT
 */
-
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.reporter = void 0;
+const testaro_1 = require("../procs/testaro");
 /*
   distortion
   Related to Tenon rule 271.
   This test reports elements whose transform style properties distort the content. Distortion makes text difficult to read.
+  Compiled to distortion.js by tsc (issue #73); edit this file, not the emitted one.
 */
-
-// IMPORTS
-
-const {doTest} = require('../procs/testaro');
-
 // FUNCTIONS
-
 // Runs the test and returns the result.
-exports.reporter = async (page, report, _, withItems) => {
-  const getBadWhat = element => {
-    const styleDec = window.getComputedStyle(element);
-    const {transform} = styleDec;
-    const badTransformTypes = ['matrix', 'perspective', 'rotate', 'scale', 'skew'];
-    // If the element style transforms the text:
-    if (transform) {
-      const transformType = badTransformTypes.find(key => transform.includes(key));
-      // If the transformation is distortive:
-      if (transformType) {
-        // Return a violation description.
-        return `Element distorts its text with ${transformType} transformation`;
-      }
-    }
-  };
-  const whats = 'Elements distort their texts';
-  return await doTest(
-    page, report, withItems, 'distortion', 'body, body *', whats, 0, getBadWhat.toString()
-  );
+const reporter = async (page, report, _, withItems) => {
+    const getBadWhat = element => {
+        const styleDec = window.getComputedStyle(element);
+        const { transform } = styleDec;
+        const badTransformTypes = ['matrix', 'perspective', 'rotate', 'scale', 'skew'];
+        // If the element style transforms the text:
+        if (transform) {
+            const transformType = badTransformTypes.find(key => transform.includes(key));
+            // If the transformation is distortive:
+            if (transformType) {
+                // Return a violation description.
+                return `Element distorts its text with ${transformType} transformation`;
+            }
+        }
+    };
+    const whats = 'Elements distort their texts';
+    return await (0, testaro_1.doTest)(page, report, withItems, 'distortion', 'body, body *', whats, 0, getBadWhat.toString());
 };
+exports.reporter = reporter;

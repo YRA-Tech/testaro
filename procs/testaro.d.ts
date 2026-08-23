@@ -1,6 +1,6 @@
 import type { Locator, Page } from 'playwright';
 import type { Report, SeverityTotals, StandardInstance } from '../types';
-interface RuleResult {
+export interface RuleResult {
     data: Record<string, unknown>;
     totals: SeverityTotals;
     standardInstances: StandardInstance[];
