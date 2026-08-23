@@ -1,3 +1,4 @@
+"use strict";
 /*
   © 2023–2024 CVS Health and/or one of its affiliates. All rights reserved.
   © 2026 Jeff Witt.
@@ -7,116 +8,113 @@
 
   SPDX-License-Identifier: MIT
 */
-
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.reporter = void 0;
+const getSource_1 = require("../procs/getSource");
+const xPath_1 = require("../procs/xPath");
 /*
-  dupAtt.js
+  dupAtt
   This test reports duplicate attributes. The test is performed on the source of the document, because browsers delete additional same-name attributes in the DOM.
+  Compiled to dupAtt.js by tsc (issue #73); edit this file, not the emitted one.
 */
-
-// ########## IMPORTS
-
-const {getSource} = require('../procs/getSource');
-const {getXPathCatalogIndex} = require('../procs/xPath');
-
 // ########## FUNCTIONS
-
 // Runs the test and returns the result.
-exports.reporter = async (page, report, _, withItems) => {
-  // Initialize the data and standard result.
-  const data = {total: 0};
-  if (withItems) {
-    data.items = [];
-  }
-  let totals = [];
-  const standardInstances = [];
-  // Get the source.
-  const sourceData = await getSource(page);
-  // If it was not obtained:
-  if (sourceData.prevented) {
-    // Report this.
-    data.prevented = true;
-    data.error = sourceData.error;
-  }
-  // Otherwise, i.e. if it was obtained:
-  else {
-    let rawPage = sourceData.source;
-    // Change any spacing character sequences in it to single spaces.
-    rawPage = rawPage.replace(/\s+/g, ' ');
-    // Delete any spaces adjacent to equal symbols in it.
-    rawPage = rawPage.replace(/ = | =|= /g, '=');
-    // Remove any escaped quotation marks from it.
-    rawPage = rawPage.replace(/\\"|\\'/g, '');
-    // Remove any script code from it.
-    rawPage = rawPage.replace(/<script(?: [^<>]+)?>.*?<\/script>/g, '');
-    rawPage = rawPage.replace(/<script(?: [^<>]+)?>/g, '');
-    rawPage = rawPage.replace(/<\/script>/g, '');
-    // Remove any comments from it.
-    rawPage = rawPage.replace(/<!--.*?-->/g, '');
-    // Extract the syntactically valid opening tags of its elements.
-    let elements = rawPage.match(/<[a-zA-Z]+(?: [^<>]+)?>/g);
-    // Delete their enclosing angle brackets and any closing slashes.
-    elements = elements.map(element => element.replace(/< ?| ?\/?>/g, ''));
-    // Delete the values of any attributes in them.
-    const nvElements = elements.map(element => element.replace(/="[^"]*"/g, ''));
-    // For each element:
-    nvElements.forEach((element, index) => {
-      // Identify its tag name and attributes.
-      const terms = element.split(' ');
-      // If it has 2 or more attributes:
-      if (terms.length > 2) {
-        // If any is duplicated:
-        const tagName = terms[0].toUpperCase();
-        const attributes = terms.slice(1);
-        attributes.sort();
-        const duplicatedAttribute = attributes.find(
-          (current, attIndex) => attributes[attIndex + 1] === current
-        );
-        if (duplicatedAttribute) {
-          // Add data on the element to the data.
-          const id = terms.includes('id')
-            ? elements[index].replace(/^.+id="/, '').replace(/".+/, '')
-            : '';
-          data.total++;
-          if (withItems) {
-            data.items.push({
-              tagName,
-              id,
-              duplicatedAttribute
-            });
-          }
-        }
-      }
-    });
-    // If itemization is required and there are any instances:
-    if (data.items) {
-      // For each violator:
-      data.items.forEach(item => {
-        // Add an instance to the standard instances.
-        standardInstances.push({
-          ruleID: 'dupAtt',
-          what: `${item.tagName} element has 2 attributes named ${item.duplicatedAttribute}`,
-          ordinalSeverity: 2,
-          count: 1,
-          catalogIndex: getXPathCatalogIndex(report, '/html/body')
+const reporter = async (page, report, _, withItems) => {
+    // Initialize the data and standard result.
+    const data = { total: 0 };
+    if (withItems) {
+        data.items = [];
+    }
+    let totals = [];
+    const standardInstances = [];
+    // Get the source.
+    const sourceData = await (0, getSource_1.getSource)(page);
+    // If it was not obtained:
+    if (sourceData.prevented) {
+        // Report this.
+        data.prevented = true;
+        data.error = sourceData.error;
+    }
+    // Otherwise, i.e. if it was obtained:
+    else {
+        let rawPage = sourceData.source;
+        // Change any spacing character sequences in it to single spaces.
+        rawPage = rawPage.replace(/\s+/g, ' ');
+        // Delete any spaces adjacent to equal symbols in it.
+        rawPage = rawPage.replace(/ = | =|= /g, '=');
+        // Remove any escaped quotation marks from it.
+        rawPage = rawPage.replace(/\\"|\\'/g, '');
+        // Remove any script code from it.
+        rawPage = rawPage.replace(/<script(?: [^<>]+)?>.*?<\/script>/g, '');
+        rawPage = rawPage.replace(/<script(?: [^<>]+)?>/g, '');
+        rawPage = rawPage.replace(/<\/script>/g, '');
+        // Remove any comments from it.
+        rawPage = rawPage.replace(/<!--.*?-->/g, '');
+        // Extract the syntactically valid opening tags of its elements.
+        // A pageless source would make the match null; the original dereferenced it unguarded.
+        let elements = rawPage.match(/<[a-zA-Z]+(?: [^<>]+)?>/g);
+        // Delete their enclosing angle brackets and any closing slashes.
+        elements = elements.map(element => element.replace(/< ?| ?\/?>/g, ''));
+        // Delete the values of any attributes in them.
+        const nvElements = elements.map(element => element.replace(/="[^"]*"/g, ''));
+        // For each element:
+        nvElements.forEach((element, index) => {
+            // Identify its tag name and attributes.
+            const terms = element.split(' ');
+            // If it has 2 or more attributes:
+            if (terms.length > 2) {
+                // If any is duplicated:
+                const tagName = terms[0].toUpperCase();
+                const attributes = terms.slice(1);
+                attributes.sort();
+                const duplicatedAttribute = attributes.find((current, attIndex) => attributes[attIndex + 1] === current);
+                if (duplicatedAttribute) {
+                    // Add data on the element to the data.
+                    const id = terms.includes('id')
+                        ? elements[index].replace(/^.+id="/, '').replace(/".+/, '')
+                        : '';
+                    data.total++;
+                    if (withItems) {
+                        data.items.push({
+                            tagName,
+                            id,
+                            duplicatedAttribute
+                        });
+                    }
+                }
+            }
         });
-      });
+        // If itemization is required and there are any instances:
+        if (data.items) {
+            // For each violator:
+            data.items.forEach(item => {
+                // Add an instance to the standard instances.
+                standardInstances.push({
+                    ruleID: 'dupAtt',
+                    what: `${item.tagName} element has 2 attributes named ${item.duplicatedAttribute}`,
+                    ordinalSeverity: 2,
+                    count: 1,
+                    catalogIndex: (0, xPath_1.getXPathCatalogIndex)(report, '/html/body')
+                });
+            });
+        }
+        // Otherwise, if itemization is not required and there are any violations:
+        else if (data.total) {
+            // Add a summary instance to the standard instances.
+            standardInstances.push({
+                ruleID: 'dupAtt',
+                what: 'In some elements 2 attributes have the same name',
+                ordinalSeverity: 2,
+                count: data.total
+            });
+        }
+        totals = [0, 0, data.total, 0];
     }
-    // Otherwise, if itemization is not required and there are any violations:
-    else if (data.total) {
-      // Add a summary instance to the standard instances.
-      standardInstances.push({
-        ruleID: 'dupAtt',
-        what: 'In some elements 2 attributes have the same name',
-        ordinalSeverity: 2,
-        count: data.total
-      });
-    }
-    totals = [0, 0, data.total, 0];
-  }
-  // Return the data.
-  return {
-    data,
-    totals,
-    standardInstances
-  };
+    // Return the data.
+    return {
+        data,
+        totals,
+        standardInstances
+    };
 };
+exports.reporter = reporter;
