@@ -1,0 +1,70 @@
+/*
+  © 2023–2024 CVS Health and/or one of its affiliates. All rights reserved.
+  © 2026 Jeff Witt.
+  © 2025–2026 Jonathan Robert Pool.
+
+  Licensed under the MIT License. See LICENSE file at the project root or
+  https://opensource.org/license/mit/ for details.
+
+  SPDX-License-Identifier: MIT
+*/
+
+// IMPORTS
+
+import type {Page} from 'playwright';
+import {doTest} from '../procs/testaro';
+import type {GetBadWhat, Report} from '../types';
+
+/*
+  lineHeight
+  Related to Tenon rule 144.
+  This test reports elements whose line heights are less than 1.5 times their font sizes. Even such elements with no text create accessibility risk, because any text node added to one of them would have a substandard line height. Nonetheless, elements with no non-spacing text in their subtrees are excluded.
+  Compiled to lineHeight.js by tsc (issue #73); edit this file, not the emitted one.
+*/
+
+// FUNCTIONS
+
+// Runs the test and returns the result.
+export const reporter = async (page: Page, report: Report, _: unknown, withItems: boolean) => {
+  const getBadWhat: GetBadWhat = element => {
+    // Get whether the element has a non-spacing child text node.
+    const hasText = Array.from(element.childNodes).some(child =>
+      child.nodeType === Node.TEXT_NODE && child.textContent!.trim()
+    );
+    // If so:
+    if (hasText) {
+      // Get its relevant style properties.
+      const styleDec = window.getComputedStyle(element);
+      const {fontSize, lineHeight} = styleDec;
+      const fontSizeNum = Number.parseFloat(fontSize);
+      const lineHeightNum = Number.parseFloat(lineHeight);
+      // Get whether it violates the rule.
+      const isBad = lineHeightNum < 1.495 * fontSizeNum;
+      // If it does:
+      if (isBad) {
+        const parent = element.parentElement;
+        // If the element has a parent:
+        if (parent) {
+          // Get the style properties of the parent.
+          const parentStyleDec = window.getComputedStyle(parent);
+          const {fontSize: parentFontSize, lineHeight: parentLineHeight} = parentStyleDec;
+          const parentFontSizeNum = Number.parseFloat(parentFontSize);
+          const parentLineHeightNum = Number.parseFloat(parentLineHeight);
+          // If the parent also violates the rule:
+          if (parentLineHeightNum < 1.495 * parentFontSizeNum) {
+            // Do not report a violation, because the line height may be inherited.
+            return null;
+          }
+        }
+        const whatFontSize = `font size (${fontSizeNum.toFixed(1)}px)`;
+        const whatLineHeight = `line height (${lineHeightNum.toFixed(1)}px)`;
+        // Return a violation description.
+        return `Element ${whatLineHeight} is less than 1.5 times its ${whatFontSize}`;
+      }
+    }
+  };
+  const whats = 'Element line heights are less than 1.5 times their font sizes';
+  return await doTest(
+    page, report, withItems, 'lineHeight', 'body, body *', whats, 1, getBadWhat.toString()
+  );
+};

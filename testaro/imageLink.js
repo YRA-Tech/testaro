@@ -1,3 +1,4 @@
+"use strict";
 /*
   © 2025 CVS Health and/or one of its affiliates. All rights reserved.
   © 2025 Juan S. Casado.
@@ -9,31 +10,27 @@
 
   SPDX-License-Identifier: MIT
 */
-
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.reporter = void 0;
+const testaro_1 = require("../procs/testaro");
 /*
   imageLink
   Clean-room rule.
   This test reports links whose destinations are image files.
+  Compiled to imageLink.js by tsc (issue #73); edit this file, not the emitted one.
 */
-
-// IMPORTS
-
-const {doTest} = require('../procs/testaro');
-
 // FUNCTIONS
-
 // Runs the test and returns the result.
-exports.reporter = async (page, report, _, withItems) => {
-  const getBadWhat = element => {
-    const href = element.getAttribute('href') || '';
-    // If the destination of the element is an image file:
-    if (/\.(?:png|jpe?g|gif|svg|webp|ico)(?:$|[?#])/i.test(href)) {
-      // Return a violation description.
-      return 'Link destination is an image file';
-    }
-  };
-  const whats = 'Links have image files as their destinations';
-  return await doTest(
-    page, report, withItems, 'imageLink', 'body  a[href]', whats, 0, getBadWhat.toString()
-  );
+const reporter = async (page, report, _, withItems) => {
+    const getBadWhat = element => {
+        const href = element.getAttribute('href') || '';
+        // If the destination of the element is an image file:
+        if (/\.(?:png|jpe?g|gif|svg|webp|ico)(?:$|[?#])/i.test(href)) {
+            // Return a violation description.
+            return 'Link destination is an image file';
+        }
+    };
+    const whats = 'Links have image files as their destinations';
+    return await (0, testaro_1.doTest)(page, report, withItems, 'imageLink', 'body  a[href]', whats, 0, getBadWhat.toString());
 };
+exports.reporter = reporter;

@@ -4,7 +4,7 @@
     "target": "es2022",
     "module": "commonjs",
     "moduleResolution": "node10",
-    "lib": ["es2022", "dom", "dom.iterable"],
+    "lib": ["es2022", "es2023.array", "dom", "dom.iterable"],
     "types": ["node"],
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,

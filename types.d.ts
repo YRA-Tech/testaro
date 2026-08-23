@@ -79,7 +79,7 @@ export interface Report {
     acts: Act[];
     imageColor?: number;
     imageScale?: number;
-    images?: unknown[];
+    images?: string[];
     catalog?: Catalog;
     pathIDs?: Record<string, string>;
     jobData?: {

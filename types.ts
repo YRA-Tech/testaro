@@ -135,8 +135,8 @@ export interface Report {
   imageColor?: number;
   // Page-image scale factor; values greater than 1 add a device-scale image (images[1]).
   imageScale?: number;
-  // Page images added by shoot with the report action.
-  images?: unknown[];
+  // Base64-encoded page images added by shoot with the report action.
+  images?: string[];
   // The element catalog, added by getCatalog and pruned before the report ships.
   catalog?: Catalog;
   // XPath-to-catalog-index map, added by getCatalog and deleted by pruneCatalog.

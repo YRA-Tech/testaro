@@ -1,9 +1,16 @@
+"use strict";
 /*
   © 2026 Jeff Witt.
   © 2025–2026 Jonathan Robert Pool.
   Licensed under the MIT License. See LICENSE for details.
 */
-
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.reporter = void 0;
+const xPath_1 = require("../procs/xPath");
+const shoot_1 = require("../procs/shoot");
+// pixelmatch and pngjs ship no bundled declarations, so their imports stay requires, untyped.
+const pixelmatch = require('pixelmatch').default;
+const { PNG } = require('pngjs');
 /*
   motion
   This test reports motion in a page by making a page image and comparing it with the initial one, i.e. the one made by the catalog proc.
@@ -11,19 +18,12 @@
   For minimal accessibility, standards require motion to be brief, or else stoppable by the user. But stopping motion can be difficult or impossible, and, by the time a user manages to stop motion, the motion may have caused annoyance or harm. For superior accessibility, a page contains no motion until and unless the user authorizes it. The test reports a rule violation if any pixels differ between the screenshots. The larger the change fraction, the greater the ordinal severity.
 
   WARNING: The shoot test uses the procs/screenShot module. See the warning in that module about browser types.
+
+  Compiled to motion.js by tsc (issue #73); edit this file, not the emitted one.
 */
-
-// IMPORTS
-
-const {getXPathCatalogIndex} = require('../procs/xPath');
-const {shoot} = require('../procs/shoot');
-const pixelmatch = require('pixelmatch').default;
-const {PNG} = require('pngjs');
-
 // FUNCTIONS
-
 // Runs the test and returns the result.
-exports.reporter = async (page, report) => {
+const reporter = async (page, report) => {
   // Initialize the totals and standard instances.
   const data = {};
   const totals = [0, 0, 0, 0];
@@ -85,38 +85,24 @@ exports.reporter = async (page, report) => {
           data.prevented = true;
           data.error = `Pixel comparison failed: ${err.message}`;
         }
-      }
-      // If there was a violation:
-      if (violationWhat) {
-        // Add to the totals.
-        totals[ordinalSeverity] = 1;
-        // Get a summary standard instance.
-        standardInstances.push({
-          ruleID: 'motion',
-          what: violationWhat,
-          ordinalSeverity,
-          count: 1,
-          catalogIndex: getXPathCatalogIndex(report, '/html/body')
-        });
-      }
+        // Otherwise, i.e. if it failed:
+        else {
+            // Report this.
+            data.prevented = true;
+            data.error = 'Image creation failed';
+        }
     }
-    // Otherwise, i.e. if it failed:
+    // Otherwise, i.e. if the initial image does not exist:
     else {
-      // Report this.
-      data.prevented = true;
-      data.error = 'Image creation failed';
+        // Report this.
+        data.prevented = true;
+        data.error = 'Initial image missing';
     }
-  }
-  // Otherwise, i.e. if the initial image does not exist:
-  else {
-    // Report this.
-    data.prevented = true;
-    data.error = 'Initial image missing';
-  }
-  // Return the result.
-  return {
-    data,
-    totals,
-    standardInstances
-  };
+    // Return the result.
+    return {
+        data,
+        totals,
+        standardInstances
+    };
 };
+exports.reporter = reporter;

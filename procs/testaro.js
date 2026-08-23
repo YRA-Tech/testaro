@@ -128,12 +128,9 @@ const doTest = async (page, report, withItems, ruleID, candidateSelector, whats,
                 standardInstances.push({
                     ruleID,
                     what: whats,
-                    /*
-                      for...in yields the index as a string, so summary instances ship
-                      ordinalSeverity as '0'–'3', not 0–3. Preserved verbatim from the
-                      JavaScript original; flagged for a behavior-correcting follow-up.
-                    */
-                    ordinalSeverity: index,
+                    // Numeric, not the for...in string index, so summary instances match
+                    // itemized instances and validator expectations (issue #99).
+                    ordinalSeverity: Number(index),
                     count: totals[index]
                 });
             }
@@ -183,12 +180,9 @@ const getBasicResult = async (report, withItems, ruleID, ordinalSeverity, whats,
                 ordinalSeverity,
                 count: 1
             };
-            /*
-              Add a catalog index to it. The call is not awaited, exactly as in the
-              JavaScript original; flagged for a behavior-correcting follow-up,
-              because the report can be serialized before the index arrives.
-            */
-            addCatalogIndex(protoInstance, loc, report);
+            // Add a catalog index to it, awaited so the index is present before the
+            // report can be serialized (issue #100).
+            await addCatalogIndex(protoInstance, loc, report);
             // Add the standard instance to the standard instances.
             standardInstances.push(protoInstance);
         }

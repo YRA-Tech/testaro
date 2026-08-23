@@ -1,0 +1,101 @@
+/*
+  © 2023 CVS Health and/or one of its affiliates. All rights reserved.
+  © 2026 Jeff Witt.
+  © 2025–2026 Jonathan Robert Pool.
+
+  Licensed under the MIT License. See LICENSE file at the project root or
+  https://opensource.org/license/mit/ for details.
+
+  SPDX-License-Identifier: MIT
+*/
+
+// IMPORTS
+
+import type {Page} from 'playwright';
+import {doTest} from '../procs/testaro';
+import type {BadWhat, Report} from '../types';
+
+/*
+  autocomplete
+  This test reports failures to equip name and email inputs with correct autocomplete attributes.
+  Compiled to autocomplete.js by tsc (issue #73); edit this file, not the emitted one.
+*/
+
+// FUNCTIONS
+
+// Runs the test and returns the result.
+export const reporter = async (
+  page: Page,
+  report: Report,
+  _0: unknown,
+  withItems: boolean,
+  labels: Record<'name' | 'email' | 'given' | 'family', string[]> = {
+    name: ['your name', 'full name', 'first and last name'],
+    email: ['email'],
+    given: ['first name', 'forename', 'given name'],
+    family: ['last name', 'surname', 'family name']
+  }
+) => {
+  // The candidate selector guarantees input elements, so the parameter is typed as one.
+  const getBadWhat = (element: HTMLInputElement): BadWhat => {
+    // Get the lower-cased accessible name of the element.
+    const accessibleName = window.getAccessibleName(element).toLowerCase();
+    const {type} = element;
+    let requiredAuto = '';
+    const labels = {
+      name: ['__nameLabels__'],
+      email: ['__emailLabels__'],
+      given: ['__givenLabels__'],
+      family: ['__familyLabels__']
+    };
+    // Get its required autocomplete value.
+    if (
+      type === 'email'
+      || accessibleName && labels.email.some(label => accessibleName.includes(label))
+    ) {
+      requiredAuto = 'email';
+    }
+    else if (
+      accessibleName && type === 'text' && labels.name.some(label => accessibleName.includes(label))
+    ) {
+      requiredAuto = 'name';
+    }
+    else if (
+      accessibleName
+      && type === 'text'
+      && labels.given.some(label => accessibleName.includes(label))
+    ) {
+      requiredAuto = 'given-name';
+    }
+    else if (
+      accessibleName
+      && type === 'text'
+      && labels.family.some(label => accessibleName.includes(label))
+    ) {
+      requiredAuto = 'family-name';
+    }
+    // Get its actual autocomplete value.
+    const actualAuto = element.getAttribute('autocomplete');
+    // If an autocomplete value is required but not present:
+    if (requiredAuto && ! (actualAuto && actualAuto.includes(requiredAuto))) {
+      // Return a violation description.
+      return `input has no autocomplete="${requiredAuto}" attribute`;
+    }
+  };
+  const selector = 'body input[type=text], body input[type=email], body input:not([type])';
+  const whats = 'Inputs are missing required autocomplete attributes';
+  // Each placeholder sits inside single quotes in getBadWhat (e.g. name: ['__nameLabels__']).
+  // Replace the quoted placeholder with the bracket-stripped JSON so the result is a proper
+  // element list (name: ["your name", ...]) rather than a one-element array holding the JSON
+  // text of the array (name: ['["your name", ...]']), which never matches an accessible name.
+  const placeHolders = Object.keys(labels).map(key => `'__${key}Labels__'`);
+  const replacers = Object.values(labels).map(value => JSON.stringify(value).slice(1, -1));
+  // Create a stringified getBadWhat, with placeholders replaced with the specified label arrays.
+  let getBadWhatString = getBadWhat.toString();
+  [0, 1, 2, 3].forEach(index => {
+    getBadWhatString = getBadWhatString.replace(placeHolders[index], replacers[index]);
+  });
+  return doTest(
+    page, report, withItems, 'autocomplete', selector, whats, 2, getBadWhatString
+  );
+};
