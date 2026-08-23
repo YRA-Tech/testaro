@@ -184,8 +184,12 @@ const reporter = async (page, report, actIndex) => {
                 standardResult.instances.push(instance);
             }
         }
-        standardResult.totals[0] = nativeResult.totals.cantTell;
-        standardResult.totals[2] = nativeResult.totals.failed;
+        // If standard results are to be reported:
+        if (standard) {
+            // Populate the standard-result totals.
+            standardResult.totals[0] = nativeResult.totals.cantTell;
+            standardResult.totals[2] = nativeResult.totals.failed;
+        }
     }
     return {
         data,
