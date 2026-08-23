@@ -82,7 +82,7 @@ export const reporter = async (page: Page, report: Report) => {
             // Describe the violation.
             violationWhat = `Content changes spontaneously (${pixelChanges} pixels changed)`;
             // Get the ordinal severity from the fractional pixel change.
-            ordinalSeverity = Math.min(3, Math.floor(Math.log10(pixelChanges) - 2));
+            ordinalSeverity = Math.max(0, Math.min(3, Math.floor(Math.log10(pixelChanges) - 2)));
           }
         } catch (err) {
           console.log(`pixelmatch error: ${(err as Error).message}, ${(err as Error).stack}`);
