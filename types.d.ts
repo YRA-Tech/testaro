@@ -114,7 +114,13 @@ declare global {
         getProtoInstance: (element: Element) => unknown;
         HTMLCS_WCAG?: unknown;
         HTMLCS_RUNNER?: {
-            run: (standard: string) => void;
+            run: (standard: string) => string[];
         };
+        HTMLCS_WCAG2AAA?: {
+            sniffs?: unknown;
+        };
+        define?: unknown;
+        exports?: unknown;
+        module?: unknown;
     }
 }

@@ -187,6 +187,12 @@ declare global {
     getProtoInstance: (element: Element) => unknown;
     // Set by the HTML CodeSniffer bundle while the htmlcs tool runs.
     HTMLCS_WCAG?: unknown;
-    HTMLCS_RUNNER?: {run: (standard: string) => void};
+    HTMLCS_RUNNER?: {run: (standard: string) => string[]};
+    // Redefined by the htmlcs tool to limit testing to selected rules.
+    HTMLCS_WCAG2AAA?: {sniffs?: unknown};
+    // Loader globals the htmlcs tool hides while its UMD bundle executes.
+    define?: unknown;
+    exports?: unknown;
+    module?: unknown;
   }
 }
