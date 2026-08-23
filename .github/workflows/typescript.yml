@@ -18,6 +18,8 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Generate rule registry
+        run: npm run build:registry
       - name: Compile TypeScript
         run: npm run build:ts
       - name: Committed emit matches sources
