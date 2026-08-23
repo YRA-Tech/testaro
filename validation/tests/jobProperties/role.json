@@ -64,7 +64,7 @@
         [
           "standardResult.instances.1.what",
           "i",
-          "which is also an implicit"
+          "also an implicit"
         ],
         [
           "standardResult.instances.1.ordinalSeverity",
@@ -84,7 +84,7 @@
         [
           "standardResult.instances.2.what",
           "i",
-          "which is also an implicit"
+          "also an implicit"
         ],
         [
           "standardResult.instances.2.ordinalSeverity",
@@ -99,7 +99,7 @@
         [
           "standardResult.instances.4.what",
           "i",
-          "which is also an implicit"
+          "also an implicit"
         ],
         [
           "standardResult.instances.4.ordinalSeverity",

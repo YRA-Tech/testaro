@@ -33,7 +33,7 @@
         [
           "standardResult.instances.0.what",
           "i",
-          "a font size of 8 pixels"
+          "font size is 8px"
         ],
         [
           "standardResult.instances.0.ordinalSeverity",
@@ -63,7 +63,7 @@
         [
           "standardResult.instances.1.what",
           "i",
-          "a font size of 7 pixels"
+          "font size is 7px"
         ],
         [
           "standardResult.instances.2.catalogEntry.text",

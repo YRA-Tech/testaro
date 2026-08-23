@@ -33,7 +33,7 @@
         [
           "standardResult.instances.0.what",
           "i",
-          "Adjacent BR elements within"
+          "follows another br element"
         ],
         [
           "standardResult.instances.0.ordinalSeverity",
@@ -85,7 +85,7 @@
         [
           "standardResult.instances.0.what",
           "i",
-          "Elements contain 2 or more"
+          "pseudo-paragraphs"
         ],
         [
           "standardResult.instances.0.ordinalSeverity",

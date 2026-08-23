@@ -33,7 +33,7 @@
         [
           "standardResult.instances.0.what",
           "=",
-          "Element is semantically vague"
+          "Element type (I) is semantically vague"
         ],
         [
           "standardResult.instances.0.ordinalSeverity",

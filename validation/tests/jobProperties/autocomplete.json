@@ -72,7 +72,7 @@
         [
           "standardResult.instances.1.what",
           "i",
-          "value family-name"
+          "family-name"
         ],
         [
           "standardResult.instances.1.catalogEntry.tagName",

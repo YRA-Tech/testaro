@@ -33,7 +33,7 @@
         [
           "standardResult.instances.0.what",
           "=",
-          "Referenced description of the element is ambiguous or missing"
+          "No element has the aria-describedby ID wwwWhat"
         ],
         [
           "standardResult.instances.0.ordinalSeverity",
@@ -100,7 +100,7 @@
         [
           "standardResult.instances.0.what",
           "=",
-          "Referenced descriptions of elements are ambiguous or missing"
+          "Elements have aria-describedby attributes with missing or invalid id values"
         ],
         [
           "standardResult.instances.0.ordinalSeverity",

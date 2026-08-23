@@ -95,7 +95,7 @@
         [
           "standardResult.instances.0.what",
           "i",
-          "heights less than 1.5 times"
+          "less than 1.5 times"
         ]
       ],
       "rules": [
