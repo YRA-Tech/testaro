@@ -115,7 +115,7 @@ This application implements option B.
 
 ## Installation as an independent application
 
-To install Testaro as an independent application, rather than a dependency, clone the [Testaro repository](https://github.com/jrpool/testaro). To ensure that the binary browsers of its Playwright dependency get installed, execute `(p)npx playwright install` after executing `(p)npm install`.
+To install Testaro as an independent application, rather than a dependency, clone the [Testaro repository](https://github.com/YRA-Tech/testaro). To ensure that the binary browsers of its Playwright dependency get installed, execute `(p)npx playwright install` after executing `(p)npm install`.
 
 To update Testaro when it is an independent application, execute:
 
@@ -560,7 +560,7 @@ If you want the stand-alone API to perform the tests, you need to have that API 
 
 You can define additional Testaro rules and functionality. Contributions are welcome.
 
-Please report any issues, including feature requests, at the [repository](https://github.com/jrpool/testaro/issues).
+Please report any issues, including feature requests, at the [repository](https://github.com/YRA-Tech/testaro/issues).
 
 ## Accessibility principles
 
@@ -656,7 +656,7 @@ From 12 February 2024 through 30 September 2025, contributors of code to Testaro
 
 ## Future work
 
-Future work contemplated for this project is described in its [issues](https://github.com/jrpool/testaro/issues) and also discussed in the [UPGRADES.md](UPGRADES.md) file.
+Future work contemplated for this project is described in its [issues](https://github.com/YRA-Tech/testaro/issues) and also discussed in the [UPGRADES.md](UPGRADES.md) file.
 
 ## Etymology
 
