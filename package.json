@@ -76,6 +76,6 @@
   },
   "types": "./types.d.ts",
   "engines": {
-    "node": ">=20"
+    "node": ">=20.19"
   }
 }

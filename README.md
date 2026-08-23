@@ -81,7 +81,7 @@ The main concepts of Testaro are:
 
 ### Operating system and Node.js version
 
-Testaro can be installed under a MacOS, Windows, Debian, or Ubuntu operating system with the latest long-term-support version of [Node.js](https://nodejs.org/en/).
+Testaro can be installed under a MacOS, Windows, Debian, or Ubuntu operating system with the latest long-term-support version of [Node.js](https://nodejs.org/en/). The minimum version is Node 20.19, because some dependencies (the Alfa packages and pixelmatch) are ES modules that Testaro loads with `require()`, which Node supports from 20.19 (and 22.12) onward.
 
 ### Browser security
 
