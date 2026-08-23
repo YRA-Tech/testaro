@@ -26,5 +26,8 @@ export interface ShootOptions {
   scale?: 'css' | 'device';
 }
 
-// Makes a screenshot of a page and returns, reports, or files it.
-export function shoot(page: Page, report: Report, options?: ShootOptions): Promise<unknown>;
+// Makes a screenshot of a page and returns, reports, or files it. With the return action,
+// the resolution is the base64 encoding of the screenshot, or a falsy value on failure.
+export function shoot(
+  page: Page, report: Report, options?: ShootOptions
+): Promise<string | null | undefined>;
