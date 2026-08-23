@@ -9,6 +9,7 @@
     "deps": "npm update && npx playwright install && npm run build",
     "tests": "node validation/executors/tests",
     "checkFixtures": "node validation/executors/checkFixtures",
+    "acts": "node validation/executors/acts",
     "test": "node validation/executors/test",
     "run": "node validation/executors/run",
     "dirWatch": "node validation/executors/dirWatch",

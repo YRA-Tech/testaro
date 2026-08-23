@@ -1,0 +1,76 @@
+{
+  "what": "next acts that jump by a count and to a named act",
+  "acts": [
+    {
+      "type": "launch",
+      "target": {
+        "url": "file://validation/tests/targets/docType/good.html",
+        "what": "page with a correct doctype"
+      }
+    },
+    {
+      "type": "test",
+      "name": "baseline",
+      "which": "testaro",
+      "withItems": false,
+      "stopOnFail": false,
+      "rules": [
+        "y",
+        "docType"
+      ]
+    },
+    {
+      "type": "next",
+      "what": "jump forward by 2, skipping the next act",
+      "if": [
+        "standardResult.totals.0",
+        "=",
+        0
+      ],
+      "jump": 2
+    },
+    {
+      "type": "test",
+      "name": "skippedByJump",
+      "which": "testaro",
+      "withItems": false,
+      "stopOnFail": false,
+      "rules": [
+        "y",
+        "docType"
+      ]
+    },
+    {
+      "type": "next",
+      "what": "jump to the act named landing, skipping the next act",
+      "if": [
+        "standardResult.totals.0",
+        "=",
+        0
+      ],
+      "next": "landing"
+    },
+    {
+      "type": "test",
+      "name": "skippedByName",
+      "which": "testaro",
+      "withItems": false,
+      "stopOnFail": false,
+      "rules": [
+        "y",
+        "docType"
+      ]
+    },
+    {
+      "type": "test",
+      "name": "landing",
+      "which": "testaro",
+      "withItems": false,
+      "stopOnFail": false,
+      "rules": [
+        "y",
+        "docType"
+      ]
+    }
+  ]
+}

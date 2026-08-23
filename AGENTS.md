@@ -5,6 +5,7 @@
 - **Run all tests**: `npm run tests` (or `npm run tests -- <ruleID> ...` for some)
 - **Run single test**: `npm test <testname>` (e.g., `npm test hover`)
 - **Check fixtures**: `npm run checkFixtures` (static, no browser)
+- **Validate act types**: `npm run acts`
 - **Run job**: `npm run run [jobID]`
 - **Directory watch**: `npm run dirWatch`
 - **Network watch**: `npm run netWatch`

@@ -17,6 +17,9 @@ npm run lint
 # Statically check the validation fixtures (no browser, about a second)
 npm run checkFixtures
 
+# Validate the control-flow act types, which no rule fixture exercises
+npm run acts
+
 # Validate a single Testaro rule (replace <ruleID> with the rule name, e.g. allSlanted)
 npm test <ruleID>
 

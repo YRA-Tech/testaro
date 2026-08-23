@@ -73,9 +73,13 @@ const isTrue = (object, specs) => {
   // bare standardResult.* path, whose value lives at act.result.standardResult; a few
   // use result.* directly on the act. Resolve against act.result when the first segment
   // is absent on the act but present on act.result, so both conventions work.
+  // A missing object, such as the result of an act that a jump skipped, satisfies nothing.
+  if (object === null || object === undefined) {
+    return [null, specs.length === 1];
+  }
   let base = object;
   if (
-    property.length && object && object[propertyTree[0]] === undefined
+    property.length && object[propertyTree[0]] === undefined
     && object.result && object.result[propertyTree[0]] !== undefined
   ) {
     base = object.result;
@@ -266,7 +270,13 @@ exports.doActs = async (report, opts = {}) => {
   // Initialize the count of completed acts.
   let actCount = 0;
   // For each act in the temporary report:
-  for (const actIndex in acts) {
+  /*
+    An index-based loop, not a for...in loop over the act keys. A next act changes the index to
+    jump, and a for...in binding is both a constant, so that assigning to it threw a TypeError, and
+    a string, whose reassignment for...in would ignore anyway. A number also lets addError report
+    the index, which it does only for a number.
+  */
+  for (let actIndex = 0; actIndex < acts.length; actIndex++) {
     // If the job has not been aborted:
     if (tempReport?.jobData && ! tempReport.jobData.aborted) {
       let act = acts[actIndex];
@@ -283,8 +293,25 @@ exports.doActs = async (report, opts = {}) => {
         const condition = act.if;
         const logSuffix = condition.length === 3 ? ` ${condition[1]} ${condition[2]}` : '';
         console.log(`>> ${condition[0]}${logSuffix}`);
-        // Identify the act to be checked.
-        const ifActIndex = acts.map(act => act.type !== 'next').lastIndexOf(true);
+        /*
+          Identify the act to be checked: the nearest preceding act that is not itself a next act.
+          Searching the entire array instead found the last such act in the job, which is normally
+          one that has not yet been performed and so has no result.
+        */
+        let ifActIndex = actIndex - 1;
+        while (
+          ifActIndex >= 0
+          && (acts[ifActIndex].type === 'next' || ! acts[ifActIndex].result)
+        ) {
+          ifActIndex--;
+        }
+        // If there is no such act, report this and stop processing acts.
+        if (ifActIndex < 0) {
+          addError(
+            true, false, tempReport, actIndex, 'ERROR: No performed act precedes the next act'
+          );
+          break;
+        }
         // Determine whether its jump condition is true.
         const truth = isTrue(acts[ifActIndex].result, condition);
         // Add the result to the act.
@@ -304,13 +331,21 @@ exports.doActs = async (report, opts = {}) => {
           }
           // Otherwise, if there is a numerical jump:
           else if (act.jump) {
-            // Set the act index accordingly.
+            // Set the act index accordingly, allowing for the increment by the loop.
             actIndex += act.jump - 1;
           }
           // Otherwise, if there is a named next act:
           else if (act.next) {
-            // Set the new index accordingly, or stop if it does not exist.
-            actIndex = acts.map(act => act.name).indexOf(act.next) - 1;
+            const namedIndex = acts.findIndex(namedAct => namedAct.name === act.next);
+            // If no act has that name, report this and stop processing acts.
+            if (namedIndex === -1) {
+              addError(
+                true, false, tempReport, actIndex, `ERROR: No act is named ${act.next}`
+              );
+              break;
+            }
+            // Otherwise, set the new index, allowing for the increment by the loop.
+            actIndex = namedIndex - 1;
           }
         }
       }
@@ -347,7 +382,7 @@ exports.doActs = async (report, opts = {}) => {
         const actResult = await new Promise(resolve => {
           let closed = false;
           // Create a child process to perform the act.
-          const child = fork(`${__dirname}/doTestAct`, [reportPath, actIndex]);
+          const child = fork(`${__dirname}/doTestAct`, [reportPath, String(actIndex)]);
           let killTimer = null;
           // Start a timeout timer for the child process.
           const timeoutTimer = setTimeout(() => {

@@ -57,6 +57,7 @@ The other executors are:
 - `netWatch`: validates network watching
 - `tests`: validates all the Testaro tests
 - `checkFixtures`: statically checks the validation fixtures, without running a browser
+- `acts`: validates the control-flow act types, which no rule fixture exercises
 
 To execute any executor `xyz` among these, call it with the statement `npm run xyz`.
 
@@ -97,6 +98,12 @@ It reports a registered rule that no job-properties file validates as a warning,
 | `TESTARO_VALIDATION_BROWSER` | Browser to validate with, overriding the default `webkit` |
 | `TESTARO_VALIDATION_VERBOSE` | If `true`, print the failing acts in full |
 | `TESTARO_VALIDATION_TIMELIMIT` | Seconds after which the `dirWatch` executor gives up, default 600 |
+
+### Validation of act types
+
+The rule fixtures perform only `launch`, `url`, and `test` acts, so the behavior of the other act types was never validated. That is how the `next` act came to be broken in four ways at once without anything reporting it.
+
+`npm run acts` fills that gap. Each file in `validation/tests/acts` contains the `acts` array of a job, and `validation/executors/acts.js` maps its name to a function that checks the performed job. `next.json` requires a `next` act to jump by a count and to a named act, the acts that each jump passes over not to be performed, and the named act to be performed.
 
 ### Retired fixtures
 
