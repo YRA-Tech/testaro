@@ -72,16 +72,12 @@ exports.reporter = async (page, report) => {
               threshold: 0.1
             }
           );
-          // Get the ratio of differing to all pixels as a percentage.
-          const changePercent = Math.round(
-            100 * pixelChanges / (initialPNG.width * initialPNG.height)
-          );
           // If any pixels were changed:
           if (pixelChanges) {
             // Describe the violation.
-            violationWhat = `Content changes spontaneously (${changePercent}% of pixels changed)`;
-            // Get the ordinal severity from the fractional pixel change.
-            ordinalSeverity = Math.floor(Math.min(3, 0.4 * Math.sqrt(changePercent)));
+            violationWhat = `Content changes spontaneously (${pixelChanges}% pixels changed)`;
+            // Get the ordinal severity from the count of changed pixels.
+            ordinalSeverity = Math.floor(Math.min(3, 0.4 * Math.sqrt(pixelChanges / 100)));
           }
         }
         catch (err) {
