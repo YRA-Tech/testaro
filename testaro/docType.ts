@@ -1,0 +1,45 @@
+/*
+  © 2022–2023 CVS Health and/or one of its affiliates. All rights reserved.
+  © 2026 Jeff Witt.
+  © 2026 Jonathan Robert Pool.
+
+  Licensed under the MIT License. See LICENSE file at the project root or
+  https://opensource.org/license/mit/ for details.
+
+  SPDX-License-Identifier: MIT
+*/
+
+// IMPORTS
+
+import type {Page} from 'playwright';
+import {getXPathCatalogIndex} from '../procs/xPath';
+import type {Report} from '../types';
+
+/*
+  docType
+  Derived from the bbc-a11y allDocumentsMustHaveAW3cRecommendedDoctype test.
+  This test reports a failure to equip the page document with a W3C-recommended HTML doctype.
+  Compiled to docType.js by tsc (issue #73); edit this file, not the emitted one.
+*/
+
+// Runs the test and returns the result.
+export const reporter = async (page: Page, report: Report) => {
+  // Returns whether the page declares a document type.
+  const docHasType = await page.evaluate(() => {
+    const docType = document.doctype;
+    const docHasType = !! docType && docType.name && docType.name.toLowerCase() === 'html';
+    return docHasType;
+  });
+  // Return data, totals, and, if no document type is declared, a standard instance.
+  return {
+    data: {docHasType},
+    totals: [0, 0, 0, docHasType ? 0 : 1],
+    standardInstances: docHasType ? [] : [{
+      ruleID: 'docType',
+      what: 'Document has no standard HTML doctype preamble',
+      ordinalSeverity: 3,
+      count: 1,
+      catalogIndex: getXPathCatalogIndex(report, '/html')
+    }]
+  };
+};

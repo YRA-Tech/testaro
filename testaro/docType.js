@@ -1,3 +1,4 @@
+"use strict";
 /*
   © 2022–2023 CVS Health and/or one of its affiliates. All rights reserved.
   © 2026 Jeff Witt.
@@ -8,35 +9,34 @@
 
   SPDX-License-Identifier: MIT
 */
-
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.reporter = void 0;
+const xPath_1 = require("../procs/xPath");
 /*
   docType
   Derived from the bbc-a11y allDocumentsMustHaveAW3cRecommendedDoctype test.
   This test reports a failure to equip the page document with a W3C-recommended HTML doctype.
+  Compiled to docType.js by tsc (issue #73); edit this file, not the emitted one.
 */
-
-// IMPORTS
-
-const {getXPathCatalogIndex} = require('../procs/xPath');
-
 // Runs the test and returns the result.
-exports.reporter = async (page, report) => {
-  // Returns whether the page declares a document type.
-  const docHasType = await page.evaluate(() => {
-    const docType = document.doctype;
-    const docHasType = !! docType && docType.name && docType.name.toLowerCase() === 'html';
-    return docHasType;
-  });
-  // Return data, totals, and, if no document type is declared, a standard instance.
-  return {
-    data: {docHasType},
-    totals: [0, 0, 0, docHasType ? 0 : 1],
-    standardInstances: docHasType ? [] : [{
-      ruleID: 'docType',
-      what: 'Document has no standard HTML doctype preamble',
-      ordinalSeverity: 3,
-      count: 1,
-      catalogIndex: getXPathCatalogIndex(report, '/html')
-    }]
-  };
+const reporter = async (page, report) => {
+    // Returns whether the page declares a document type.
+    const docHasType = await page.evaluate(() => {
+        const docType = document.doctype;
+        const docHasType = !!docType && docType.name && docType.name.toLowerCase() === 'html';
+        return docHasType;
+    });
+    // Return data, totals, and, if no document type is declared, a standard instance.
+    return {
+        data: { docHasType },
+        totals: [0, 0, 0, docHasType ? 0 : 1],
+        standardInstances: docHasType ? [] : [{
+                ruleID: 'docType',
+                what: 'Document has no standard HTML doctype preamble',
+                ordinalSeverity: 3,
+                count: 1,
+                catalogIndex: (0, xPath_1.getXPathCatalogIndex)(report, '/html')
+            }]
+    };
 };
+exports.reporter = reporter;
