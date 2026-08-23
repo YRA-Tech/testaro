@@ -75,7 +75,7 @@ export const reporter = async (page: Page, report: Report, actIndex: number) => 
   const {jobData} = report;
   const scriptNonce = (jobData && jobData.lastScriptNonce) as string | undefined;
   // Initialize the act report.
-  let data = {};
+  let data: {prevented?: boolean; error?: string} = {};
   const result: {nativeResult: Ed11yNativeResult; standardResult: StandardResult} = {
     nativeResult: {},
     standardResult: {}
@@ -144,15 +144,23 @@ export const reporter = async (page: Page, report: Report, actIndex: number) => 
     script,
     rulesToTest: act.rules
   });
-  // If a standard result is to be reported:
-  if (standard) {
+  // If the tool script failed to run:
+  if (result.nativeResult.prevented) {
+    // Report the prevention.
+    data.prevented = true;
+    data.error = result.nativeResult.error as string;
+    if (standard) {
+      result.standardResult.prevented = true;
+    }
+  }
+  // Otherwise, i.e. if it ran, and if a standard result is to be reported:
+  else if (standard) {
     const {standardResult} = result;
-    const {warningCount, errorCount, results} = result.nativeResult;
+    const {warningCount, errorCount, results} = result.nativeResult as Required<Ed11yNativeResult>;
     // Populate the standard-result totals.
     standardResult.totals = [warningCount, 0, errorCount, 0] as SeverityTotals;
-    // For each native-result instance (if the tool was prevented, results is
-    // undefined and this throws; verbatim from the original):
-    results!.forEach(nativeInstance => {
+    // For each native-result instance:
+    results.forEach(nativeInstance => {
       // Create a standard-result instance.
       const {test, content, dismissalKey, xPath} = nativeInstance;
       const instance = {} as StandardInstance;

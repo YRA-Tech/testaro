@@ -128,14 +128,22 @@ const reporter = async (page, report, actIndex) => {
         script,
         rulesToTest: act.rules
     });
-    // If a standard result is to be reported:
-    if (standard) {
+    // If the tool script failed to run:
+    if (result.nativeResult.prevented) {
+        // Report the prevention.
+        data.prevented = true;
+        data.error = result.nativeResult.error;
+        if (standard) {
+            result.standardResult.prevented = true;
+        }
+    }
+    // Otherwise, i.e. if it ran, and if a standard result is to be reported:
+    else if (standard) {
         const { standardResult } = result;
         const { warningCount, errorCount, results } = result.nativeResult;
         // Populate the standard-result totals.
         standardResult.totals = [warningCount, 0, errorCount, 0];
-        // For each native-result instance (if the tool was prevented, results is
-        // undefined and this throws; verbatim from the original):
+        // For each native-result instance:
         results.forEach(nativeInstance => {
             // Create a standard-result instance.
             const { test, content, dismissalKey, xPath } = nativeInstance;
