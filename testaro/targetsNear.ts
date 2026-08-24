@@ -125,7 +125,7 @@ export const reporter = async (page: Page, report: Report, _: unknown, withItems
         protoInstances.push({
           ruleID: 'targetsNear',
           what: 'Pointer-target centerpoints are less than 24px from others',
-          ordinalSeverity: 1,
+          ordinalSeverity: 3,
           count: violationCounts[1]
         });
       }
@@ -135,26 +135,27 @@ export const reporter = async (page: Page, report: Report, _: unknown, withItems
         protoInstances.push({
           ruleID: 'targetsNear',
           what: 'Pointer-target centerpoints are less than 44px from others',
-          ordinalSeverity: 0,
+          ordinalSeverity: 2,
           count: violationCounts[0]
         });
       }
     }
     return {
       data: {},
-      totals: [...violationCounts, 0, 0],
+      totals: [0, 0, ...violationCounts],
       standardInstances: protoInstances
     };
   }, withItems);
   // Convert the XPaths of the proto-instances to catalog indexes.
   protoResult.standardInstances = protoResult.standardInstances.map(instance => {
-    /*
-      Summary instances (withItems false) carry no xPath, so this passes undefined and
-      getXPathTagName throws, marking the rule prevented. Preserved verbatim from the
-      JavaScript original; flagged for a behavior-correcting follow-up.
-    */
-    instance.catalogIndex = getXPathCatalogIndex(report, instance.xPath as string);
-    delete instance.xPath;
+    const {xPath} = instance;
+    // If the instance has an XPath:
+    if (xPath) {
+      // Ensure the catalog index of the instance is that with the XPath.
+      instance.catalogIndex = getXPathCatalogIndex(report, xPath as string);
+      // Delete the XPath from the instance.
+      delete instance.xPath;
+    }
     return instance;
   });
   // Return the result.
