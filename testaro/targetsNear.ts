@@ -151,14 +151,10 @@ export const reporter = async (page: Page, report: Report, _: unknown, withItems
     const {xPath} = instance;
     // If the instance has an XPath:
     if (xPath) {
-      // Get its catalog index.
-      const catalogIndex = getXPathCatalogIndex(report, xPath as string);
-      // If this succeeded:
-      if (catalogIndex) {
-        // Replace the XPath with the catalog index.
-        instance.catalogIndex = catalogIndex;
-        delete instance.xPath;
-      }
+      // Ensure the catalog index of the instance is that with the XPath.
+      instance.catalogIndex = getXPathCatalogIndex(report, xPath as string);
+      // Delete the XPath from the instance.
+      delete instance.xPath;
     }
     return instance;
   });
