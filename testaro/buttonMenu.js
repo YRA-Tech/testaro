@@ -255,7 +255,7 @@ const reporter = async (page, report, _0, withItems, trialKeySpecs = []) => {
                                     trialKeys.push(extraData.orientation === 'horizontal' ? 'ArrowLeft' : 'ArrowUp');
                                 }
                                 else if (spec === '+') {
-                                    trialKeys.push(extraData.orientation === 'horizontal' ? 'ArrowtRight' : 'ArrowDown');
+                                    trialKeys.push(extraData.orientation === 'horizontal' ? 'ArrowRight' : 'ArrowDown');
                                 }
                             });
                         }
