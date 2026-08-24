@@ -38,6 +38,41 @@
     },
     {
       "type": "url",
+      "which": "file://validation/tests/targets/buttonMenu/horizontalGood.html",
+      "what": "page with standard horizontal button menu navigation"
+    },
+    {
+      "type": "test",
+      "which": "testaro",
+      "withItems": true,
+      "args": {
+        "buttonMenu": [["+"]]
+      },
+      "stopOnFail": true,
+      "expect": [
+        [
+          "standardResult.totals.1",
+          "=",
+          0
+        ],
+        [
+          "standardResult.totals.2",
+          "=",
+          0
+        ],
+        [
+          "standardResult.instances.length",
+          "=",
+          0
+        ]
+      ],
+      "rules": [
+        "y",
+        "buttonMenu"
+      ]
+    },
+    {
+      "type": "url",
       "which": "file://validation/tests/targets/buttonMenu/bad.html",
       "what": "page with deviant menu navigation"
     },
