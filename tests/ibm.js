@@ -88,11 +88,16 @@ const trimActReport = (actReport, withItems, rules) => {
                     delete item.ruleTime;
                     delete item.value;
                 });
+                // Return the act report, trimmed.
+                return {
+                    totals,
+                    items: actReport.items
+                };
             }
-            // Return the act report, trimmed.
+            // Otherwise, i.e. if itemization is not required, return the act report without items.
             return {
                 totals,
-                items: actReport.items
+                items: []
             };
         }
         // Otherwise, i.e. if it excludes totals:
@@ -159,27 +164,30 @@ const reporter = async (page, report, actIndex) => {
             if (standard) {
                 // Populate the totals of the standard result.
                 standardResult.totals = [totals.recommendation, 0, totals.violation, 0];
-                // For each item of the native result (without itemization, items is
-                // undefined and this throws, caught below; verbatim from the original):
-                nativeResult.items.forEach(item => {
-                    // Populate a standard instance.
-                    const standardItem = {
-                        ruleID: item.ruleId,
-                        what: item.message,
-                        ordinalSeverity: item.level === 'recommendation' ? 0 : 2,
-                        count: 1
-                    };
-                    // Get the XPath from the added attribute, because path.dom is wrong.
-                    const xPath = (0, xPath_1.getAttributeXPath)(item.snippet);
-                    // If the XPath was obtained:
-                    if (xPath) {
-                        // Add the catalog index to the standard instance.
-                        standardItem.catalogIndex = (0, xPath_1.getXPathCatalogIndex)(report, xPath);
-                    }
-                    // Add the standard instance to the standard result.
-                    standardResult.instances.push(standardItem);
-                });
+                // If itemization is required:
+                if (withItems) {
+                    // For each item:
+                    nativeResult.items.forEach(item => {
+                        // Populate a standard instance.
+                        const standardItem = {
+                            ruleID: item.ruleId,
+                            what: item.message,
+                            ordinalSeverity: item.level === 'recommendation' ? 0 : 2,
+                            count: 1
+                        };
+                        // Get the XPath from the added attribute, because path.dom is wrong.
+                        const xPath = (0, xPath_1.getAttributeXPath)(item.snippet);
+                        // If the XPath was obtained:
+                        if (xPath) {
+                            // Add the catalog index to the standard instance.
+                            standardItem.catalogIndex = (0, xPath_1.getXPathCatalogIndex)(report, xPath);
+                        }
+                        // Add the standard instance to the standard result.
+                        standardResult.instances.push(standardItem);
+                    });
+                }
             }
+            // Return the data and the result.
             return {
                 data: {},
                 result
