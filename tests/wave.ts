@@ -189,16 +189,19 @@ export const reporter = async (page: Page, report: Report, actIndex: number) => 
                       // For each of those violations:
                       for (const index in selectors) {
                         const selector = selectors[index as unknown as number] as string;
-                        let violator: Element | null | undefined;
+                        let violator: Element | null;
                         try {
                           // Get the violator.
                           violator = document.querySelector(selector);
                           // If this succeeded:
                           if (violator) {
-                            // Concatenate the selector with the XPath of the violator.
-                            selectors[index as unknown as number] = [
-                              selector, window.getXPath(violator as Element) ?? ''
-                            ];
+                            // Get the XPath of the violator.
+                            const xPath = window.getXPath(violator);
+                            // If this succeeded:
+                            if (xPath) {
+                              // Concatenate the selector with the XPath.
+                              selectors[index as unknown as number] = [selector, xPath];
+                            }
                           }
                         } catch (error) {
                           console.error(`ERROR: Invalid selector: ${selector} (${(error as Error).message})`);

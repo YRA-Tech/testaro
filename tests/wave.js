@@ -132,10 +132,13 @@ const reporter = async (page, report, actIndex) => {
                                                 violator = document.querySelector(selector);
                                                 // If this succeeded:
                                                 if (violator) {
-                                                    // Concatenate the selector with the XPath of the violator.
-                                                    selectors[index] = [
-                                                        selector, window.getXPath(violator) ?? ''
-                                                    ];
+                                                    // Get the XPath of the violator.
+                                                    const xPath = window.getXPath(violator);
+                                                    // If this succeeded:
+                                                    if (xPath) {
+                                                        // Concatenate the selector with the XPath.
+                                                        selectors[index] = [selector, xPath];
+                                                    }
                                                 }
                                             }
                                             catch (error) {
