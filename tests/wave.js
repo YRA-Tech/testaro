@@ -126,14 +126,20 @@ const reporter = async (page, report, actIndex) => {
                                         // For each of those violations:
                                         for (const index in selectors) {
                                             const selector = selectors[index];
-                                            // Get the violator.
                                             let violator;
                                             try {
+                                                // Get the violator.
                                                 violator = document.querySelector(selector);
-                                                // Concatenate its selector with its XPath in the native result.
-                                                selectors[index] = [
-                                                    selector, window.getXPath(violator) ?? ''
-                                                ];
+                                                // If this succeeded:
+                                                if (violator) {
+                                                    // Get the XPath of the violator.
+                                                    const xPath = window.getXPath(violator);
+                                                    // If this succeeded:
+                                                    if (xPath) {
+                                                        // Concatenate the selector with the XPath.
+                                                        selectors[index] = [selector, xPath];
+                                                    }
+                                                }
                                             }
                                             catch (error) {
                                                 console.error(`ERROR: Invalid selector: ${selector} (${error.message})`);
@@ -155,9 +161,12 @@ const reporter = async (page, report, actIndex) => {
                                             ordinalSeverity,
                                             count: 1
                                         };
-                                        const xPath = violation[1];
-                                        // Add the catalog index to the instance.
-                                        instance.catalogIndex = (0, xPath_1.getXPathCatalogIndex)(report, xPath);
+                                        // If the selector has been converted to a selector-XPath pair:
+                                        if (Array.isArray(violation)) {
+                                            const xPath = violation[1];
+                                            // Add the catalog index to the instance.
+                                            instance.catalogIndex = (0, xPath_1.getXPathCatalogIndex)(report, xPath);
+                                        }
                                         // Add the instance to the standard result.
                                         instances.push(instance);
                                     }

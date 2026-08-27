@@ -189,14 +189,20 @@ export const reporter = async (page: Page, report: Report, actIndex: number) => 
                       // For each of those violations:
                       for (const index in selectors) {
                         const selector = selectors[index as unknown as number] as string;
-                        // Get the violator.
-                        let violator: Element | null | undefined;
+                        let violator: Element | null;
                         try {
+                          // Get the violator.
                           violator = document.querySelector(selector);
-                          // Concatenate its selector with its XPath in the native result.
-                          selectors[index as unknown as number] = [
-                            selector, window.getXPath(violator as Element) ?? ''
-                          ];
+                          // If this succeeded:
+                          if (violator) {
+                            // Get the XPath of the violator.
+                            const xPath = window.getXPath(violator);
+                            // If this succeeded:
+                            if (xPath) {
+                              // Concatenate the selector with the XPath.
+                              selectors[index as unknown as number] = [selector, xPath];
+                            }
+                          }
                         } catch (error) {
                           console.error(`ERROR: Invalid selector: ${selector} (${(error as Error).message})`);
                         }
@@ -217,9 +223,12 @@ export const reporter = async (page: Page, report: Report, actIndex: number) => 
                         ordinalSeverity,
                         count: 1
                       };
-                      const xPath = violation[1];
-                      // Add the catalog index to the instance.
-                      instance.catalogIndex = getXPathCatalogIndex(report, xPath);
+                      // If the selector has been converted to a selector-XPath pair:
+                      if (Array.isArray(violation)) {
+                        const xPath = violation[1];
+                        // Add the catalog index to the instance.
+                        instance.catalogIndex = getXPathCatalogIndex(report, xPath);
+                      }
                       // Add the instance to the standard result.
                       instances.push(instance);
                     }
