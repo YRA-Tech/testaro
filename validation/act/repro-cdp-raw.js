@@ -89,7 +89,7 @@ const pages = {
     const stillListed = targetInfos.some(t => t.targetId === targetId);
     const verdict = success && ! destroyed && stillListed ? 'CONTRACT VIOLATION'
       : success && destroyed ? 'closed properly'
-      : `other (success=${success} destroyed=${destroyed} listed=${stillListed})`;
+        : `other (success=${success} destroyed=${destroyed} listed=${stillListed})`;
     console.log(`round ${round}: closeTarget success=${success}, targetDestroyed=${destroyed}, stillListed=${stillListed} → ${verdict}`);
     if (verdict === 'CONTRACT VIOLATION') {
       contractViolations++;

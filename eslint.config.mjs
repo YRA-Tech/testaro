@@ -30,6 +30,8 @@ export default defineConfig([
     'ed11y/',
     // Vendored SureA11y standalone browser bundle (MPL-2.0; not to be modified).
     'surea11y/surea11y.browser.js',
+    // Vendored Pour Engine bundle, built with esbuild (see pour/README.md).
+    'pour/pour.min.js',
     // Validation fixtures, some of which are intentionally defective.
     'validation/tests/targets/'
   ]),
