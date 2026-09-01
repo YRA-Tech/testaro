@@ -36,6 +36,7 @@ const tools = exports.tools = {
   nuVnu: 'Html Checker',
   pour: 'Pour Engine',
   qualWeb: 'QualWeb',
+  surea11y: 'SureA11y',
   testaro: 'Testaro',
   wave: 'WAVE',
 };

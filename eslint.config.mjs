@@ -28,6 +28,8 @@ export default defineConfig([
     'htmlcs/HTMLCS.js',
     // Vendored Editoria11y bundles.
     'ed11y/',
+    // Vendored SureA11y standalone browser bundle (MPL-2.0; not to be modified).
+    'surea11y/surea11y.browser.js',
     // Validation fixtures, some of which are intentionally defective.
     'validation/tests/targets/'
   ]),

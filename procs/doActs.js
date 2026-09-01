@@ -54,6 +54,7 @@ const timeLimits = {
   nuVnu: 25,
   pour: 35,
   qualWeb: 45,
+  surea11y: 35,
   testaro: 200 + Math.round(6 * waits / 1000),
   wave: 25
 };
