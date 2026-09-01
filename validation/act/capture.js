@@ -56,7 +56,8 @@ const XPATH_NEEDS = {
   htmlcs: 'attribute',
   ibm: 'attribute',
   pour: 'script',
-  qualWeb: 'attribute'
+  qualWeb: 'attribute',
+  surea11y: 'script'
 };
 
 // Converts a wcag### tag (axe/pour style) to a dotted criterion.
@@ -71,6 +72,8 @@ const tagToCriterion = tag => {
   here as engines join Track A.
 */
 const criterionExtractors = {
+  // Shared by pour and surea11y: both adapters flatten to violations/incomplete
+  // arrays of findings carrying a dotted `wcag` criterion.
   pour: nativeResult => {
     const buckets = {asserted: {}, review: {}};
     [['violations', 'asserted'], ['incomplete', 'review']].forEach(([source, target]) => {
@@ -81,6 +84,9 @@ const criterionExtractors = {
       });
     });
     return buckets;
+  },
+  get surea11y() {
+    return this.pour;
   },
   axe: nativeResult => {
     const buckets = {asserted: {}, review: {}};
