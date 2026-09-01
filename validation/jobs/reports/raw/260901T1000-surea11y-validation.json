@@ -1,0 +1,964 @@
+{
+  "id": "260901T1000-surea11y-validation",
+  "what": "Validate surea11y tool on webaim.org",
+  "strict": true,
+  "timeLimit": 60,
+  "acts": [
+    {
+      "type": "launch",
+      "which": "chromium",
+      "url": "https://webaim.org/",
+      "what": "Chromium browser",
+      "actualURL": "https://webaim.org/",
+      "endTime": 1788270100183
+    },
+    {
+      "type": "test",
+      "which": "surea11y",
+      "what": "SureA11y",
+      "startTime": 1788270100183,
+      "actualURL": "https://webaim.org/",
+      "data": {
+        "passRuleCount": 18,
+        "inapplicableRuleCount": 57,
+        "manualRuleCount": 54,
+        "manualOccurrenceCount": 8
+      },
+      "result": {
+        "nativeResult": {
+          "engine": {
+            "tag": "a11ycore",
+            "schemaVersion": "1.0.0",
+            "locale": {
+              "requested": "en",
+              "resolved": "en",
+              "reason": "ok"
+            },
+            "wcagVersion": "2.2"
+          },
+          "violations": [
+            {
+              "ruleID": "contrast-enhanced",
+              "what": "Element has insufficient color contrast (AAA) of 6.25:1 (foreground: #ffffff, background: #bf1722, font size: 16px, font weight: normal). Expected contrast ratio of 7:1 (normal text).",
+              "wcag": "1.4.6",
+              "severity": "serious",
+              "html": "<a href=\"#maincontent\">skip to main content</a>",
+              "cssPath": "#skiptocontent > a",
+              "xPath": "/html/body/div[1]/header[1]/div[1]/a[1]"
+            },
+            {
+              "ruleID": "contrast-enhanced",
+              "what": "Element has insufficient color contrast (AAA) of 5.74:1 (foreground: #666666, background: #ffffff, font size: 19.8px, font weight: normal). Expected contrast ratio of 7:1 (normal text).",
+              "wcag": "1.4.6",
+              "severity": "serious",
+              "html": "<p id=\"mission\">Expanding the potential of the web for people with disabilities by empowering individuals and organizations to create accessible content.</p>",
+              "cssPath": "#mission",
+              "xPath": "/html/body/main[1]/article[1]/p[1]"
+            },
+            {
+              "ruleID": "contrast-enhanced",
+              "what": "Element has insufficient color contrast (AAA) of 5.74:1 (foreground: #666666, background: #ffffff, font size: 13.3333px, font weight: normal). Expected contrast ratio of 7:1 (normal text).",
+              "wcag": "1.4.6",
+              "severity": "serious",
+              "html": "<input type=\"submit\" value=\"WAVE\">",
+              "cssPath": "#checkpage > form > input:nth-of-type(2)",
+              "xPath": "/html/body/footer[1]/div[1]/div[1]/div[1]/form[1]/input[2]"
+            }
+          ],
+          "incomplete": [
+            {
+              "ruleID": "contrast-computable",
+              "what": "Contrast is not computable because the background uses an image (background-image=url(\"https://webaim.org/media/template/bg_logo.png\")).",
+              "wcag": "1.4.3",
+              "severity": "serious",
+              "html": "<h2 class=\"hidden\">Main Navigation</h2>",
+              "cssPath": "#headcontainer > header > nav > h2",
+              "xPath": "/html/body/div[1]/header[1]/nav[1]/h2[1]"
+            },
+            {
+              "ruleID": "contrast-computable",
+              "what": "Contrast is not computable because the background uses an image (background-image=url(\"https://webaim.org/media/banners/home.jpg\")).",
+              "wcag": "1.4.3",
+              "severity": "serious",
+              "html": "<a href=\"/services/\">Services</a>",
+              "cssPath": "#headcontainer > header > nav > ul > li:nth-of-type(1) > a",
+              "xPath": "/html/body/div[1]/header[1]/nav[1]/ul[1]/li[1]/a[1]"
+            },
+            {
+              "ruleID": "contrast-computable",
+              "what": "Contrast is not computable because the background uses an image (background-image=url(\"https://webaim.org/media/banners/home.jpg\")).",
+              "wcag": "1.4.3",
+              "severity": "serious",
+              "html": "<a href=\"/articles/\">Articles</a>",
+              "cssPath": "#headcontainer > header > nav > ul > li:nth-of-type(2) > a",
+              "xPath": "/html/body/div[1]/header[1]/nav[1]/ul[1]/li[2]/a[1]"
+            },
+            {
+              "ruleID": "contrast-computable",
+              "what": "Contrast is not computable because the background uses an image (background-image=url(\"https://webaim.org/media/banners/home.jpg\")).",
+              "wcag": "1.4.3",
+              "severity": "serious",
+              "html": "<a href=\"/resources/\">Resources</a>",
+              "cssPath": "#headcontainer > header > nav > ul > li:nth-of-type(3) > a",
+              "xPath": "/html/body/div[1]/header[1]/nav[1]/ul[1]/li[3]/a[1]"
+            },
+            {
+              "ruleID": "contrast-computable",
+              "what": "Contrast is not computable because the background uses an image (background-image=url(\"https://webaim.org/media/banners/home.jpg\")).",
+              "wcag": "1.4.3",
+              "severity": "serious",
+              "html": "<a href=\"/projects/\">Projects</a>",
+              "cssPath": "#headcontainer > header > nav > ul > li:nth-of-type(4) > a",
+              "xPath": "/html/body/div[1]/header[1]/nav[1]/ul[1]/li[4]/a[1]"
+            },
+            {
+              "ruleID": "contrast-computable",
+              "what": "Contrast is not computable because the background uses an image (background-image=url(\"https://webaim.org/media/banners/home.jpg\")).",
+              "wcag": "1.4.3",
+              "severity": "serious",
+              "html": "<a href=\"/community/\">Community</a>",
+              "cssPath": "#headcontainer > header > nav > ul > li:nth-of-type(5) > a",
+              "xPath": "/html/body/div[1]/header[1]/nav[1]/ul[1]/li[5]/a[1]"
+            },
+            {
+              "ruleID": "contrast-computable",
+              "what": "Contrast is not computable because the background uses an image (background-image=url(\"https://conference.webaim.org/media/banner.jpg\")).",
+              "wcag": "1.4.3",
+              "severity": "serious",
+              "html": "<div id=\"bannerheader\">Web Accessibility in Mind Conference</div>",
+              "cssPath": "#bannerheader",
+              "xPath": "/html/body/main[1]/article[1]/div[1]/div[1]/div[1]/div[1]"
+            },
+            {
+              "ruleID": "contrast-computable",
+              "what": "Contrast is not computable because the background uses an image (background-image=url(\"https://conference.webaim.org/media/banner.jpg\")).",
+              "wcag": "1.4.3",
+              "severity": "serious",
+              "html": "<div id=\"subbanner\">September 15-16<br>In partnership with <img src=\"https://conference.webaim.org/media/popetechSmall.svg\" width=\"160\" alt=\"PopeTech\"></div>",
+              "cssPath": "#subbanner",
+              "xPath": "/html/body/main[1]/article[1]/div[1]/div[1]/div[1]/div[2]"
+            },
+            {
+              "ruleID": "contrast-computable",
+              "what": "Contrast is not computable because the background uses an image (background-image=url(\"https://webaim.org/media/template/bg_training.svg\")).",
+              "wcag": "1.4.3",
+              "severity": "serious",
+              "html": "<a href=\"/services/training/\">Accessibility Training</a>",
+              "cssPath": "#training > h2 > a",
+              "xPath": "/html/body/main[1]/article[1]/div[2]/div[1]/h2[1]/a[1]"
+            },
+            {
+              "ruleID": "contrast-computable",
+              "what": "Contrast is not computable because the background uses an image (background-image=url(\"https://webaim.org/media/template/bg_training.svg\")).",
+              "wcag": "1.4.3",
+              "severity": "serious",
+              "html": "<p>WebAIM can provide web, document, Zoom, and strategic accessibility training to fit your needs.</p>",
+              "cssPath": "#training > p",
+              "xPath": "/html/body/main[1]/article[1]/div[2]/div[1]/p[1]"
+            },
+            {
+              "ruleID": "contrast-computable",
+              "what": "Contrast is not computable because the background uses an image (background-image=url(\"https://webaim.org/media/home/consultingicon.svg\")).",
+              "wcag": "1.4.3",
+              "severity": "serious",
+              "html": "<a href=\"/services/consulting/\">Technical Assistance</a>",
+              "cssPath": "#consulting > h2 > a",
+              "xPath": "/html/body/main[1]/article[1]/div[2]/div[2]/h2[1]/a[1]"
+            },
+            {
+              "ruleID": "contrast-computable",
+              "what": "Contrast is not computable because the background uses an image (background-image=url(\"https://webaim.org/media/home/consultingicon.svg\")).",
+              "wcag": "1.4.3",
+              "severity": "serious",
+              "html": "<p>Need assistance implementing accessibility? WebAIM's expert staff can provide the assistance you need.</p>",
+              "cssPath": "#consulting > p",
+              "xPath": "/html/body/main[1]/article[1]/div[2]/div[2]/p[1]"
+            },
+            {
+              "ruleID": "contrast-computable",
+              "what": "Contrast is not computable because the background uses an image (background-image=url(\"https://webaim.org/media/home/strategica11yicon.svg\")).",
+              "wcag": "1.4.3",
+              "severity": "serious",
+              "html": "<a href=\"/training/procurement/\">Accessibility in Procurement</a>",
+              "cssPath": "#strategica11y > h2 > a",
+              "xPath": "/html/body/main[1]/article[1]/div[2]/div[3]/h2[1]/a[1]"
+            },
+            {
+              "ruleID": "contrast-computable",
+              "what": "Contrast is not computable because the background uses an image (background-image=url(\"https://webaim.org/media/home/strategica11yicon.svg\")).",
+              "wcag": "1.4.3",
+              "severity": "serious",
+              "html": "<p>Tools and processes to help organizations account for accessibility in purchasing or using technology.</p>",
+              "cssPath": "#strategica11y > p",
+              "xPath": "/html/body/main[1]/article[1]/div[2]/div[3]/p[1]"
+            },
+            {
+              "ruleID": "contrast-computable",
+              "what": "Contrast is not computable because the background uses an image (background-image=url(\"https://webaim.org/media/home/evalicon.svg\")).",
+              "wcag": "1.4.3",
+              "severity": "serious",
+              "html": "<a href=\"/services/monitoring/\">Evaluation and Reporting</a>",
+              "cssPath": "#monitoring > h2 > a",
+              "xPath": "/html/body/main[1]/article[1]/div[2]/div[4]/h2[1]/a[1]"
+            },
+            {
+              "ruleID": "contrast-computable",
+              "what": "Contrast is not computable because the background uses an image (background-image=url(\"https://webaim.org/media/home/evalicon.svg\")).",
+              "wcag": "1.4.3",
+              "severity": "serious",
+              "html": "<p>We can provide reports to help you know how accessible your site is and how to make it better.</p>",
+              "cssPath": "#monitoring > p",
+              "xPath": "/html/body/main[1]/article[1]/div[2]/div[4]/p[1]"
+            },
+            {
+              "ruleID": "contrast-computable",
+              "what": "Contrast is not computable because the background uses an image (background-image=url(\"https://webaim.org/media/template/bg_copyright.svg\")).",
+              "wcag": "1.4.3",
+              "severity": "serious",
+              "html": "<h2 id=\"copyright\">©2026 WebAIM</h2>",
+              "cssPath": "#copyright",
+              "xPath": "/html/body/footer[1]/div[1]/div[1]/h2[1]"
+            },
+            {
+              "ruleID": "contrast-computable",
+              "what": "Contrast is not computable because the background uses an image (background-image=url(\"https://webaim.org/media/template/bg_phone.svg\")).",
+              "wcag": "1.4.3",
+              "severity": "serious",
+              "html": "<a class=\"phone\" href=\"tel:4357977024\">435.797.7024</a>",
+              "cssPath": "#contact > a",
+              "xPath": "/html/body/footer[1]/div[1]/div[1]/p[1]/a[1]"
+            },
+            {
+              "ruleID": "contrast-computable",
+              "what": "Contrast is not computable because the background uses an image (background-image=url(\"https://webaim.org/media/template/bg_wave.svg\")).",
+              "wcag": "1.4.3",
+              "severity": "serious",
+              "html": "<h2>Check Your Accessibility</h2>",
+              "cssPath": "#checkpage > h2",
+              "xPath": "/html/body/footer[1]/div[1]/div[1]/div[1]/h2[1]"
+            },
+            {
+              "ruleID": "contrast-computable",
+              "what": "Contrast is not computable because the background uses an image (background-image=url(\"https://webaim.org/media/template/bg_blog.svg\")).",
+              "wcag": "1.4.3",
+              "severity": "serious",
+              "html": "<h2 id=\"blog\">From the Blog</h2>",
+              "cssPath": "#blog",
+              "xPath": "/html/body/footer[1]/div[1]/div[2]/h2[1]"
+            },
+            {
+              "ruleID": "contrast-computable",
+              "what": "Contrast is not computable because the background uses an image (background-image=url(\"https://webaim.org/media/template/bg_popular.svg\")).",
+              "wcag": "1.4.3",
+              "severity": "serious",
+              "html": "<h2 id=\"popular\">Popular Resources</h2>",
+              "cssPath": "#popular",
+              "xPath": "/html/body/footer[1]/div[1]/div[3]/h2[1]"
+            },
+            {
+              "ruleID": "contrast-computable",
+              "what": "Contrast is not computable because the background uses an image (background-image=url(\"https://webaim.org/media/template/bg_contact.svg\")).",
+              "wcag": "1.4.3",
+              "severity": "serious",
+              "html": "<a id=\"footercontact\" href=\"/contact\">Contact</a>",
+              "cssPath": "#footercontact",
+              "xPath": "/html/body/footer[1]/div[1]/div[4]/ul[1]/li[1]/a[1]"
+            },
+            {
+              "ruleID": "contrast-computable",
+              "what": "Contrast is not computable because the background uses an image (background-image=url(\"https://webaim.org/media/template/bg_about.svg\")).",
+              "wcag": "1.4.3",
+              "severity": "serious",
+              "html": "<a id=\"footerabout\" href=\"/about\">About</a>",
+              "cssPath": "#footerabout",
+              "xPath": "/html/body/footer[1]/div[1]/div[4]/ul[1]/li[2]/a[1]"
+            },
+            {
+              "ruleID": "contrast-computable",
+              "what": "Contrast is not computable because the background uses an image (background-image=url(\"https://webaim.org/media/template/bg_rss.svg\")).",
+              "wcag": "1.4.3",
+              "severity": "serious",
+              "html": "<a id=\"footerrss\" href=\"/community/rss\">RSS Feeds</a>",
+              "cssPath": "#footerrss",
+              "xPath": "/html/body/footer[1]/div[1]/div[4]/ul[1]/li[3]/a[1]"
+            },
+            {
+              "ruleID": "contrast-computable",
+              "what": "Contrast is not computable because the background uses an image (background-image=url(\"https://webaim.org/media/template/bg_li.svg\")).",
+              "wcag": "1.4.3",
+              "severity": "serious",
+              "html": "<a id=\"footerli\" href=\"https://www.linkedin.com/company/webaim/\">LinkedIn</a>",
+              "cssPath": "#footerli",
+              "xPath": "/html/body/footer[1]/div[1]/div[4]/ul[1]/li[4]/a[1]"
+            },
+            {
+              "ruleID": "contrast-computable",
+              "what": "Contrast is not computable because the background uses an image (background-image=url(\"https://webaim.org/media/template/bg_terms.svg\")).",
+              "wcag": "1.4.3",
+              "severity": "serious",
+              "html": "<a id=\"footercopyright\" href=\"/copyright\">Copyright &amp; Terms of Use</a>",
+              "cssPath": "#footercopyright",
+              "xPath": "/html/body/footer[1]/div[1]/div[4]/ul[1]/li[5]/a[1]"
+            },
+            {
+              "ruleID": "css-orientation-lock",
+              "what": "3 stylesheet(s) could not be read, so whether this page locks its orientation could not be determined.",
+              "wcag": "1.3.4",
+              "severity": "serious",
+              "html": "<html lang=\"en\"><head>\n\t<meta charset=\"utf-8\">\n\t<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n\t\t<title>WebAIM: Web Accessibility In Mind</title>\n\t<link rel=\"shortcut icon\" href=\"/media/favicon.ico\">\n\t<link rel=\"home\" href=\"/\">\n\t<link rel=\"search\" href=\"/search/\">\n\t<link rel=\"alternate\" href=\"https://webaim.org/blog/feed\" type=\"application/rss+xml\" title=\"WebAIM Blog\">\n\n\t<script async=\"\" src=\"https://www.googletagmanager.com/gtag/js?id=G-Y41PF8WV9X\"></script>\n\t<script>\n  \tw",
+              "cssPath": "html",
+              "xPath": "/html"
+            },
+            {
+              "ruleID": "link-in-text-block",
+              "what": "Whether this link is distinguishable from the surrounding text by non-color means could not be determined.",
+              "wcag": "1.4.1",
+              "severity": "serious",
+              "html": "<a class=\"phone\" href=\"tel:4357977024\">435.797.7024</a>",
+              "cssPath": "#contact > a",
+              "xPath": "/html/body/footer[1]/div[1]/div[1]/p[1]/a[1]"
+            }
+          ],
+          "passRuleCount": 18,
+          "inapplicableRuleCount": 57,
+          "manualRuleCount": 54,
+          "manualOccurrenceCount": 8
+        },
+        "standardResult": {
+          "prevented": false,
+          "totals": [
+            0,
+            28,
+            0,
+            3
+          ],
+          "instances": [
+            {
+              "ruleID": "contrast-computable",
+              "what": "Contrast is not computable because the background uses an image (background-image=url(\"https://webaim.org/media/template/bg_logo.png\")).",
+              "ordinalSeverity": 1,
+              "count": 1,
+              "catalogIndex": "30"
+            },
+            {
+              "ruleID": "contrast-computable",
+              "what": "Contrast is not computable because the background uses an image (background-image=url(\"https://webaim.org/media/banners/home.jpg\")).",
+              "ordinalSeverity": 1,
+              "count": 1,
+              "catalogIndex": "33"
+            },
+            {
+              "ruleID": "contrast-computable",
+              "what": "Contrast is not computable because the background uses an image (background-image=url(\"https://webaim.org/media/banners/home.jpg\")).",
+              "ordinalSeverity": 1,
+              "count": 1,
+              "catalogIndex": "35"
+            },
+            {
+              "ruleID": "contrast-computable",
+              "what": "Contrast is not computable because the background uses an image (background-image=url(\"https://webaim.org/media/banners/home.jpg\")).",
+              "ordinalSeverity": 1,
+              "count": 1,
+              "catalogIndex": "37"
+            },
+            {
+              "ruleID": "contrast-computable",
+              "what": "Contrast is not computable because the background uses an image (background-image=url(\"https://webaim.org/media/banners/home.jpg\")).",
+              "ordinalSeverity": 1,
+              "count": 1,
+              "catalogIndex": "39"
+            },
+            {
+              "ruleID": "contrast-computable",
+              "what": "Contrast is not computable because the background uses an image (background-image=url(\"https://webaim.org/media/banners/home.jpg\")).",
+              "ordinalSeverity": 1,
+              "count": 1,
+              "catalogIndex": "41"
+            },
+            {
+              "ruleID": "contrast-computable",
+              "what": "Contrast is not computable because the background uses an image (background-image=url(\"https://conference.webaim.org/media/banner.jpg\")).",
+              "ordinalSeverity": 1,
+              "count": 1,
+              "catalogIndex": "60"
+            },
+            {
+              "ruleID": "contrast-computable",
+              "what": "Contrast is not computable because the background uses an image (background-image=url(\"https://conference.webaim.org/media/banner.jpg\")).",
+              "ordinalSeverity": 1,
+              "count": 1,
+              "catalogIndex": "61"
+            },
+            {
+              "ruleID": "contrast-computable",
+              "what": "Contrast is not computable because the background uses an image (background-image=url(\"https://webaim.org/media/template/bg_training.svg\")).",
+              "ordinalSeverity": 1,
+              "count": 1,
+              "catalogIndex": "69"
+            },
+            {
+              "ruleID": "contrast-computable",
+              "what": "Contrast is not computable because the background uses an image (background-image=url(\"https://webaim.org/media/template/bg_training.svg\")).",
+              "ordinalSeverity": 1,
+              "count": 1,
+              "catalogIndex": "70"
+            },
+            {
+              "ruleID": "contrast-computable",
+              "what": "Contrast is not computable because the background uses an image (background-image=url(\"https://webaim.org/media/home/consultingicon.svg\")).",
+              "ordinalSeverity": 1,
+              "count": 1,
+              "catalogIndex": "73"
+            },
+            {
+              "ruleID": "contrast-computable",
+              "what": "Contrast is not computable because the background uses an image (background-image=url(\"https://webaim.org/media/home/consultingicon.svg\")).",
+              "ordinalSeverity": 1,
+              "count": 1,
+              "catalogIndex": "74"
+            },
+            {
+              "ruleID": "contrast-computable",
+              "what": "Contrast is not computable because the background uses an image (background-image=url(\"https://webaim.org/media/home/strategica11yicon.svg\")).",
+              "ordinalSeverity": 1,
+              "count": 1,
+              "catalogIndex": "77"
+            },
+            {
+              "ruleID": "contrast-computable",
+              "what": "Contrast is not computable because the background uses an image (background-image=url(\"https://webaim.org/media/home/strategica11yicon.svg\")).",
+              "ordinalSeverity": 1,
+              "count": 1,
+              "catalogIndex": "78"
+            },
+            {
+              "ruleID": "contrast-computable",
+              "what": "Contrast is not computable because the background uses an image (background-image=url(\"https://webaim.org/media/home/evalicon.svg\")).",
+              "ordinalSeverity": 1,
+              "count": 1,
+              "catalogIndex": "81"
+            },
+            {
+              "ruleID": "contrast-computable",
+              "what": "Contrast is not computable because the background uses an image (background-image=url(\"https://webaim.org/media/home/evalicon.svg\")).",
+              "ordinalSeverity": 1,
+              "count": 1,
+              "catalogIndex": "82"
+            },
+            {
+              "ruleID": "contrast-computable",
+              "what": "Contrast is not computable because the background uses an image (background-image=url(\"https://webaim.org/media/template/bg_copyright.svg\")).",
+              "ordinalSeverity": 1,
+              "count": 1,
+              "catalogIndex": "148"
+            },
+            {
+              "ruleID": "contrast-computable",
+              "what": "Contrast is not computable because the background uses an image (background-image=url(\"https://webaim.org/media/template/bg_phone.svg\")).",
+              "ordinalSeverity": 1,
+              "count": 1,
+              "catalogIndex": "153"
+            },
+            {
+              "ruleID": "contrast-computable",
+              "what": "Contrast is not computable because the background uses an image (background-image=url(\"https://webaim.org/media/template/bg_wave.svg\")).",
+              "ordinalSeverity": 1,
+              "count": 1,
+              "catalogIndex": "155"
+            },
+            {
+              "ruleID": "contrast-computable",
+              "what": "Contrast is not computable because the background uses an image (background-image=url(\"https://webaim.org/media/template/bg_blog.svg\")).",
+              "ordinalSeverity": 1,
+              "count": 1,
+              "catalogIndex": "161"
+            },
+            {
+              "ruleID": "contrast-computable",
+              "what": "Contrast is not computable because the background uses an image (background-image=url(\"https://webaim.org/media/template/bg_popular.svg\")).",
+              "ordinalSeverity": 1,
+              "count": 1,
+              "catalogIndex": "172"
+            },
+            {
+              "ruleID": "contrast-computable",
+              "what": "Contrast is not computable because the background uses an image (background-image=url(\"https://webaim.org/media/template/bg_contact.svg\")).",
+              "ordinalSeverity": 1,
+              "count": 1,
+              "catalogIndex": "189"
+            },
+            {
+              "ruleID": "contrast-computable",
+              "what": "Contrast is not computable because the background uses an image (background-image=url(\"https://webaim.org/media/template/bg_about.svg\")).",
+              "ordinalSeverity": 1,
+              "count": 1,
+              "catalogIndex": "191"
+            },
+            {
+              "ruleID": "contrast-computable",
+              "what": "Contrast is not computable because the background uses an image (background-image=url(\"https://webaim.org/media/template/bg_rss.svg\")).",
+              "ordinalSeverity": 1,
+              "count": 1,
+              "catalogIndex": "193"
+            },
+            {
+              "ruleID": "contrast-computable",
+              "what": "Contrast is not computable because the background uses an image (background-image=url(\"https://webaim.org/media/template/bg_li.svg\")).",
+              "ordinalSeverity": 1,
+              "count": 1,
+              "catalogIndex": "195"
+            },
+            {
+              "ruleID": "contrast-computable",
+              "what": "Contrast is not computable because the background uses an image (background-image=url(\"https://webaim.org/media/template/bg_terms.svg\")).",
+              "ordinalSeverity": 1,
+              "count": 1,
+              "catalogIndex": "197"
+            },
+            {
+              "ruleID": "css-orientation-lock",
+              "what": "3 stylesheet(s) could not be read, so whether this page locks its orientation could not be determined.",
+              "ordinalSeverity": 1,
+              "count": 1,
+              "catalogIndex": "0"
+            },
+            {
+              "ruleID": "link-in-text-block",
+              "what": "Whether this link is distinguishable from the surrounding text by non-color means could not be determined.",
+              "ordinalSeverity": 1,
+              "count": 1,
+              "catalogIndex": "153"
+            },
+            {
+              "ruleID": "contrast-enhanced",
+              "what": "Element has insufficient color contrast (AAA) of 6.25:1 (foreground: #ffffff, background: #bf1722, font size: 16px, font weight: normal). Expected contrast ratio of 7:1 (normal text).",
+              "ordinalSeverity": 3,
+              "count": 1,
+              "catalogIndex": "25"
+            },
+            {
+              "ruleID": "contrast-enhanced",
+              "what": "Element has insufficient color contrast (AAA) of 5.74:1 (foreground: #666666, background: #ffffff, font size: 19.8px, font weight: normal). Expected contrast ratio of 7:1 (normal text).",
+              "ordinalSeverity": 3,
+              "count": 1,
+              "catalogIndex": "56"
+            },
+            {
+              "ruleID": "contrast-enhanced",
+              "what": "Element has insufficient color contrast (AAA) of 5.74:1 (foreground: #666666, background: #ffffff, font size: 13.3333px, font weight: normal). Expected contrast ratio of 7:1 (normal text).",
+              "ordinalSeverity": 3,
+              "count": 1,
+              "catalogIndex": "159"
+            }
+          ]
+        }
+      },
+      "endTime": 1788270102388
+    }
+  ],
+  "sources": {},
+  "standard": "also",
+  "target": {
+    "url": "https://webaim.org/",
+    "what": "WebAIM home page"
+  },
+  "device": {
+    "id": "default",
+    "windowOptions": {}
+  },
+  "browserID": "chromium",
+  "timeStamp": "260901T1000",
+  "creationTimeStamp": "260901T1000",
+  "jobData": {
+    "tmpDir": "/home/witt/code/testaro/tmp/260901T1000-surea11y-validation",
+    "startTime": "26-09-01T13:41",
+    "endTime": "26-09-01T13:41",
+    "elapsedSeconds": 4,
+    "visitLatency": 2,
+    "logCount": 24,
+    "logSize": 4040,
+    "errorLogCount": 34,
+    "errorLogSize": 480,
+    "prohibitedCount": 0,
+    "visitRejectionCount": 0,
+    "aborted": false,
+    "abortedAct": null,
+    "abortTime": "",
+    "abortMessage": "",
+    "presses": 0,
+    "amountRead": 0,
+    "toolTimes": {
+      "surea11y": 2
+    },
+    "preventions": {},
+    "catalogData": {
+      "elementCount": 200,
+      "entryCount": 35,
+      "text": {
+        "count": 34,
+        "countPercent": 97,
+        "linkableCount": 30,
+        "linkablePercent": 88
+      },
+      "tools": {
+        "surea11y": {
+          "instanceCount": 31,
+          "catalogCount": 31,
+          "catalogPercent": 100
+        }
+      }
+    }
+  },
+  "catalog": {
+    "0": {
+      "tagName": "HTML",
+      "id": "",
+      "startTag": "<html lang=\"en\">",
+      "text": "",
+      "textLinkable": false,
+      "boxID": "0:0:1920:1971",
+      "pathID": "/html",
+      "headingIndex": ""
+    },
+    "25": {
+      "tagName": "A",
+      "id": "",
+      "startTag": "<a href=\"#maincontent\">",
+      "text": "skip to main content",
+      "textLinkable": true,
+      "boxID": "0:-40:155:31",
+      "pathID": "/html/body/div[1]/header[1]/div[1]/a[1]",
+      "headingIndex": ""
+    },
+    "30": {
+      "tagName": "H2",
+      "id": "",
+      "startTag": "<h2 class=\"hidden\">",
+      "text": "Main Navigation",
+      "textLinkable": true,
+      "boxID": "922:-450:1:1",
+      "pathID": "/html/body/div[1]/header[1]/nav[1]/h2[1]",
+      "headingIndex": ""
+    },
+    "33": {
+      "tagName": "A",
+      "id": "",
+      "startTag": "<a href=\"/services/\">",
+      "text": "services",
+      "textLinkable": true,
+      "boxID": "925:40:96:27",
+      "pathID": "/html/body/div[1]/header[1]/nav[1]/ul[1]/li[1]/a[1]",
+      "headingIndex": "30"
+    },
+    "35": {
+      "tagName": "A",
+      "id": "",
+      "startTag": "<a href=\"/articles/\">",
+      "text": "articles",
+      "textLinkable": true,
+      "boxID": "1021:40:87:27",
+      "pathID": "/html/body/div[1]/header[1]/nav[1]/ul[1]/li[2]/a[1]",
+      "headingIndex": "30"
+    },
+    "37": {
+      "tagName": "A",
+      "id": "",
+      "startTag": "<a href=\"/resources/\">",
+      "text": "resources",
+      "textLinkable": true,
+      "boxID": "1108:40:110:27",
+      "pathID": "/html/body/div[1]/header[1]/nav[1]/ul[1]/li[3]/a[1]",
+      "headingIndex": "30"
+    },
+    "39": {
+      "tagName": "A",
+      "id": "",
+      "startTag": "<a href=\"/projects/\">",
+      "text": "projects",
+      "textLinkable": true,
+      "boxID": "1218:40:93:27",
+      "pathID": "/html/body/div[1]/header[1]/nav[1]/ul[1]/li[4]/a[1]",
+      "headingIndex": "30"
+    },
+    "41": {
+      "tagName": "A",
+      "id": "",
+      "startTag": "<a href=\"/community/\">",
+      "text": "community",
+      "textLinkable": true,
+      "boxID": "1311:40:119:27",
+      "pathID": "/html/body/div[1]/header[1]/nav[1]/ul[1]/li[5]/a[1]",
+      "headingIndex": "30"
+    },
+    "55": {
+      "tagName": "H1",
+      "id": "",
+      "startTag": "<h1>",
+      "text": "We have web accessibility in mind",
+      "textLinkable": true,
+      "boxID": "490:363:920:38",
+      "pathID": "/html/body/main[1]/article[1]/h1[1]",
+      "headingIndex": ""
+    },
+    "56": {
+      "tagName": "P",
+      "id": "mission",
+      "startTag": "<p id=\"mission\">",
+      "text": "Expanding the potential of the web for people with disabilities by empowering individuals and organizations to create accessible content.",
+      "textLinkable": true,
+      "boxID": "490:408:920:46",
+      "pathID": "/html/body/main[1]/article[1]/p[1]",
+      "headingIndex": "55"
+    },
+    "60": {
+      "tagName": "DIV",
+      "id": "bannerheader",
+      "startTag": "<div id=\"bannerheader\">",
+      "text": "Web Accessibility in Mind Conference",
+      "textLinkable": false,
+      "boxID": "510:489:600:104",
+      "pathID": "/html/body/main[1]/article[1]/div[1]/div[1]/div[1]/div[1]",
+      "headingIndex": "55"
+    },
+    "61": {
+      "tagName": "DIV",
+      "id": "subbanner",
+      "startTag": "<div id=\"subbanner\">",
+      "text": "September 15-16\nIn partnership with",
+      "textLinkable": false,
+      "boxID": "510:593:600:82",
+      "pathID": "/html/body/main[1]/article[1]/div[1]/div[1]/div[1]/div[2]",
+      "headingIndex": "55"
+    },
+    "68": {
+      "tagName": "H2",
+      "id": "",
+      "startTag": "<h2>",
+      "text": "Accessibility Training",
+      "textLinkable": true,
+      "boxID": "500:797:328:30",
+      "pathID": "/html/body/main[1]/article[1]/div[2]/div[1]/h2[1]",
+      "headingIndex": "55"
+    },
+    "69": {
+      "tagName": "A",
+      "id": "",
+      "startTag": "<a href=\"/services/training/\">",
+      "text": "Accessibility Training",
+      "textLinkable": true,
+      "boxID": "502:799:199:25",
+      "pathID": "/html/body/main[1]/article[1]/div[2]/div[1]/h2[1]/a[1]",
+      "headingIndex": "68"
+    },
+    "70": {
+      "tagName": "P",
+      "id": "",
+      "startTag": "<p>",
+      "text": "WebAIM can provide web, document, Zoom, and strategic accessibility training to fit your needs.",
+      "textLinkable": true,
+      "boxID": "500:837:328:63",
+      "pathID": "/html/body/main[1]/article[1]/div[2]/div[1]/p[1]",
+      "headingIndex": "68"
+    },
+    "72": {
+      "tagName": "H2",
+      "id": "",
+      "startTag": "<h2>",
+      "text": "Technical Assistance",
+      "textLinkable": true,
+      "boxID": "858:797:328:30",
+      "pathID": "/html/body/main[1]/article[1]/div[2]/div[2]/h2[1]",
+      "headingIndex": ""
+    },
+    "73": {
+      "tagName": "A",
+      "id": "",
+      "startTag": "<a href=\"/services/consulting/\">",
+      "text": "Technical Assistance",
+      "textLinkable": true,
+      "boxID": "860:799:188:25",
+      "pathID": "/html/body/main[1]/article[1]/div[2]/div[2]/h2[1]/a[1]",
+      "headingIndex": "72"
+    },
+    "74": {
+      "tagName": "P",
+      "id": "",
+      "startTag": "<p>",
+      "text": "Need assistance implementing accessibility? WebAIM's expert staff can provide the assistance you need.",
+      "textLinkable": true,
+      "boxID": "858:837:328:63",
+      "pathID": "/html/body/main[1]/article[1]/div[2]/div[2]/p[1]",
+      "headingIndex": "72"
+    },
+    "76": {
+      "tagName": "H2",
+      "id": "",
+      "startTag": "<h2>",
+      "text": "Accessibility in Procurement",
+      "textLinkable": true,
+      "boxID": "500:937:328:30",
+      "pathID": "/html/body/main[1]/article[1]/div[2]/div[3]/h2[1]",
+      "headingIndex": ""
+    },
+    "77": {
+      "tagName": "A",
+      "id": "",
+      "startTag": "<a href=\"/training/procurement/\">",
+      "text": "Accessibility in Procurement",
+      "textLinkable": true,
+      "boxID": "502:939:261:25",
+      "pathID": "/html/body/main[1]/article[1]/div[2]/div[3]/h2[1]/a[1]",
+      "headingIndex": "76"
+    },
+    "78": {
+      "tagName": "P",
+      "id": "",
+      "startTag": "<p>",
+      "text": "Tools and processes to help organizations account for accessibility in purchasing or using technology.",
+      "textLinkable": true,
+      "boxID": "500:977:328:63",
+      "pathID": "/html/body/main[1]/article[1]/div[2]/div[3]/p[1]",
+      "headingIndex": "76"
+    },
+    "80": {
+      "tagName": "H2",
+      "id": "",
+      "startTag": "<h2>",
+      "text": "Evaluation and Reporting",
+      "textLinkable": true,
+      "boxID": "858:937:328:30",
+      "pathID": "/html/body/main[1]/article[1]/div[2]/div[4]/h2[1]",
+      "headingIndex": ""
+    },
+    "81": {
+      "tagName": "A",
+      "id": "",
+      "startTag": "<a href=\"/services/monitoring/\">",
+      "text": "Evaluation and Reporting",
+      "textLinkable": true,
+      "boxID": "860:939:231:25",
+      "pathID": "/html/body/main[1]/article[1]/div[2]/div[4]/h2[1]/a[1]",
+      "headingIndex": "80"
+    },
+    "82": {
+      "tagName": "P",
+      "id": "",
+      "startTag": "<p>",
+      "text": "We can provide reports to help you know how accessible your site is and how to make it better.",
+      "textLinkable": true,
+      "boxID": "858:977:328:63",
+      "pathID": "/html/body/main[1]/article[1]/div[2]/div[4]/p[1]",
+      "headingIndex": "80"
+    },
+    "148": {
+      "tagName": "H2",
+      "id": "copyright",
+      "startTag": "<h2 id=\"copyright\">",
+      "text": "©2026 WebAIM",
+      "textLinkable": true,
+      "boxID": "480:1692:310:42",
+      "pathID": "/html/body/footer[1]/div[1]/div[1]/h2[1]",
+      "headingIndex": ""
+    },
+    "153": {
+      "tagName": "A",
+      "id": "",
+      "startTag": "<a class=\"phone\" href=\"tel:4357977024\">",
+      "text": "435.797.7024",
+      "textLinkable": true,
+      "boxID": "480:1782:108:16",
+      "pathID": "/html/body/footer[1]/div[1]/div[1]/p[1]/a[1]",
+      "headingIndex": "148"
+    },
+    "155": {
+      "tagName": "H2",
+      "id": "",
+      "startTag": "<h2>",
+      "text": "Check Your Accessibility",
+      "textLinkable": true,
+      "boxID": "480:1828:310:42",
+      "pathID": "/html/body/footer[1]/div[1]/div[1]/div[1]/h2[1]",
+      "headingIndex": ""
+    },
+    "159": {
+      "tagName": "INPUT",
+      "id": "",
+      "startTag": "<input type=\"submit\" value=\"WAVE\">",
+      "text": "Web site address:",
+      "textLinkable": false,
+      "boxID": "691:1886:48:25",
+      "pathID": "/html/body/footer[1]/div[1]/div[1]/div[1]/form[1]/input[2]",
+      "headingIndex": "155"
+    },
+    "161": {
+      "tagName": "H2",
+      "id": "blog",
+      "startTag": "<h2 id=\"blog\">",
+      "text": "From the Blog",
+      "textLinkable": true,
+      "boxID": "790:1692:310:42",
+      "pathID": "/html/body/footer[1]/div[1]/div[2]/h2[1]",
+      "headingIndex": ""
+    },
+    "172": {
+      "tagName": "H2",
+      "id": "popular",
+      "startTag": "<h2 id=\"popular\">",
+      "text": "Popular Resources",
+      "textLinkable": true,
+      "boxID": "1100:1692:310:42",
+      "pathID": "/html/body/footer[1]/div[1]/div[3]/h2[1]",
+      "headingIndex": ""
+    },
+    "189": {
+      "tagName": "A",
+      "id": "footercontact",
+      "startTag": "<a id=\"footercontact\" href=\"/contact\">",
+      "text": "Contact",
+      "textLinkable": true,
+      "boxID": "807:1940:72:18",
+      "pathID": "/html/body/footer[1]/div[1]/div[4]/ul[1]/li[1]/a[1]",
+      "headingIndex": "172"
+    },
+    "191": {
+      "tagName": "A",
+      "id": "footerabout",
+      "startTag": "<a id=\"footerabout\" href=\"/about\">",
+      "text": "About",
+      "textLinkable": true,
+      "boxID": "897:1940:60:18",
+      "pathID": "/html/body/footer[1]/div[1]/div[4]/ul[1]/li[2]/a[1]",
+      "headingIndex": "172"
+    },
+    "193": {
+      "tagName": "A",
+      "id": "footerrss",
+      "startTag": "<a id=\"footerrss\" href=\"/community/rss\">",
+      "text": "RSS Feeds",
+      "textLinkable": true,
+      "boxID": "974:1940:96:18",
+      "pathID": "/html/body/footer[1]/div[1]/div[4]/ul[1]/li[3]/a[1]",
+      "headingIndex": "172"
+    },
+    "195": {
+      "tagName": "A",
+      "id": "footerli",
+      "startTag": "<a id=\"footerli\" href=\"https://www.linkedin.com/company/webaim/\">",
+      "text": "LinkedIn",
+      "textLinkable": false,
+      "boxID": "1088:1940:76:18",
+      "pathID": "/html/body/footer[1]/div[1]/div[4]/ul[1]/li[4]/a[1]",
+      "headingIndex": "172"
+    },
+    "197": {
+      "tagName": "A",
+      "id": "footercopyright",
+      "startTag": "<a id=\"footercopyright\" href=\"/copyright\">",
+      "text": "Copyright & Terms of Use",
+      "textLinkable": true,
+      "boxID": "1182:1940:186:18",
+      "pathID": "/html/body/footer[1]/div[1]/div[4]/ul[1]/li[5]/a[1]",
+      "headingIndex": "172"
+    }
+  }
+}

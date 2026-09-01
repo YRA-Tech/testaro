@@ -24,12 +24,14 @@
       [--urls path.txt] [--recycle N]
 
   Each output line: {testcaseId, ruleId, expected, engine, prevented,
-  instanceCount, asserted: {SC: count}, review: {SC: count},
-  ruleIDs: {engineRuleID: count}, ms}
-  `asserted` counts definite failures (ordinalSeverity 2-3 / violation band);
-  `review` counts engine-flagged uncertainty (incomplete band). Criteria are
-  dotted WCAG SC numbers, extracted per engine; engines without an extractor
-  still record ruleIDs and instanceCount.
+  instanceCount, outcomeTotals: {failed, cantTell}, asserted: {SC: count},
+  review: {SC: count}, ruleIDs: {engineRuleID: count}, ms}
+  `asserted` counts definite failures (standard-instance outcome `failed`);
+  `review` counts engine-flagged uncertainty (outcome `cantTell`). Criteria
+  are dotted WCAG SC numbers, extracted per engine from native results;
+  engines without an extractor still record ruleIDs, instanceCount, and
+  outcomeTotals. Every standard instance must carry a valid outcome; a row
+  whose instances do not is marked as an error (adapter drift).
 */
 
 // IMPORTS
@@ -38,6 +40,7 @@ const fs = require('fs');
 const fsp = require('fs/promises');
 const path = require('path');
 const {chromium} = require('playwright');
+const {OUTCOMES} = require('../../procs/standard');
 
 // CONSTANTS
 
@@ -343,7 +346,13 @@ const getXPathScript = () => {
         }
         else {
           row.instanceCount = result.standardResult.instances.length;
+          row.outcomeTotals = result.standardResult.outcomeTotals;
           row.ruleIDs = ruleIDCounts(result.standardResult);
+          const unoutcomed = result.standardResult.instances
+          .filter(instance => ! OUTCOMES.includes(instance.outcome)).length;
+          if (unoutcomed) {
+            row.error = `${unoutcomed} instance(s) without a valid outcome`;
+          }
           const extractor = criterionExtractors[engine];
           if (extractor) {
             Object.assign(row, extractor(result.nativeResult));
@@ -357,6 +366,8 @@ const getXPathScript = () => {
             .map(instance => ({
               ruleID: instance.ruleID,
               severity: instance.ordinalSeverity,
+              outcome: instance.outcome,
+              uncertainty: instance.uncertainty,
               xPath: (report.catalog[instance.catalogIndex] || {}).pathID || ''
             }));
           }

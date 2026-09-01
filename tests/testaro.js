@@ -19,10 +19,14 @@
 // Shared configuration for timeout multiplier.
 const {applyMultiplier} = require('../procs/config');
 const {launch} = require('../procs/launch');
+// Function to get an empty standard result.
+const {getStandardResult} = require('../procs/standard');
 
 // CONSTANTS
 
-// Metadata of all rules in default execution order.
+// Metadata of all rules in default execution order. A rule may specify an outcome ('failed' by
+// default, or 'cantTell' for a heuristic rule whose violations need human confirmation) and, if
+// cantTell, an uncertainty code (see procs/standard.js); a violation may override these.
 const allRules = [
   {
     id: 'adbID',
@@ -37,6 +41,8 @@ const allRules = [
     what: 'elements with unnecessarily all-capital text substrings',
     contaminates: false,
     needsAccessibleName: false,
+    outcome: 'cantTell',
+    uncertainty: 'judgement-required',
     timeOut: 30,
     defaultOn: true
   },
@@ -467,11 +473,7 @@ exports.reporter = async (page, report, actIndex) => {
   // Initialize the act result.
   const result = {
     nativeResult: {},
-    standardResult: {
-      prevented: false,
-      totals: [0, 0, 0, 0],
-      instances: []
-    }
+    standardResult: getStandardResult()
   };
   const {standardResult} = result;
   const allRuleIDs = allRules.map(rule => rule.id);
@@ -599,6 +601,14 @@ exports.reporter = async (page, report, actIndex) => {
             });
           }
           if (ruleResult.instances?.length) {
+            // Apply the rule's default outcome to instances without their own.
+            ruleResult.instances.forEach(instance => {
+              instance.outcome ??= rule.outcome ?? 'failed';
+              if (instance.outcome === 'cantTell' && rule.uncertainty) {
+                instance.uncertainty ??= rule.uncertainty;
+              }
+              standardResult.outcomeTotals[instance.outcome] += instance.count || 1;
+            });
             standardResult.instances.push(... ruleResult.instances);
           }
           justPrevented = false;

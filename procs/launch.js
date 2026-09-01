@@ -514,7 +514,7 @@ const launchOnce = async opts => {
           };
           // Add a window method to return a standard proto-instance.
           window.getProtoInstance = (
-            element, ruleID, what, count = 1, ordinalSeverity, summaryTagName = ''
+            element, ruleID, what, count = 1, ordinalSeverity, summaryTagName = '', outcome = 'failed'
           ) => {
             // If an element has been specified:
             if (element) {
@@ -524,6 +524,7 @@ const launchOnce = async opts => {
                 what,
                 count,
                 ordinalSeverity,
+                outcome,
                 pathID: window.getXPath(element)
               };
             }
@@ -532,7 +533,8 @@ const launchOnce = async opts => {
               ruleID,
               what,
               count,
-              ordinalSeverity
+              ordinalSeverity,
+              outcome
             };
           };
         });

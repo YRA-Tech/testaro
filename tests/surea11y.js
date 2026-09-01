@@ -17,16 +17,20 @@
   ../surea11y/README.md for the pinned version and verified result shape.
 
   Instance policy (engine-candidacy-pipeline.md, Stage 1): `fail`-tier occurrences become
-  instances at ordinalSeverity 2-3; automatic-rule `cantTell`-tier occurrences become
-  instances at 0-1 (the engine grades per occurrence via `occurrenceOutcome`, which takes
-  precedence over the rule-level outcome); `pass` and `notApplicable` results and all
-  `type: 'manual'` rules are tallied in `data` only and never become instances.
+  instances with outcome `failed` at ordinalSeverity 2-3; automatic-rule `cantTell`-tier
+  occurrences become instances with outcome `cantTell` at 0-1 (the engine grades per occurrence
+  via `occurrenceOutcome`, which takes precedence over the rule-level outcome), carrying the
+  engine's `uncertainty` code and `needed` guidance when it supplies them; `pass` and
+  `notApplicable` results and all `type: 'manual'` rules are tallied in `data` only and never
+  become instances.
 */
 
 // IMPORTS
 
 const fs = require('fs/promises');
 const {getXPathCatalogIndex} = require('../procs/xPath');
+// Functions to build standard results.
+const {getStandardResult, addInstance, UNCERTAINTY_CODES} = require('../procs/standard');
 
 // CONSTANTS
 
@@ -56,11 +60,7 @@ exports.reporter = async (page, report, actIndex) => {
   // If standard results are to be reported:
   if (standard) {
     // Initialize the standard result.
-    result.standardResult = {
-      prevented: false,
-      totals: [0, 0, 0, 0],
-      instances: []
-    };
+    result.standardResult = getStandardResult();
   }
   // Get the vendored tool bundle.
   let script;
@@ -165,11 +165,15 @@ exports.reporter = async (page, report, actIndex) => {
           catch(error) {
             // Unresolvable path: instance falls back to excerpt only.
           }
+          // Reason for uncertainty: per occurrence, else per check.
+          const uncertainty = occurrence.uncertainty || check.uncertainty || {};
           const finding = {
             ruleID: ruleId || '',
             what: (occurrence.summary || check.title || '').replace(/\s+/g, ' ').trim(),
             wcag: criterionOf(check.meta),
             severity: (check.severity || 'moderate').toLowerCase(),
+            uncertainty: tier === 'cantTell' ? (uncertainty.code || '') : '',
+            needed: tier === 'cantTell' ? (uncertainty.needed || '') : '',
             html: (occurrence.html || '').slice(0, 500),
             cssPath,
             xPath
@@ -220,19 +224,21 @@ exports.reporter = async (page, report, actIndex) => {
     data.manualRuleCount = nativeResult.manualRuleCount;
     data.manualOccurrenceCount = nativeResult.manualOccurrenceCount;
     // For each certainty band:
-    [['incomplete', 0], ['violations', 2]].forEach(([certainty, baseSeverity]) => {
+    [['incomplete', 0, 'cantTell'], ['violations', 2, 'failed']]
+    .forEach(([certainty, baseSeverity, outcome]) => {
       // For each native-result finding:
       nativeResult[certainty].forEach(finding => {
-        // Create a standard-result instance.
-        const {ruleID, what, severity, xPath} = finding;
-        const instance = {};
-        instance.ruleID = ruleID;
-        instance.what = what;
-        instance.ordinalSeverity = baseSeverity + (severityWeights[severity] ?? 0);
-        instance.count = 1;
-        instance.catalogIndex = getXPathCatalogIndex(report, xPath);
-        standardResult.totals[instance.ordinalSeverity]++;
-        standardResult.instances.push(instance);
+        // Add a standard-result instance, forwarding only a known uncertainty code.
+        const {ruleID, what, severity, uncertainty, needed, xPath} = finding;
+        addInstance(standardResult, {
+          ruleID,
+          what,
+          ordinalSeverity: baseSeverity + (severityWeights[severity] ?? 0),
+          outcome,
+          uncertainty: UNCERTAINTY_CODES.includes(uncertainty) ? uncertainty : undefined,
+          needed,
+          catalogIndex: getXPathCatalogIndex(report, xPath)
+        });
       });
     });
   }

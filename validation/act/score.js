@@ -21,8 +21,9 @@
     criteria from the testcase feed. Rules with none (technique/ARIA-only
     rules) are reported separately as unscoreable.
   - An engine FLAGS a testcase when it reports ≥1 finding on any of the rule's
-    criteria. Band `asserted` (default) counts definite failures only; `review`
-    counts engine-flagged uncertainty; `both` counts either.
+    criteria. Band `asserted` (default) counts definite failures only (standard
+    instance outcome `failed`); `review` counts engine-flagged uncertainty
+    (outcome `cantTell`); `both` counts either.
   - failed testcases are the positive class; passed + inapplicable are the
     negative class. Sensitivity = TP/(TP+FN); specificity = TN/(TN+FP).
   Known generosities/strictnesses, stated wherever results publish: a finding

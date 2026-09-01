@@ -8720,3 +8720,7 @@ you'll get notified when `#334` merges and when the subsequent changesets "Versi
 - **Re-test**: run a job with a `qualWeb` act and confirm the `No DOM` error is gone before merging your `qwpw` branch.
 
 I'll be ready to help with the dependency bump and verification when that release lands.
+
+# Certainty in the standard result (2026-09-01)
+
+Decision: add a first-class `outcome` (`failed` | `cantTell`) to every standard instance, with optional `uncertainty` (six ACT-style codes borrowed from surea11y) and `needed` (reviewer guidance), plus `standardResult.outcomeTotals`. `ordinalSeverity` and `totals` are unchanged in 78.x; a later major version redefines `ordinalSeverity` as impact only. This follows the `allCaps` ruling above (do not overload `ordinalSeverity` with confidence) by giving certainty its own field rather than by hiding it in `what`. Shared shape helpers live in `procs/standard.js`; the alfa adapter no longer rewrites rule IDs to `cantTell` / `cantTellTextContrast`. Full design, including the recommended Testilo tic consolidation of the 57 `*Risk` issues and certainty-aware scoring: `docs/standard-result-outcome.md`.

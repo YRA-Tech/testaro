@@ -17,6 +17,8 @@
 // IMPORTS
 
 const {getAttributeXPath, getXPathCatalogIndex} = require('../procs/xPath');
+// Functions to build standard results.
+const {getStandardResult, pushInstance} = require('../procs/standard');
 const fs = require('fs/promises');
 
 // FUNCTIONS
@@ -42,11 +44,7 @@ exports.reporter = async (page, report, actIndex) => {
   // If standard results are to be reported:
   if (standard) {
     // Initialize the standard result.
-    result.standardResult = {
-      prevented: false,
-      totals: [0, 0, 0, 0],
-      instances: []
-    };
+    result.standardResult = getStandardResult();
   }
   const {nativeResult, standardResult} = result;
   // Get the HTMLCS script.
@@ -141,14 +139,13 @@ exports.reporter = async (page, report, actIndex) => {
       // If standard results are to be reported and the message reports an error or warning:
       if (standard && ['Error', 'Warning'].includes(parts[0])) {
         const xPath = getAttributeXPath(parts[5]);
-        const instance = {
+        pushInstance(standardResult, {
           ruleID: `${parts[0][0]}-${parts[1]}`,
           what: parts[4],
           ordinalSeverity: parts[0] === 'Warning' ? 0 : 2,
-          count: 1,
+          outcome: parts[0] === 'Warning' ? 'cantTell' : 'failed',
           catalogIndex: getXPathCatalogIndex(report, xPath)
-        };
-        standardResult.instances.push(instance);
+        });
       }
     }
     standardResult.totals[0] = nativeResult.totals.cantTell;

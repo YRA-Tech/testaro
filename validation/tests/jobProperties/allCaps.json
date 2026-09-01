@@ -46,6 +46,21 @@
           0
         ],
         [
+          "standardResult.instances.0.outcome",
+          "=",
+          "cantTell"
+        ],
+        [
+          "standardResult.instances.0.uncertainty",
+          "=",
+          "judgement-required"
+        ],
+        [
+          "standardResult.outcomeTotals.cantTell",
+          "=",
+          4
+        ],
+        [
           "standardResult.instances.1.tagName",
           "=",
           "SPAN"
@@ -114,6 +129,16 @@
         ],
         [
           "standardResult.instances.0.ordinalSeverity",
+          "=",
+          0
+        ],
+        [
+          "standardResult.instances.0.outcome",
+          "=",
+          "cantTell"
+        ],
+        [
+          "standardResult.outcomeTotals.failed",
           "=",
           0
         ],

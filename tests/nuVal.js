@@ -20,6 +20,8 @@
 
 const {curate, getContent, getExtractExcerpt} = require('../procs/nu');
 const {getAttributeXPath, getXPathCatalogIndex} = require('../procs/xPath');
+// Functions to build standard results.
+const {getStandardResult, addInstance} = require('../procs/standard');
 
 // FUNCTIONS
 
@@ -37,11 +39,7 @@ exports.reporter = async (page, report, actIndex) => {
   // If standard results are to be reported:
   if (standard) {
     // Initialize the standard result.
-    result.standardResult = {
-      prevented: false,
-      totals: [0, 0, 0, 0],
-      instances: []
-    };
+    result.standardResult = getStandardResult();
   }
   const {standardResult} = result;
   // Get the content.
@@ -96,15 +94,13 @@ exports.reporter = async (page, report, actIndex) => {
     if (standard) {
       // For each message in the native result:
       result.nativeResult.messages.forEach(message => {
-        const ordinalSeverity = message.type === 'info' ? 0 : 3;
-        // Increment the applicable standard-result total.
-        standardResult.totals[ordinalSeverity]++;
-        // Initialize a standard instance.
+        const isInfo = message.type === 'info';
+        // Initialize a standard instance. Informational messages are uncertainty.
         const standardInstance = {
           ruleID: message.message,
           what: message.message,
-          ordinalSeverity,
-          count: 1,
+          ordinalSeverity: isInfo ? 0 : 3,
+          outcome: isInfo ? 'cantTell' : 'failed'
         };
         // Get the XPath of the element from its extract.
         const xPath = getAttributeXPath(message.extract);
@@ -121,7 +117,7 @@ exports.reporter = async (page, report, actIndex) => {
           standardInstance.what = `${message.message} Extract: ${extractExcerpt}`;
         }
         // Add the standard instance to the standard result.
-        standardResult.instances.push(standardInstance);
+        addInstance(standardResult, standardInstance);
       });
     }
   }

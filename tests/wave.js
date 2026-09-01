@@ -18,6 +18,8 @@
 // IMPORTS
 
 const {getXPathCatalogIndex} = require('../procs/xPath');
+// Functions to build standard results.
+const {getStandardResult, pushInstance} = require('../procs/standard');
 
 // CONSTANTS
 
@@ -58,11 +60,7 @@ exports.reporter = async (page, report, actIndex) => {
   // If standard results are to be reported:
   if (standard) {
     // Initialize the standard result.
-    result.standardResult = {
-      prevented: false,
-      totals: [0, 0, 0, 0],
-      instances: []
-    };
+    result.standardResult = getStandardResult();
   }
   // Get and process a WAVE API report and return the results.
   return await new Promise(resolve => https.get(
@@ -123,7 +121,7 @@ exports.reporter = async (page, report, actIndex) => {
                 // If standard results are to be reported:
                 if (standard) {
                   const {standardResult} = result;
-                  const {totals, instances} = standardResult;
+                  const {totals} = standardResult;
                   // Add the category violation count to the standard-result totals.
                   totals[ordinalSeverity] += category.count;
                   const annotatedItems = await page.evaluate(items => {
@@ -154,18 +152,15 @@ exports.reporter = async (page, report, actIndex) => {
                     const {description, selectors} = annotatedItems[ruleID];
                     // For each violation of the rule:
                     for (const violation of selectors) {
-                      // Initialize a standard instance.
-                      const instance = {
+                      const xPath = violation[1];
+                      // Add an instance to the standard result. Alerts are uncertainty.
+                      pushInstance(standardResult, {
                         ruleID,
                         what: description,
                         ordinalSeverity,
-                        count: 1
-                      };
-                      const xPath = violation[1];
-                      // Add the catalog index to the instance.
-                      instance.catalogIndex = getXPathCatalogIndex(report, xPath);
-                      // Add the instance to the standard result.
-                      instances.push(instance);
+                        outcome: categoryName === 'alert' ? 'cantTell' : 'failed',
+                        catalogIndex: getXPathCatalogIndex(report, xPath)
+                      });
                     }
                   }
                 }

@@ -22,6 +22,8 @@ const {WCAGTechniques} = require('@qualweb/wcag-techniques');
 const {BestPractices} = require('@qualweb/best-practices');
 const {PlaywrightDriver} = require('@qualweb/playwright-driver');
 const {getAttributeXPath, getXPathCatalogIndex} = require('../procs/xPath');
+// Functions to build standard results.
+const {getStandardResult, addInstance} = require('../procs/standard');
 
 // CONSTANTS
 
@@ -70,11 +72,7 @@ exports.reporter = async (page, report, actIndex, timeLimit) => {
   // If standard results are to be reported:
   if (standard) {
     // Initialize the standard result.
-    result.standardResult = {
-      prevented: false,
-      totals: [0, 0, 0, 0],
-      instances: []
-    };
+    result.standardResult = getStandardResult();
   }
   try {
     // Start the QualWeb core engine, which launches a Playwright browser.
@@ -226,21 +224,16 @@ exports.reporter = async (page, report, actIndex, timeLimit) => {
                           }
                           // If standard results are to be reported:
                           if (standard) {
-                            const ordinalSeverity = ordinalSeverities[section][verdict];
-                            // Increment the applicable total.
-                            standardResult.totals[ordinalSeverity]++;
-                            // Initialize a standard instance.
                             const what = `[${verdict}] ${raResult.description}`;
                             const xPath = getAttributeXPath(element.htmlCode);
-                            const instance = {
+                            // Add an instance to the standard result.
+                            addInstance(standardResult, {
                               ruleID,
                               what,
                               ordinalSeverity: ordinalSeverities[section][verdict],
-                              count: 1,
+                              outcome: verdict === 'warning' ? 'cantTell' : 'failed',
                               catalogIndex: getXPathCatalogIndex(report, xPath)
-                            };
-                            // Add the instance to the standard result.
-                            standardResult.instances.push(instance);
+                            });
                           }
                         };
                       }

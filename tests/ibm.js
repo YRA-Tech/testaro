@@ -22,6 +22,8 @@
 // IMPORTS
 
 const {getAttributeXPath, getXPathCatalogIndex} = require('../procs/xPath');
+// Functions to build standard results.
+const {getStandardResult, pushInstance} = require('../procs/standard');
 const accessibilityChecker = require('accessibility-checker');
 const {getCompliance} = accessibilityChecker;
 
@@ -130,11 +132,7 @@ exports.reporter = async (page, report, actIndex) => {
   // If standard results are to be reported:
   if (standard) {
     // Initialize the standard result.
-    result.standardResult = {
-      prevented: false,
-      totals: [0, 0, 0, 0],
-      instances: []
-    };
+    result.standardResult = getStandardResult();
   }
   try {
     // Conduct the tests.
@@ -163,12 +161,13 @@ exports.reporter = async (page, report, actIndex) => {
         standardResult.totals = [totals.recommendation, 0, totals.violation, 0];
         // For each item of the native result:
         nativeResult.items.forEach(item => {
-          // Populate a standard instance.
+          // Populate a standard instance. Potential violations, potential recommendations, and
+          // manual checks are engine-flagged uncertainty.
           const standardItem = {
             ruleID: item.ruleId,
             what: item.message,
             ordinalSeverity: item.level === 'recommendation' ? 0 : 2,
-            count: 1
+            outcome: ['violation', 'recommendation'].includes(item.level) ? 'failed' : 'cantTell'
           };
           // Get the XPath from the added attribute, because path.dom is wrong.
           const xPath = getAttributeXPath(item.snippet);
@@ -178,7 +177,7 @@ exports.reporter = async (page, report, actIndex) => {
             standardItem.catalogIndex = getXPathCatalogIndex(report, xPath);
           }
           // Add the standard instance to the standard result.
-          standardResult.instances.push(standardItem);
+          pushInstance(standardResult, standardItem);
         });
       }
       return {

@@ -27,8 +27,9 @@ node validation/act/score.js --in validation/act/results/run.jsonl --band assert
 - `capture.js` — downloads/caches the testcase feed, navigates each fixture, replicates the
   launch-proc environment each engine needs (`window.getXPath` injection; `data-xpath` stamping
   for attribute-need engines), runs each reporter with a per-act time limit, and appends one JSONL
-  row per testcase × engine with raw findings: engine rule-ID counts plus per-criterion `asserted`
-  (violation band) and `review` (incomplete band) counts. Filters: `--rules id,id`,
+  row per testcase × engine with raw findings: engine rule-ID counts, `outcomeTotals` (standard
+  instances by outcome `failed` / `cantTell`), plus per-criterion `asserted` (violation band)
+  and `review` (incomplete band) counts. Filters: `--rules id,id`,
   `--match nameRegex`, `--max N`.
 - `score.js` — computes the confusion matrix. An ACT rule's positive criteria are its
   `forConformance` WCAG 2.x success criteria; an engine flags a testcase when it reports ≥1

@@ -32,14 +32,14 @@ node call netWatch <true|false> <intervalSeconds> [<true|false>]
 
 ## Architecture
 
-Testaro is an ensemble accessibility test runner. It integrates 10 external tools plus ~50 of its own rules (the "testaro" tool) and produces standardized reports from a job document.
+Testaro is an ensemble accessibility test runner. It integrates 12 external tools plus ~50 of its own rules (the "testaro" tool) and produces standardized reports from a job document.
 
 ### Job → Report lifecycle
 
 1. A caller provides a **job** — a plain JS/JSON object with a `target` URL, `browserID`, optional `device`, and an `acts` array.
 2. `run.js` exports `doJob(job)`, which validates the job (`procs/job.js`), builds a DOM **catalog** (`procs/catalog.js`), then delegates to `procs/doActs.js`.
 3. `doActs.js` iterates the acts array. For `test` acts it forks a child process running `procs/doTestAct.js` (one per tool invocation) and enforces per-tool time limits. Non-test acts (browser interactions) execute in the parent.
-4. Each tool's test module lives in `tests/<toolID>.js`. It calls the tool's library and converts the native result to the **standard result** shape (`prevented`, `totals[4]`, `instances[]`).
+4. Each tool's test module lives in `tests/<toolID>.js`. It calls the tool's library and converts the native result to the **standard result** shape (`prevented`, `totals[4]`, `outcomeTotals`, `instances[]`) using the helpers in `procs/standard.js`. Every instance carries an `outcome` (`failed` or `cantTell`) that is the authoritative certainty signal; `ordinalSeverity` still encodes certainty per tool until it is redefined as impact only (see `docs/standard-result-outcome.md`).
 5. `doJob` returns the job object with `jobData` and `catalog` added at the top level and `result` added inside each `test` act. The job's `standard` property controls what `result` contains: `'no'` → `nativeResult` only; `'only'` → `standardResult` only; `'also'` → both.
 
 The 18 act types are defined and documented in `actSpecs.js` (`etc` property). The main interactive types are `button`, `checkbox`, `focus`, `link`, `press`, `presses`, `radio`, `reveal`, `search`, `select`, `text`, `url`, `wait`. The `test` type runs a tool. `launch`, `next`, `page`, `state` control flow.
@@ -87,7 +87,7 @@ Key variables:
 
 ## Code style
 
-ESLint (`eslint.config.mjs`): 2-space indent, single quotes, semicolons, Stroustrup brace style (`else`/`catch` on a new line after `}`), `no-use-before-define`. The vendored `htmlcs/HTMLCS.js` and `ed11y` bundles are excluded from linting; `htmlcs/HTMLCS.js` must not be reformatted.
+ESLint (`eslint.config.mjs`): 2-space indent, single quotes, semicolons, Stroustrup brace style (`else`/`catch` on a new line after `}`), `no-use-before-define`. The vendored `htmlcs/HTMLCS.js`, `ed11y`, `surea11y`, and `pour` bundles are excluded from linting; `htmlcs/HTMLCS.js` must not be reformatted.
 
 Long comments are not broken into multiple lines per paragraph.
 

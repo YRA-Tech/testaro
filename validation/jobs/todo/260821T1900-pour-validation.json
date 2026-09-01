@@ -13,7 +13,19 @@
     {
       "type": "test",
       "which": "pour",
-      "what": "Pour Engine"
+      "what": "Pour Engine",
+      "expect": [
+        [
+          "standardResult.outcomeTotals.failed",
+          ">",
+          0
+        ],
+        [
+          "standardResult.instances.0.outcome",
+          "!",
+          ""
+        ]
+      ]
     }
   ],
   "sources": {},

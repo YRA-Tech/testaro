@@ -20,6 +20,8 @@ const fs = require('fs/promises');
 // Shared configuration for timeout multiplier.
 const {applyMultiplier} = require('../procs/config');
 const {getNormalizedXPath, getXPathCatalogIndex} = require('../procs/xPath');
+// Functions to build standard results.
+const {getStandardResult, addInstance} = require('../procs/standard');
 
 // CONSTANTS
 
@@ -135,11 +137,7 @@ exports.reporter = async (page, report, actIndex) => {
   // If standard results are to be reported:
   if (standard) {
     // Initialize the standard result.
-    result.standardResult = {
-      prevented: false,
-      totals: [0, 0, 0, 0],
-      instances: []
-    };
+    result.standardResult = getStandardResult();
   }
   const {standardResult} = result;
   // Get the ASLint runner and bundle scripts.
@@ -251,15 +249,13 @@ exports.reporter = async (page, report, actIndex) => {
               // Use it to get the index of the element in the catalog.
               const catalogIndex = getXPathCatalogIndex(report, pathID);
               // Add an instance to the standard result.
-              standardResult.instances.push({
+              addInstance(standardResult, {
                 ruleID,
                 what,
                 ordinalSeverity,
-                count: 1,
+                outcome: issueType === 'warning' ? 'cantTell' : 'failed',
                 catalogIndex
               });
-              // Increment the standard total.
-              standardResult.totals[ordinalSeverity]++;
             }
           }
         }

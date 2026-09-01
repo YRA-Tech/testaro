@@ -29,7 +29,8 @@ confidence, type: automatic|manual, occurrences, title, meta: {normativeMappings
 [{standard, version, requirement, ...}], ...}}`. Occurrences carry `{selector, html, summary,
 occurrenceOutcome?: fail|cantTell, uncertainty?}` — a `fail`-outcome rule may grade individual
 occurrences into `cantTell` tier via `occurrenceOutcome`, which the adapter honors
-per-occurrence. `pass` results serialize no occurrences; `notApplicable` may carry one
+per-occurrence, and the adapter forwards the occurrence's (else the check's) `uncertainty.code`
+and `uncertainty.needed` as the standard instance's `uncertainty` and `needed`. `pass` results serialize no occurrences; `notApplicable` may carry one
 scan-describing occurrence (empty selector) which the adapter must not count. Full contract:
 upstream `docs/OUTPUT_SCHEMA.md` (pinned to `schemaVersion` — the adapter reports `prevented`
 on a major schema change is NOT automatic; re-verify at each vendor bump).

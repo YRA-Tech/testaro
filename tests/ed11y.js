@@ -18,6 +18,8 @@
 
 const fs = require('fs/promises');
 const {getXPathCatalogIndex} = require('../procs/xPath');
+// Functions to build standard results.
+const {getStandardResult, pushInstance} = require('../procs/standard');
 
 // FUNCTIONS
 
@@ -37,11 +39,7 @@ exports.reporter = async (page, report, actIndex) => {
   // If standard results are to be reported:
   if (standard) {
     // Initialize the standard result.
-    result.standardResult = {
-      prevented: false,
-      totals: [0, 0, 0, 0],
-      instances: []
-    };
+    result.standardResult = getStandardResult();
   }
   // Get the tool script.
   const script = await fs.readFile(`${__dirname}/../ed11y/editoria11y.min.js`, 'utf8');
@@ -105,13 +103,15 @@ exports.reporter = async (page, report, actIndex) => {
     results.forEach(nativeInstance => {
       // Create a standard-result instance.
       const {test, content, dismissalKey, xPath} = nativeInstance;
-      const instance = {};
-      instance.ruleID = test;
-      instance.what = content;
-      instance.ordinalSeverity = dismissalKey ? 0 : 2;
-      instance.count = 1;
-      instance.catalogIndex = getXPathCatalogIndex(report, xPath);
-      standardResult.instances.push(instance);
+      // A dismissable warning is a manual check.
+      pushInstance(standardResult, {
+        ruleID: test,
+        what: content,
+        ordinalSeverity: dismissalKey ? 0 : 2,
+        outcome: dismissalKey ? 'cantTell' : 'failed',
+        uncertainty: dismissalKey ? 'judgement-required' : undefined,
+        catalogIndex: getXPathCatalogIndex(report, xPath)
+      });
     });
   }
   return {

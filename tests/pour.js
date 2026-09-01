@@ -15,15 +15,18 @@
   ../pour/pour.min.js, exposing a `pourEngine` global with {run, name, version}. See
   ../pour/README.md for the build command and the pinned upstream commit.
 
-  Instance policy (engine-candidacy-pipeline.md, Stage 1): `violations` become instances at
-  ordinalSeverity 2-3; `incomplete` become instances at 0-1; `passes`, `inapplicable`, and
-  `manualReview` are tallied in `data` only and never become instances.
+  Instance policy (engine-candidacy-pipeline.md, Stage 1): `violations` become instances with
+  outcome `failed` at ordinalSeverity 2-3; `incomplete` become instances with outcome `cantTell`
+  at 0-1; `passes`, `inapplicable`, and `manualReview` are tallied in `data` only and never
+  become instances.
 */
 
 // IMPORTS
 
 const fs = require('fs/promises');
 const {getXPathCatalogIndex} = require('../procs/xPath');
+// Functions to build standard results.
+const {getStandardResult, addInstance} = require('../procs/standard');
 
 // CONSTANTS
 
@@ -53,11 +56,7 @@ exports.reporter = async (page, report, actIndex) => {
   // If standard results are to be reported:
   if (standard) {
     // Initialize the standard result.
-    result.standardResult = {
-      prevented: false,
-      totals: [0, 0, 0, 0],
-      instances: []
-    };
+    result.standardResult = getStandardResult();
   }
   // Get the vendored tool bundle.
   let script;
@@ -185,19 +184,19 @@ exports.reporter = async (page, report, actIndex) => {
     data.inapplicableRuleCount = nativeResult.inapplicableRuleCount;
     data.manualReviewCriterionCount = nativeResult.manualReviewCriterionCount;
     // For each certainty band:
-    [['incomplete', 0], ['violations', 2]].forEach(([certainty, baseSeverity]) => {
+    [['incomplete', 0, 'cantTell'], ['violations', 2, 'failed']]
+    .forEach(([certainty, baseSeverity, outcome]) => {
       // For each native-result finding:
       nativeResult[certainty].forEach(finding => {
-        // Create a standard-result instance.
+        // Add a standard-result instance.
         const {ruleID, what, severity, xPath} = finding;
-        const instance = {};
-        instance.ruleID = ruleID;
-        instance.what = what;
-        instance.ordinalSeverity = baseSeverity + (severityWeights[severity] ?? 0);
-        instance.count = 1;
-        instance.catalogIndex = getXPathCatalogIndex(report, xPath);
-        standardResult.totals[instance.ordinalSeverity]++;
-        standardResult.instances.push(instance);
+        addInstance(standardResult, {
+          ruleID,
+          what,
+          ordinalSeverity: baseSeverity + (severityWeights[severity] ?? 0),
+          outcome,
+          catalogIndex: getXPathCatalogIndex(report, xPath)
+        });
       });
     });
   }
