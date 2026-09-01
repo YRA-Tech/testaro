@@ -1,0 +1,63 @@
+export interface RuleReport {
+    data: unknown;
+    totals: number[];
+    standardInstances: unknown[];
+}
+export interface RuleModule {
+    reporter: (...args: any[]) => Promise<RuleReport>;
+}
+export type RuleID = 'adbID' | 'allCapStyle' | 'allCaps' | 'allHidden' | 'allSlanted' | 'altScheme' | 'attVal' | 'autocomplete' | 'bulk' | 'buttonMenu' | 'captionLoc' | 'datalistRef' | 'distortion' | 'docType' | 'dupAtt' | 'elements' | 'embAc' | 'focAll' | 'focAndOp' | 'focInd' | 'focVis' | 'headEl' | 'headingAmb' | 'hovInd' | 'hover' | 'hr' | 'imageLink' | 'labClash' | 'legendLoc' | 'lineHeight' | 'linkAmb' | 'linkExt' | 'linkOldAtt' | 'linkTo' | 'linkUl' | 'miniText' | 'motion' | 'nonTable' | 'optRoleSel' | 'phOnly' | 'pseudoP' | 'radioSet' | 'role' | 'secHeading' | 'styleDiff' | 'tabNav' | 'targetsNear' | 'textNodes' | 'textSem' | 'title' | 'titledEl' | 'zIndex';
+export declare const ruleModules: {
+    adbID: () => typeof import("./adbID");
+    allCapStyle: () => typeof import("./allCapStyle");
+    allCaps: () => typeof import("./allCaps");
+    allHidden: () => typeof import("./allHidden");
+    allSlanted: () => typeof import("./allSlanted");
+    altScheme: () => typeof import("./altScheme");
+    attVal: () => typeof import("./attVal");
+    autocomplete: () => typeof import("./autocomplete");
+    bulk: () => typeof import("./bulk");
+    buttonMenu: () => typeof import("./buttonMenu");
+    captionLoc: () => typeof import("./captionLoc");
+    datalistRef: () => typeof import("./datalistRef");
+    distortion: () => typeof import("./distortion");
+    docType: () => typeof import("./docType");
+    dupAtt: () => typeof import("./dupAtt");
+    elements: () => typeof import("./elements");
+    embAc: () => typeof import("./embAc");
+    focAll: () => typeof import("./focAll");
+    focAndOp: () => typeof import("./focAndOp");
+    focInd: () => typeof import("./focInd");
+    focVis: () => typeof import("./focVis");
+    headEl: () => typeof import("./headEl");
+    headingAmb: () => typeof import("./headingAmb");
+    hovInd: () => typeof import("./hovInd");
+    hover: () => typeof import("./hover");
+    hr: () => typeof import("./hr");
+    imageLink: () => typeof import("./imageLink");
+    labClash: () => typeof import("./labClash");
+    legendLoc: () => typeof import("./legendLoc");
+    lineHeight: () => typeof import("./lineHeight");
+    linkAmb: () => typeof import("./linkAmb");
+    linkExt: () => typeof import("./linkExt");
+    linkOldAtt: () => typeof import("./linkOldAtt");
+    linkTo: () => typeof import("./linkTo");
+    linkUl: () => typeof import("./linkUl");
+    miniText: () => typeof import("./miniText");
+    motion: () => typeof import("./motion");
+    nonTable: () => typeof import("./nonTable");
+    optRoleSel: () => typeof import("./optRoleSel");
+    phOnly: () => typeof import("./phOnly");
+    pseudoP: () => typeof import("./pseudoP");
+    radioSet: () => typeof import("./radioSet");
+    role: () => typeof import("./role");
+    secHeading: () => typeof import("./secHeading");
+    styleDiff: () => typeof import("./styleDiff");
+    tabNav: () => typeof import("./tabNav");
+    targetsNear: () => typeof import("./targetsNear");
+    textNodes: () => typeof import("./textNodes");
+    textSem: () => typeof import("./textSem");
+    title: () => typeof import("./title");
+    titledEl: () => typeof import("./titledEl");
+    zIndex: () => typeof import("./zIndex");
+};

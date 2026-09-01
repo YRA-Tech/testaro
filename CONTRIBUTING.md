@@ -41,18 +41,18 @@ The second step is to write a validator for the new rule. A validator is softwar
 
 Every Testaro rule (which means each of the approximately 50 rules of the Testaro tool) has a correspoding validator. A validator has two parts:
 
-- A job file, in the `validation/tests/jobs` directory. It tells Testaro what tests to perform and what the results should be.
+- A job-properties file, in the `validation/tests/jobProperties` directory. It tells Testaro what tests to perform and what the results should be.
 - A target directory, within the `validation/tests/targets` directory. The target directory contains one or more HTML files that will be tested by the job.
 
 Inspecting some of the jobs and targets in the `validation/tests` directory can help you understand how validators work.
 
 ### Step 3
 
-The third step is to add an entry to the `allRules` object in the `tests/testaro.js` file.
+The third step is to add an entry to the `allRules` array in the `tests/testaro.ts` file, and then to run `npm run build:ts` so that the emitted `tests/testaro.js` matches. See [Editing TypeScript files](#editing-typescript-files) below.
 
 ### Step 4
 
-The fourth step is to implement the new rule by creating a JavaScript file and saving it in the `testaro` directory.
+The fourth step is to implement the new rule by creating a TypeScript file and saving it in the `testaro` directory. Then run `npm run build:registry && npm run build:ts`, which adds the rule to the generated registry and compiles both files. See [Editing TypeScript files](#editing-typescript-files) below.
 
 To optimize quality, it may be wise for one person to perform steps 1, 2, and 3, and then for a second person independently to perform step 4 (“clean-room” development).
 
@@ -61,6 +61,32 @@ At any time after an implementation is attempted or revised, the developer can r
 Whether a new rule should be implemented with support from the `doTest` function or the `getBasicResult` function depends on the requirements of the rule. If operations on each element suffice to determine whether and how that element violates the rule, the `doTest` function is appropriate. If, however, the verdict on an element requires features offered by Playwright or other dependencies that cannot be replicated easily in the browser environment, or if the verdict on one element depends on the state or properties of other elements, then the `getBasicResult` function is appropriate.
 
 The existing `testaro` tests can serve as templates for new ones. At present, only the `hover` and `role` tests make use of the `getBasicResult` function.
+
+## Editing TypeScript files
+
+Testaro is migrating from JavaScript to TypeScript, one file at a time ([issue #73](https://github.com/YRA-Tech/testaro/issues/73)). Files that have been converted exist in three forms in the same directory:
+
+- `x.ts` — the source, the only one you edit.
+- `x.js` — compiled from `x.ts` by the TypeScript compiler, and **committed**.
+- `x.d.ts` — the type declarations, also compiled and committed.
+
+The emitted files are committed rather than built at install time so that the package layout is identical to what it was before the migration: consumers that deep-import a module path, and the `patch-package` patches that some deployments apply, keep working unchanged. Every converted `.ts` file says so near the top:
+
+```text
+Compiled to x.js by tsc (issue #73); edit this file, not the emitted one.
+```
+
+**If a file has a `.ts` version, edit that one and never the emitted `.js`.** After editing, run:
+
+```bash
+npm run build:ts
+```
+
+and commit the regenerated `.js` and `.d.ts` alongside your `.ts` change. If you added or removed a rule module in the `testaro` directory, run `npm run build:registry` first, which regenerates `testaro/registry.ts` from the modules on disk.
+
+Continuous integration enforces this: it regenerates the registry, compiles, and fails the pull request if any emitted file differs from what was committed. A hand-edited `.js` will therefore fail the check, and the edit would be overwritten by the next compile in any case.
+
+Files that have not been converted yet are still plain JavaScript with no `.ts` counterpart; edit those directly, as before. Some of them have a hand-written `x.d.ts` neighbor that describes the module to converted TypeScript files. If you change such a module's exported interface, update its `.d.ts` to match.
 
 ## License agreement
 

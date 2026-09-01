@@ -67,7 +67,7 @@ Every standard instance now has:
 
 and `standardResult.outcomeTotals = {failed, cantTell}` (count-weighted).
 
-- `procs/standard.js` is the one place the shape is built (`getStandardResult`, `getInstance`,
+- `procs/standard.ts` is the one place the shape is built (`getStandardResult`, `getInstance`,
   `addInstance`, `pushInstance`). Adapters that compute `totals` from native counts (ibm, htmlcs,
   ed11y, wave, testaro) use `pushInstance`; the rest use `addInstance`.
 - `ordinalSeverity` and `totals` are unchanged for every tool. The golden diff on the pour and

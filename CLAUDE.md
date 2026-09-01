@@ -39,14 +39,14 @@ Testaro is an ensemble accessibility test runner. It integrates 12 external tool
 1. A caller provides a **job** — a plain JS/JSON object with a `target` URL, `browserID`, optional `device`, and an `acts` array.
 2. `run.js` exports `doJob(job)`, which validates the job (`procs/job.js`), builds a DOM **catalog** (`procs/catalog.js`), then delegates to `procs/doActs.js`.
 3. `doActs.js` iterates the acts array. For `test` acts it forks a child process running `procs/doTestAct.js` (one per tool invocation) and enforces per-tool time limits. Non-test acts (browser interactions) execute in the parent.
-4. Each tool's test module lives in `tests/<toolID>.js`. It calls the tool's library and converts the native result to the **standard result** shape (`prevented`, `totals[4]`, `outcomeTotals`, `instances[]`) using the helpers in `procs/standard.js`. Every instance carries an `outcome` (`failed` or `cantTell`) that is the authoritative certainty signal; `ordinalSeverity` still encodes certainty per tool until it is redefined as impact only (see `docs/standard-result-outcome.md`).
+4. Each tool's test module lives in `tests/<toolID>.ts` (compiled to a committed `tests/<toolID>.js`). It calls the tool's library and converts the native result to the **standard result** shape (`prevented`, `totals[4]`, `outcomeTotals`, `instances[]`) using the helpers in `procs/standard.ts`. Every instance carries an `outcome` (`failed` or `cantTell`) that is the authoritative certainty signal; `ordinalSeverity` still encodes certainty per tool until it is redefined as impact only (see `docs/standard-result-outcome.md`).
 5. `doJob` returns the job object with `jobData` and `catalog` added at the top level and `result` added inside each `test` act. The job's `standard` property controls what `result` contains: `'no'` → `nativeResult` only; `'only'` → `standardResult` only; `'also'` → both.
 
 The 18 act types are defined and documented in `actSpecs.js` (`etc` property). The main interactive types are `button`, `checkbox`, `focus`, `link`, `press`, `presses`, `radio`, `reveal`, `search`, `select`, `text`, `url`, `wait`. The `test` type runs a tool. `launch`, `next`, `page`, `state` control flow.
 
 ### Testaro rules (`testaro/` directory)
 
-Each file exports a `reporter(page, catalog, withItems)` async function. Rules are registered in `tests/testaro.js` in the `allRules` array, which controls default execution order, contamination flags, time limits, and `defaultOn`.
+Each file exports a `reporter(page, catalog, withItems)` async function. Rules are registered in `tests/testaro.ts` in the `allRules` array, which controls default execution order, contamination flags, time limits, `defaultOn`, and an optional default `outcome`. The generated `testaro/registry.ts` maps rule IDs to modules.
 
 The default order in `allRules` reflects a two-phase execution strategy: non-contaminating rules (`contaminates: false`) come first and all share a single page load; contaminating rules (`contaminates: true`) follow, each tested on a freshly loaded copy of the page.
 
@@ -61,7 +61,7 @@ Two implementation patterns exist:
 
 A revision of the validation architecture is currently being planned. In the meantime the next paragraph describes its current design, not guaranteed to work without error.
 
-Validation tests live in `validation/tests/jobs/` (jobs with `expect` arrays) and `validation/tests/targets/` (static HTML pages served locally as test targets). Running `npm test <ruleID>` executes `validation/executors/test.js` → `validation/validateTest.js`, which runs the job and compares `result` fields against `expect` clauses.
+Validation tests live in `validation/tests/jobProperties/` (jobs with `expect` arrays) and `validation/tests/targets/` (static HTML pages served locally as test targets). Running `npm test <ruleID>` executes `validation/executors/test.js` → `validation/validateTest.js`, which runs the job and compares `result` fields against `expect` clauses.
 
 ### Tool XPath strategy
 
@@ -81,21 +81,22 @@ Key variables:
 - `WAITS` — ms delay inserted between Playwright operations (useful for debugging)
 - `WAVE_KEY` — API key for the WAVE subscription API
 - `JOBDIR` / `REPORTDIR` — root directories for job files and report output
-- `AGENT` — instance name used in network-watch mode
-- `NETWATCH_URL_<N>_JOB/REPORT/AUTH`, `NETWATCH_URLS` — server polling configuration
+- `NETWATCH_URL_JOB`/`NETWATCH_URL_REPORT`/`NETWATCH_AUTH_TYPE`/`NETWATCH_WORKER_ID`/`NETWATCH_WORKER_SECRET` — server polling configuration
 - `TIMEOUT_MULTIPLIER` — scales all per-tool time limits (default 1)
 
 ## Code style
 
-ESLint (`eslint.config.mjs`): 2-space indent, single quotes, semicolons, Stroustrup brace style (`else`/`catch` on a new line after `}`), `no-use-before-define`. The vendored `htmlcs/HTMLCS.js`, `ed11y`, `surea11y`, and `pour` bundles are excluded from linting; `htmlcs/HTMLCS.js` must not be reformatted.
+The rule modules, the tool adapters, `procs/testaro.ts`, `procs/catalog.ts`, `procs/xPath.ts`, `procs/standard.ts`, and `types.ts` are TypeScript sources; their `.js` and `.d.ts` outputs are committed. Edit the `.ts` file, then run `npm run build:ts` (and `npm run build:registry` after adding or removing a rule module) and commit the regenerated outputs; CI fails if they drift. Files without a `.ts` counterpart are still plain JavaScript. See `CONTRIBUTING.md`.
+
+ESLint (`eslint.config.mjs`): 2-space indent, single quotes, semicolons, Stroustrup brace style (`else`/`catch` on a new line after `}`), `no-use-before-define`. Emitted `.js` files are excluded from linting. The vendored `htmlcs/HTMLCS.js`, `ed11y`, `surea11y`, and `pour` bundles are excluded from linting; `htmlcs/HTMLCS.js` must not be reformatted.
 
 Long comments are not broken into multiple lines per paragraph.
 
 ## Adding a new Testaro rule
 
-1. Add an entry to `allRules` in `tests/testaro.js`.
-2. Create `testaro/<ruleID>.js` exporting a `reporter` function using `doTest` (preferred) or `getBasicResult`.
-3. Write a validation job in `validation/tests/jobs/<ruleID>.json` with an `expect` array and corresponding HTML target(s) in `validation/tests/targets/<ruleID>/`.
+1. Add an entry to `allRules` in `tests/testaro.ts`.
+2. Create `testaro/<ruleID>.ts` exporting a `reporter` function using `doTest` (preferred) or `getBasicResult`, then run `npm run build:registry && npm run build:ts` and commit the regenerated registry and emitted files.
+3. Write a validation job in `validation/tests/jobProperties/<ruleID>.json` with an `expect` array and corresponding HTML target(s) in `validation/tests/targets/<ruleID>/`.
 4. Run `npm test <ruleID>` until validation passes.
 
 ## Key files
@@ -111,7 +112,9 @@ Long comments are not broken into multiple lines per paragraph.
 | `procs/catalog.js` | Builds the element catalog from the DOM |
 | `procs/job.js` | Job validation; `tools` constant |
 | `actSpecs.js` | Canonical specs for all 18 act types |
-| `tests/testaro.js` | `allRules` registry for the testaro tool |
+| `tests/testaro.ts` | `allRules` registry for the testaro tool |
+| `procs/standard.ts` | Builders for the standard result and its instances (`outcome`, `uncertainty`, `needed`) |
+| `testaro/registry.ts` | Generated map of rule IDs to rule modules (`npm run build:registry`) |
 | `testaro/<ruleID>.js` | One file per Testaro rule |
 | `validation/validateTest.js` | Core validation harness |
 

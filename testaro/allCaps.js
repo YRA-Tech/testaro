@@ -1,3 +1,4 @@
+"use strict";
 /*
   © 2023 CVS Health and/or one of its affiliates. All rights reserved.
   © 2025–2026 Jonathan Robert Pool.
@@ -6,195 +7,212 @@
 
   SPDX-License-Identifier: MIT
 */
-
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.reporter = void 0;
+// IMPORTS
+const https = __importStar(require("https"));
+// Function to build a standard instance.
+const standard_1 = require("../procs/standard");
 /*
   allCaps
   Related to Tenon rule 153.
   This test reports elements whose text contains upper-case strings that are not intrinsically upper-case (i.e., not acronyms, abbreviations, or terms whose standard form is all-capitals). Claude Haiku classifies qualifying catalog entries and estimates the probability of a rule violation. If the AI call fails, the test falls back to a rule-based check for 8+ consecutive upper-case letters.
+  Compiled to allCaps.js by tsc (issue #73); edit this file, not the emitted one.
 */
-
-// IMPORTS
-
-const https = require('https');
-// Function to build a standard instance.
-const {getInstance} = require('../procs/standard');
-
 // PARAMETERS
-
 const MIN_CONFIDENCE = 0.8;
 const MAX_MARGIN = 100;
 const MAX_TOTAL = 2000;
 const MAX_QUALIFYING = 100;
-
 // CONSTANTS
-
 const ruleID = 'allCaps';
 const whats = 'Elements have all-capital text';
-
 // FUNCTIONS
-
 // Returns text limited to MAX_MARGIN characters before the first and after the last uppercase match, capped at MAX_TOTAL characters.
-const getContext = text => {
-  const matches = [...text.matchAll(/\p{Lu}{2,}/gu)];
-  const first = matches[0];
-  const last = matches[matches.length - 1];
-  const start = Math.max(0, first.index - MAX_MARGIN);
-  const end = Math.min(text.length, last.index + last[0].length + MAX_MARGIN);
-  return text.slice(start, end).slice(0, MAX_TOTAL);
+const getContext = (text) => {
+    const matches = [...text.matchAll(/\p{Lu}{2,}/gu)];
+    const first = matches[0];
+    const last = matches[matches.length - 1];
+    const start = Math.max(0, first.index - MAX_MARGIN);
+    const end = Math.min(text.length, last.index + last[0].length + MAX_MARGIN);
+    return text.slice(start, end).slice(0, MAX_TOTAL);
 };
-
 // Returns violations using the rule-based fallback (8+ consecutive uppercase letters).
-const getRuleBasedViolations = catalog =>
-  Object.entries(catalog)
-  .filter(([, entry]) => entry.text && /\p{Lu}{8,}/u.test(entry.text))
-  .map(([index]) => ({
+const getRuleBasedViolations = (catalog) => Object.entries(catalog)
+    .filter(([, entry]) => entry.text && /\p{Lu}{8,}/u.test(entry.text))
+    .map(([index]) => ({
     catalogIndex: index,
     what: '[No AI available] Element contains all-capital text'
-  }));
-
+}));
 // Sends qualifying entries to Claude Haiku and returns confidence scores.
-const classifyWithAI = entries => new Promise((resolve, reject) => {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    reject(new Error('ANTHROPIC_API_KEY not set'));
-    return;
-  }
-  const prompt =
-    'Classify HTML elements for an accessibility rule. All-capital text violates the rule UNLESS it is an acronym, abbreviation, or term whose standard form is all-capitals (NASA, WHO, etc.).\n\n'
-    + 'For each element, give a confidence score (0.0–1.0, rounded to one decimal place) for the probability that the element VIOLATES the rule (its all-caps text is NOT intrinsically all-caps).\n\n'
-    + 'Respond with ONLY a JSON array. Each element: {"index": <number>, "confidence": <number>}\n\n'
-    + 'Elements:\n'
-    + JSON.stringify(entries);
-  const payload = JSON.stringify({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 2048,
-    messages: [{role: 'user', content: prompt}]
-  });
-  const options = {
-    hostname: 'api.anthropic.com',
-    path: '/v1/messages',
-    method: 'POST',
-    headers: {
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'content-type': 'application/json',
-      'content-length': Buffer.byteLength(payload)
+const classifyWithAI = (entries) => new Promise((resolve, reject) => {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
+        reject(new Error('ANTHROPIC_API_KEY not set'));
+        return;
     }
-  };
-  const req = https.request(options, res => {
-    let body = '';
-    res.on('data', chunk => {
-      body += chunk; 
+    const prompt = 'Classify HTML elements for an accessibility rule. All-capital text violates the rule UNLESS it is an acronym, abbreviation, or term whose standard form is all-capitals (NASA, WHO, etc.).\n\n'
+        + 'For each element, give a confidence score (0.0–1.0, rounded to one decimal place) for the probability that the element VIOLATES the rule (its all-caps text is NOT intrinsically all-caps).\n\n'
+        + 'Respond with ONLY a JSON array. Each element: {"index": <number>, "confidence": <number>}\n\n'
+        + 'Elements:\n'
+        + JSON.stringify(entries);
+    const payload = JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 2048,
+        messages: [{ role: 'user', content: prompt }]
     });
-    res.on('end', () => {
-      try {
-        const parsed = JSON.parse(body);
-        if (parsed.error) {
-          reject(new Error(parsed.error.message));
-          return;
+    const options = {
+        hostname: 'api.anthropic.com',
+        path: '/v1/messages',
+        method: 'POST',
+        headers: {
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01',
+            'content-type': 'application/json',
+            'content-length': Buffer.byteLength(payload)
         }
-        const text = parsed.content[0].text;
-        const classifications = [...text.matchAll(/\{"index":\s*\d+,\s*"confidence":\s*[01]\.\d{1,2}\}/g)]
-        .map(m => {
-          const {index, confidence} = JSON.parse(m[0]);
-          return {index, confidence: Math.round(confidence * 10) / 10};
+    };
+    const req = https.request(options, res => {
+        let body = '';
+        res.on('data', chunk => { body += chunk; });
+        res.on('end', () => {
+            try {
+                const parsed = JSON.parse(body);
+                if (parsed.error) {
+                    reject(new Error(parsed.error.message));
+                    return;
+                }
+                const text = parsed.content[0].text;
+                const classifications = [...text.matchAll(/\{"index":\s*\d+,\s*"confidence":\s*[01]\.\d{1,2}\}/g)]
+                    .map(m => {
+                    const { index, confidence } = JSON.parse(m[0]);
+                    return { index, confidence: Math.round(confidence * 10) / 10 };
+                });
+                const { input_tokens, output_tokens } = parsed.usage;
+                resolve({ classifications, aiModelUsage: { inputTokens: input_tokens, outputTokens: output_tokens } });
+            }
+            catch (error) {
+                reject(new Error(`Haiku response error: ${error.message}`));
+            }
         });
-        const {input_tokens, output_tokens} = parsed.usage;
-        resolve({classifications, aiModelUsage: {inputTokens: input_tokens, outputTokens: output_tokens}});
-      }
-      catch(error) {
-        reject(new Error(`Haiku response error: ${error.message}`));
-      }
     });
-  });
-  req.on('error', reject);
-  req.setTimeout(20000, () => req.destroy(new Error('Haiku API timeout')));
-  req.write(payload);
-  req.end();
+    req.on('error', reject);
+    req.setTimeout(20000, () => req.destroy(new Error('Haiku API timeout')));
+    req.write(payload);
+    req.end();
 });
-
 // Runs the test and returns the result.
-exports.reporter = async (_0, report, _1, withItems) => {
-  const data = {};
-  const totals = [0, 0, 0, 0];
-  const standardInstances = [];
-  // Get data on the catalog entries whose text values contain 2+ consecutive capital letters.
-  const qualifying = Object.entries(report.catalog)
-  .filter(([, entry]) => entry.text && /\p{Lu}{2,}/u.test(entry.text))
-  .map(([index, entry]) => ({
-    index: Number(index),
-    tagName: entry.tagName,
-    text: getContext(entry.text)
-  }));
-  // If there are none:
-  if (!qualifying.length) {
-    // Report this.
-    return {data, totals, standardInstances};
-  }
-  // Sort them, with unbiased (Fisher–Yates) randomization.
-  const sample = qualifying.slice();
-  for (let i = sample.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [sample[i], sample[j]] = [sample[j], sample[i]];
-  }
-  // If their count exceeds the limit on AI assistance:
-  if (sample.length > MAX_QUALIFYING) {
-    // Truncate them.
-    sample.length = MAX_QUALIFYING;
-  }
-  let violations;
-  try {
-    // Get AI estimates of the probabilities of their violating the rule.
-    const {classifications, aiModelUsage} = await classifyWithAI(sample);
-    data.aiModelUsage = aiModelUsage;
-    // Treat the entries with above-minimum violation confidence levels as violations.
-    violations = classifications
-    .filter(({confidence}) => confidence >= MIN_CONFIDENCE)
-    .map(({index, confidence}) => ({
-      catalogIndex: String(index),
-      what: `Claude Haiku has ${Math.round(confidence * 100)}% confidence that the element contains unnecessarily all-capital text`
+const reporter = async (_0, report, _1, withItems) => {
+    const data = {};
+    const totals = [0, 0, 0, 0];
+    const standardInstances = [];
+    // Get data on the catalog entries whose text values contain 2+ consecutive capital letters.
+    const qualifying = Object.entries(report.catalog)
+        .filter(([, entry]) => entry.text && /\p{Lu}{2,}/u.test(entry.text))
+        .map(([index, entry]) => ({
+        index: Number(index),
+        tagName: entry.tagName,
+        text: getContext(entry.text)
     }));
-    const evaluated = classifications.length;
-    const leftOut = qualifying.length - evaluated;
-    // If any entries were truncated out and any AI confidence levels were above-minimum:
-    if (leftOut > 0 && evaluated > 0) {
-      // Add data about the estimated violation rate among those entries.
-      data.leftOut = {
-        count: leftOut,
-        estimatedViolations: Math.round((violations.length / evaluated) * leftOut)
-      };
+    // If there are none:
+    if (!qualifying.length) {
+        // Report this.
+        return { data, totals, standardInstances };
     }
-  }
-  catch(error) {
-    data.aiError = error.message;
-    violations = getRuleBasedViolations(report.catalog);
-  }
-  const estimatedLeftOut = data.leftOut?.estimatedViolations ?? 0;
-  // Add the estimated violation count to the totals.
-  totals[0] = violations.length + estimatedLeftOut;
-  // The estimates are AI judgements, so every instance is uncertain.
-  const certainty = {outcome: 'cantTell', uncertainty: 'judgement-required'};
-  // If itemization is required:
-  if (withItems) {
-    // For each entry deemed a violation:
-    for (const {catalogIndex, what} of violations) {
-      // Add an instance to the standard instances.
-      standardInstances.push(getInstance({ruleID, what, ordinalSeverity: 0, catalogIndex, ... certainty}));
+    // Sort them, with unbiased (Fisher–Yates) randomization.
+    const sample = qualifying.slice();
+    for (let i = sample.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [sample[i], sample[j]] = [sample[j], sample[i]];
     }
-    // If any entries were truncated:
-    if (estimatedLeftOut) {
-      // Add a summary instance for them.
-      standardInstances.push(
-        getInstance({ruleID, what: whats, ordinalSeverity: 0, count: estimatedLeftOut, ... certainty})
-      );
+    // If their count exceeds the limit on AI assistance:
+    if (sample.length > MAX_QUALIFYING) {
+        // Truncate them.
+        sample.length = MAX_QUALIFYING;
     }
-  }
-  // Otherwise, i.e. if itemization is not required, and if any violations exist:
-  else if (totals[0]) {
-    // Add a summary instance for them.
-    standardInstances.push(
-      getInstance({ruleID, what: whats, ordinalSeverity: 0, count: totals[0], ... certainty})
-    );
-  }
-  return {data, totals, standardInstances};
+    let violations;
+    try {
+        // Get AI estimates of the probabilities of their violating the rule.
+        const { classifications, aiModelUsage } = await classifyWithAI(sample);
+        data.aiModelUsage = aiModelUsage;
+        // Treat the entries with above-minimum violation confidence levels as violations.
+        violations = classifications
+            .filter(({ confidence }) => confidence >= MIN_CONFIDENCE)
+            .map(({ index, confidence }) => ({
+            catalogIndex: String(index),
+            what: `Claude Haiku has ${Math.round(confidence * 100)}% confidence that the element contains unnecessarily all-capital text`
+        }));
+        const evaluated = classifications.length;
+        const leftOut = qualifying.length - evaluated;
+        // If any entries were truncated out and any AI confidence levels were above-minimum:
+        if (leftOut > 0 && evaluated > 0) {
+            // Add data about the estimated violation rate among those entries.
+            data.leftOut = {
+                count: leftOut,
+                estimatedViolations: Math.round((violations.length / evaluated) * leftOut)
+            };
+        }
+    }
+    catch (error) {
+        data.aiError = error.message;
+        violations = getRuleBasedViolations(report.catalog);
+    }
+    const estimatedLeftOut = data.leftOut?.estimatedViolations ?? 0;
+    // Add the estimated violation count to the totals.
+    totals[0] = violations.length + estimatedLeftOut;
+    // The estimates are AI judgements, so every instance is uncertain.
+    const certainty = { outcome: 'cantTell', uncertainty: 'judgement-required' };
+    // If itemization is required:
+    if (withItems) {
+        // For each entry deemed a violation:
+        for (const { catalogIndex, what } of violations) {
+            // Add an instance to the standard instances.
+            standardInstances.push((0, standard_1.getInstance)({ ruleID, what, ordinalSeverity: 0, catalogIndex, ...certainty }));
+        }
+        // If any entries were truncated:
+        if (estimatedLeftOut) {
+            // Add a summary instance for them.
+            standardInstances.push((0, standard_1.getInstance)({ ruleID, what: whats, ordinalSeverity: 0, count: estimatedLeftOut, ...certainty }));
+        }
+    }
+    // Otherwise, i.e. if itemization is not required, and if any violations exist:
+    else if (totals[0]) {
+        // Add a summary instance for them.
+        standardInstances.push((0, standard_1.getInstance)({ ruleID, what: whats, ordinalSeverity: 0, count: totals[0], ...certainty }));
+    }
+    return { data, totals, standardInstances };
 };
+exports.reporter = reporter;

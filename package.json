@@ -1,8 +1,8 @@
 {
   "name": "testaro",
-  "version": "78.1.0",
+  "version": "78.2.0",
   "description": "Run 1300 web accessibility tests from 12 tools and get a standardized report",
-  "main": "index.js",
+  "main": "run.js",
   "scripts": {
     "build:nameComputation": "esbuild src/nameComputation.js --bundle --format=iife --global-name=computeAccessibleName --outfile=dist/nameComputation.js",
     "build": "npm run build:nameComputation",
@@ -12,11 +12,15 @@
     "run": "node validation/executors/run",
     "dirWatch": "node validation/executors/dirWatch",
     "netWatch": "node validation/executors/netWatch",
+    "typecheck": "tsc --noEmit",
+    "build:ts": "tsc",
+    "prepublishOnly": "npm run build:registry && npm run build:ts",
+    "build:registry": "node procs/generateRuleRegistry.js",
     "lint": "eslint ."
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/yra-tech/testaro.git"
+    "url": "git+https://github.com/YRA-Tech/testaro.git"
   },
   "keywords": [
     "accessibility",
@@ -27,38 +31,40 @@
   "author": "Jonathan Pool <jonathan.pool@jpdev.pro>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/yra-tech/testaro/issues"
+    "url": "https://github.com/YRA-Tech/testaro/issues"
   },
-  "homepage": "https://github.com/yra-tech/testaro#readme",
+  "homepage": "https://github.com/YRA-Tech/testaro#readme",
   "dependencies": {
-    "@qualweb/core": "*",
-    "@qualweb/act-rules": "*",
-    "@qualweb/playwright-driver": "*",
-    "@qualweb/wcag-techniques": "*",
-    "@qualweb/best-practices": "*",
-    "@siteimprove/alfa-act": "*",
-    "@siteimprove/alfa-playwright": "*",
-    "@siteimprove/alfa-rules": "*",
-    "accessibility-checker": ">=4.0.29",
-    "aria-query": "*",
-    "aslint-testaro": "*",
-    "axe-playwright": "*",
-    "dotenv": "*",
-    "pixelmatch": "*",
-    "playwright": "*",
-    "playwright-dompath": "*",
-    "playwright-extra": "*",
-    "playwright-extra-plugin-stealth": "*",
-    "pngjs": "*",
-    "puppeteer-extra-plugin-stealth": "*",
-    "vnu-jar": "*"
+    "@qualweb/core": "^0.9.5",
+    "@qualweb/act-rules": "^0.8.5",
+    "@qualweb/playwright-driver": "^1.0.1",
+    "@qualweb/wcag-techniques": "^0.4.8",
+    "@qualweb/best-practices": "^0.7.13",
+    "@siteimprove/alfa-act": "^0.119.0",
+    "@siteimprove/alfa-playwright": "^0.84.2",
+    "@siteimprove/alfa-rules": "^0.119.0",
+    "accessibility-checker": "^4.0.30",
+    "aria-query": "^5.3.2",
+    "aslint-testaro": "^1.0.1",
+    "axe-playwright": "^2.2.2",
+    "dotenv": "^17.4.2",
+    "pixelmatch": "^7.2.0",
+    "playwright": "^1.62.1",
+    "playwright-dompath": "^0.0.7",
+    "playwright-extra": "^4.3.6",
+    "playwright-extra-plugin-stealth": "^0.0.1",
+    "pngjs": "^7.0.0",
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "vnu-jar": "^26.8.15"
   },
   "devDependencies": {
-    "@eslint/js": "*",
-    "dom-accessibility-api": "*",
-    "esbuild": "*",
-    "eslint": "*",
-    "globals": "*"
+    "dom-accessibility-api": "^0.7.1",
+    "esbuild": "^0.28.2",
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.8.1",
+    "globals": "^17.12.0",
+    "typescript": "^5.6.0",
+    "@types/node": "^20.0.0"
   },
   "overrides": {
     "adm-zip": "^0.6.0"
@@ -70,5 +76,9 @@
     "esbuild": true,
     "fsevents": true,
     "vnu-jar": true
+  },
+  "types": "./types.d.ts",
+  "engines": {
+    "node": ">=22.12"
   }
 }

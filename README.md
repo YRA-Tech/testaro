@@ -83,7 +83,7 @@ The main concepts of Testaro are:
 
 ### Operating system and Node.js version
 
-Testaro can be installed under a MacOS, Windows, Debian, or Ubuntu operating system with the latest long-term-support version of [Node.js](https://nodejs.org/en/).
+Testaro can be installed under a MacOS, Windows, Debian, or Ubuntu operating system with the latest long-term-support version of [Node.js](https://nodejs.org/en/). The minimum version is Node 22.12: Node 20 reached end of life in April 2026, and some dependencies (the Alfa packages and pixelmatch) are ES modules that Testaro loads with `require()`, which the Node 22 line supports from 22.12 onward. When Node 22 reaches end of life in April 2027, the minimum is expected to rise to Node 24.
 
 ### Browser security
 
@@ -117,7 +117,7 @@ This application implements option B.
 
 ## Installation as an independent application
 
-To install Testaro as an independent application, rather than a dependency, clone the [Testaro repository](https://github.com/jrpool/testaro). To ensure that the binary browsers of its Playwright dependency get installed, execute `(p)npx playwright install` after executing `(p)npm install`.
+To install Testaro as an independent application, rather than a dependency, clone the [Testaro repository](https://github.com/YRA-Tech/testaro). To ensure that the binary browsers of its Playwright dependency get installed, execute `(p)npx playwright install` after executing `(p)npm install`.
 
 To update Testaro when it is an independent application, execute:
 
@@ -290,32 +290,34 @@ In both cases, the first argument of `dirWatch` tells Testaro whether to continu
 
 ### Server polling
 
-Testaro can poll a server for jobs to be performed. The server can act as the “controller” described in [How to run a thousand accessibility tests](https://medium.com/cvs-health-tech-blog/how-to-run-a-thousand-accessibility-tests-63692ad120c3). The server is responsible for preparing Testaro jobs, assigning them to Testaro agents, receiving reports back from those agents, and performing any further processing of the reports, including enhancement, storage, and disclosure to audiences. It can be any server reachable with a URL. That includes a server running on the same host as Testaro, with a URL such as `localhost:3000`.
+Testaro can poll a server for jobs to be performed. The server can act as the “controller” described in [How to run a thousand accessibility tests](https://medium.com/cvs-health-tech-blog/how-to-run-a-thousand-accessibility-tests-63692ad120c3). The server is responsible for preparing Testaro jobs, assigning them to Testaro workers, receiving reports back from those workers, and performing any further processing of the reports, including enhancement, storage, and disclosure to audiences. It can be any server reachable with a URL. That includes a server running on the same host as Testaro, with a URL such as `localhost:3000`.
 
-To allow Testaro to poll a server for jobs, define the following environment variables:
+To allow Testaro to poll a server for jobs, define the environment variables documented under `netWatch variables` in the [env.example](env.example) file. The URL paths are determined by agreement between Testaro and the server. A single Testaro instance can watch one server.
 
-- `NETWATCH_URL_JOB`: which URL to poll (the URL must contain the value of the `AGENT` environment variable)
-- `NETWATCH_URL_REPORT`: which URL to send job reports to
-- `NETWATCH_URL_AUTH`: the password to supply to the server when polling and when delivering a report
+`NETWATCH_AUTH_TYPE` selects how Testaro authenticates to the server:
 
-The job request sent to the server can be a `POST` request, in which the `agentPW` property of the payload will be the password. Or it can be a `GET` request with the URL containing the password.
+- `none`: no credentials are sent. `NETWATCH_WORKER_ID` and `NETWATCH_WORKER_SECRET` are not required.
+- `pathBody`: the password (`NETWATCH_WORKER_SECRET`) is transmitted in the request body as the value of an `agentPW` property. If the server requires the ID of the Testaro instance in the URL path, include it in `NETWATCH_URL_JOB` and `NETWATCH_URL_REPORT` yourself; Testaro does not insert it.
+- `header`: the request carries an `authorization` header whose value is `Basic`, followed by a space and the base64 encoding of `NETWATCH_WORKER_ID:NETWATCH_WORKER_SECRET`. The worker ID must not contain a colon.
 
-Testaro will send the report as a `POST` request whose payload is a JSON object with two properties: `agentPW` (the password) and `report` (the report). However, if the environment does not contain a password, the payload is a JSON object containing only the report.
+Testaro sends job requests and completed reports as `POST` requests. When Testaro sends a report to the server, the report is the value of a `report` property in the request body. If `NETWATCH_WORKER_ID` is defined, Testaro also records it as the `sources.agent` property of the report, so the server can attribute the report to this instance under any auth type.
+
+The `AGENT` and `NETWATCH_URL_AUTH` variables of earlier versions are deprecated. Testaro still honors them (as `NETWATCH_WORKER_ID` and as a `pathBody` password, respectively) but warns; rename them.
 
 An application can make Testaro poll a server for jobs with:
 
 ```javaScript
 const {netWatch} = require('testaro/netWatch');
-netWatch(true, 300, true);
+netWatch(true, 300);
 ```
 
 A user can make Testaro poll a server for jobs with:
 
 ```bash
-node call netWatch true 300 true
+node call netWatch true 300
 ```
 
-The first argument of `netWatch` tells Testaro whether to continue polling after performing the first job. The second argument tells Testaro how many seconds to wait after receiving a no-jobs response before polling again. The third argument tells Testaro whether to be certificate-tolerant, i.e. to accept SSL certificates that fail verification against a list of certificate authorities (the default is `true`).
+The first argument of `netWatch` tells Testaro whether to continue polling after performing the first job. The second argument tells Testaro how many seconds to wait after receiving a no-jobs response before polling again. The optional third argument tells Testaro whether to be certificate-tolerant, i.e. to accept SSL certificates that fail verification against a list of certificate authorities (the default is `false`). Certificate tolerance disables the protection of an `https` connection, exposing credentials and reports to interception, so use it only against servers you control, such as local test servers with self-signed certificates.
 
 ## Reports
 
@@ -433,7 +435,7 @@ If no catalog entry was found for the instance, then instead of a `catalogIndex`
 
 The `outcome` property is the authoritative certainty signal. In version 78, each tool's `ordinalSeverity` conventions are unchanged from earlier versions: most tools encode uncertainty as a low severity (for example, axe `incomplete` results have severities 0 and 1, and `violations` have severities 2 and 3), so `ordinalSeverity` still mixes certainty with impact, and it mixes them differently per tool. Consumers should read `outcome` for certainty and should not infer it from `ordinalSeverity`. A later major version will redefine `ordinalSeverity` as impact only (0 minor, 1 moderate, 2 serious, 3 critical). Design record: `docs/standard-result-outcome.md`.
 
-Testaro's own rules report `failed` unless the rule's entry in `allRules` (in `tests/testaro.js`) specifies `outcome: 'cantTell'` (for example, `allCaps`, whose violations are AI estimates) or a violation description carries a prefix: `2:` sets severity 2, `2?:` sets severity 2 and outcome `cantTell`, and `?:` sets outcome `cantTell` at the rule's default severity.
+Testaro's own rules report `failed` unless the rule's entry in `allRules` (in `tests/testaro.ts`) specifies `outcome: 'cantTell'` (for example, `allCaps`, whose violations are AI estimates) or a violation description carries a prefix: `2:` sets severity 2, `2?:` sets severity 2 and outcome `cantTell`, and `?:` sets outcome `cantTell` at the rule's default severity.
 
 ## Rule-engine details
 
@@ -535,7 +537,7 @@ Thus, when the `rules` argument is omitted, QualWeb will test for all of the rul
 
 The target can be provided to QualWeb either as HTML or as a URL. Experience indicates that the results can differ between these methods, with each method reporting some rule violations or some instances that the other method does not report. For at least some cases, more rules are reported violated when HTML is provided (`withNewItems: false`).
 
-QualWeb creates sandboxed Puppeteer pages to perform its tests on. Therefore, the host must permit sandboxed browsers to be launched. See the discussion above about browser security.
+QualWeb creates sandboxed Playwright pages to perform its tests on. Therefore, the host must permit sandboxed browsers to be launched. See the discussion above about browser security.
 
 ### SureA11y
 
@@ -545,7 +547,7 @@ The `surea11y` rule engine makes use of the `surea11y/surea11y.browser.js` file,
 
 The rules that Testaro can test for are implemented in files within the `testaro` directory.
 
-The Testaro rules are classified by an `allRules` array defined in the `tests/testaro.js` file. Each item in that array is an object with these properties:
+The Testaro rules are classified by an `allRules` array defined in the `tests/testaro.ts` file. Each item in that array is an object with these properties:
 
 - `id`: the rule ID.
 - `what`: a description of the rule.
@@ -578,7 +580,7 @@ If you want the stand-alone API to perform the tests, you need to have that API 
 
 You can define additional Testaro rules and functionality. Contributions are welcome.
 
-Please report any issues, including feature requests, at the [repository](https://github.com/jrpool/testaro/issues).
+Please report any issues, including feature requests, at the [repository](https://github.com/YRA-Tech/testaro/issues).
 
 ## Accessibility principles
 
@@ -674,7 +676,7 @@ From 12 February 2024 through 30 September 2025, contributors of code to Testaro
 
 ## Future work
 
-Future work contemplated for this project is described in its [issues](https://github.com/jrpool/testaro/issues) and also discussed in the [UPGRADES.md](UPGRADES.md) file.
+Future work contemplated for this project is described in its [issues](https://github.com/YRA-Tech/testaro/issues) and also discussed in the [UPGRADES.md](UPGRADES.md) file.
 
 ## Etymology
 

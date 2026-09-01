@@ -67,8 +67,39 @@ const abortAssertively = process.env.ABORT_ASSERTIVELY === 'true';
 const debloat = string => string.replace(/\s/g, ' ').trim().replace(/ {2,}/g, ' ').toLowerCase();
 // Returns the first line of an error message.
 const errorStart = error => error.message.replace(/\n.+/s, '');
+// Returns a view of a standard instance that includes the legacy element properties (tagName,
+// id, excerpt, location, boxID, pathID, text) derived from its catalog entry, so that
+// expectations written before the catalog existed can still be evaluated.
+const getLegacyInstanceView = (instance, catalog) => {
+  const entry = catalog?.[String(instance.catalogIndex)];
+  if (! entry) {
+    return instance;
+  }
+  const view = {... instance};
+  ['tagName', 'id', 'pathID', 'boxID', 'text', 'startTag'].forEach(key => {
+    if (view[key] === undefined && entry[key] !== undefined) {
+      view[key] = entry[key];
+    }
+  });
+  if (view.excerpt === undefined) {
+    view.excerpt = `${entry.startTag || ''}${entry.text || ''}`;
+  }
+  if (view.location === undefined) {
+    if (entry.id) {
+      view.location = {doc: 'dom', type: 'selector', spec: `#${entry.id}`};
+    }
+    else if (entry.boxID) {
+      const [x, y, width, height] = entry.boxID.split(',').map(Number);
+      view.location = {doc: 'dom', type: 'box', spec: {x, y, width, height}};
+    }
+    else if (entry.pathID) {
+      view.location = {doc: 'dom', type: 'xpath', spec: entry.pathID};
+    }
+  }
+  return view;
+};
 // Returns a property value and whether it satisfies an expectation.
-const isTrue = (object, specs) => {
+const isTrue = (object, specs, catalog) => {
   const property = specs[0];
   const propertyTree = property.split('.');
   // Test-act expectations reference results by property path. Most fixtures use the
@@ -87,6 +118,10 @@ const isTrue = (object, specs) => {
   while (propertyTree.length > 1 && actual !== undefined) {
     propertyTree.shift();
     actual = actual[propertyTree[0]];
+    // If the value is a standard instance with a catalog entry, include its legacy element view.
+    if (actual && typeof actual === 'object' && actual.catalogIndex !== undefined && catalog) {
+      actual = getLegacyInstanceView(actual, catalog);
+    }
   }
   // If the expectation is that the property does not exist:
   if (specs.length === 1) {
@@ -288,7 +323,7 @@ exports.doActs = async (report, opts = {}) => {
         // Identify the act to be checked.
         const ifActIndex = acts.map(act => act.type !== 'next').lastIndexOf(true);
         // Determine whether its jump condition is true.
-        const truth = isTrue(acts[ifActIndex].result, condition);
+        const truth = isTrue(acts[ifActIndex].result, condition, tempReport.catalog);
         // Add the result to the act.
         act.result = {
           property: condition[0],
@@ -491,7 +526,7 @@ exports.doActs = async (report, opts = {}) => {
             // For each expectation:
             expectations.forEach(spec => {
               // Add its result to the act.
-              const truth = isTrue(act, spec);
+              const truth = isTrue(act, spec, tempReport.catalog);
               act.expectations.push({
                 property: spec[0],
                 relation: spec[1],

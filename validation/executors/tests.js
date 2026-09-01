@@ -68,7 +68,10 @@ Promise.all([fs.readdir(ruleDir), fs.readdir(validatorDir)])
 // When they arrive:
 .then(async ([ruleFileNames, validatorFileNames]) => {
   // Get the rule IDs and the IDs of the rules with validators.
-  const ruleIDs = ruleFileNames.filter(name => name.endsWith('.js')).map(name => name.slice(0, -3));
+  // Rule modules are the JavaScript files in the rule directory, except the generated registry.
+  const ruleIDs = ruleFileNames
+  .filter(name => name.endsWith('.js') && name !== 'registry.js')
+  .map(name => name.slice(0, -3));
   const validatorIDs = validatorFileNames
   .filter(name => name.endsWith('.json'))
   .map(name => name.slice(0, -5));

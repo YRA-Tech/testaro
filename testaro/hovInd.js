@@ -1,3 +1,4 @@
+"use strict";
 /*
   © 2023–2025 CVS Health and/or one of its affiliates. All rights reserved.
   © 2026 Jeff Witt.
@@ -7,139 +8,126 @@
 
   SPDX-License-Identifier: MIT
 */
-
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.reporter = void 0;
+const testaro_1 = require("../procs/testaro");
 /*
   hovInd
   This test reports confusing hover indication.
+  Compiled to hovInd.js by tsc (issue #73); edit this file, not the emitted one.
 */
-
-// IMPORTS
-
-const {doTest} = require('../procs/testaro');
-
 // FUNCTIONS
-
 // Runs the test and returns the result.
-exports.reporter = async (page, report, _, withItems) => {
-  const getBadWhat = element => {
-    const violationTypes = [];
-    const isVisible = element.checkVisibility({
-      contentVisibilityAuto: true,
-      opacityProperty: true,
-      visibilityProperty: true
-    });
-    // If the element is visible:
-    if (isVisible) {
-      // Get its live style declaration.
-      const styleDec = window.getComputedStyle(element);
-      // FUNCTION DEFINITIONS START
-      // Returns hover-related style data on a trigger.
-      const getStyleData = () => {
-        const {
-          cursor,
-          borderColor,
-          borderStyle,
-          borderWidth,
-          outlineColor,
-          outlineStyle,
-          outlineWidth,
-          outlineOffset,
-          color,
-          backgroundColor
-        } = styleDec;
-        return {
-          tagName: element.tagName,
-          inputType: element.tagName === 'INPUT' ? element.getAttribute('type') || 'text' : null,
-          cursor: cursor.replace(/^.+, */, ''),
-          border: `${borderColor} ${borderStyle} ${borderWidth}`,
-          outline: `${outlineColor} ${outlineStyle} ${outlineWidth} ${outlineOffset}`,
-          color,
-          backgroundColor
-        };
-      };
-      // Returns whether the cursor is bad when the element is hovered over.
-      const cursorIsBad = hoverCursor => {
-        const {tagName, type} = element;
-        if (tagName === 'A' || tagName === 'INPUT' && type === 'image') {
-          return hoverCursor !== 'pointer';
+const reporter = async (page, report, _, withItems) => {
+    // The candidate selector yields rendered HTML elements.
+    const getBadWhat = (element) => {
+        const violationTypes = [];
+        const isVisible = element.checkVisibility({
+            contentVisibilityAuto: true,
+            opacityProperty: true,
+            visibilityProperty: true
+        });
+        // If the element is visible:
+        if (isVisible) {
+            // Get its live style declaration.
+            const styleDec = window.getComputedStyle(element);
+            // FUNCTION DEFINITIONS START
+            // Returns hover-related style data on a trigger.
+            const getStyleData = () => {
+                const { cursor, borderColor, borderStyle, borderWidth, outlineColor, outlineStyle, outlineWidth, outlineOffset, color, backgroundColor } = styleDec;
+                return {
+                    tagName: element.tagName,
+                    inputType: element.tagName === 'INPUT' ? element.getAttribute('type') || 'text' : null,
+                    cursor: cursor.replace(/^.+, */, ''),
+                    border: `${borderColor} ${borderStyle} ${borderWidth}`,
+                    outline: `${outlineColor} ${outlineStyle} ${outlineWidth} ${outlineOffset}`,
+                    color,
+                    backgroundColor
+                };
+            };
+            // Returns whether the cursor is bad when the element is hovered over.
+            const cursorIsBad = (hoverCursor) => {
+                // Only input elements reach the type read; the cast erases at emit.
+                const { tagName, type } = element;
+                if (tagName === 'A' || tagName === 'INPUT' && type === 'image') {
+                    return hoverCursor !== 'pointer';
+                }
+                if (tagName === 'INPUT') {
+                    if (['button', 'radio', 'reset', 'submit'].some(typeName => type === typeName)) {
+                        return hoverCursor !== 'default';
+                    }
+                    return hoverCursor !== 'text';
+                }
+                return !['auto', 'default'].includes(hoverCursor);
+            };
+            // Returns whether two hover styles are effectively identical.
+            const areAlike = (styles0, styles1) => {
+                // Return whether they are effectively identical.
+                const areAlike = ['cursor', 'backgroundColor', 'border', 'color', 'outline']
+                    .every(style => styles1[style] === styles0[style]);
+                return areAlike;
+            };
+            // FUNCTION DEFINITIONS END
+            // Get its style data when neither focused nor hovered over.
+            const defaultStyleData = getStyleData();
+            // Correct the cursor value.
+            defaultStyleData.cursor = 'default';
+            // Get its style data when only focused.
+            element.focus();
+            const focusStyleData = getStyleData();
+            // Correct the cursor value.
+            focusStyleData.cursor = 'default';
+            // Get its style data when only hovered over.
+            element.blur();
+            element.dispatchEvent(new MouseEvent('mouseenter'));
+            const hoverStyleData = getStyleData();
+            const data = {};
+            // If the cursor is confusing when the element is only hovered over:
+            if (cursorIsBad(hoverStyleData.cursor)) {
+                // Add this to the violation types.
+                violationTypes.push(`nonstandard mouse cursor (${hoverStyleData.cursor}) when hovered over`);
+            }
+            // If the neutral and hover styles are indistinguishable:
+            if (areAlike(defaultStyleData, hoverStyleData)) {
+                // Add this to the violation types.
+                violationTypes.push('normal and hover styles are indistinguishable');
+                // Add the details to the data.
+                data.n_h = {
+                    neutral: defaultStyleData,
+                    hover: hoverStyleData
+                };
+            }
+            // If the focus and hoverstyles are indistinguishable:
+            if (areAlike(focusStyleData, hoverStyleData)) {
+                // Add this to the violation types.
+                violationTypes.push('focus and hover styles are indistinguishable');
+                // Add the details to the data.
+                data.f_h = {
+                    focus: focusStyleData,
+                    hover: hoverStyleData
+                };
+            }
+            // If any violations occurred:
+            if (violationTypes.length) {
+                const description = `Element styles do not clearly indicate hovering: ${violationTypes.join('; ')}`;
+                // If there are additional data:
+                if (Object.keys(data).length) {
+                    // Return the violation description and data.
+                    return {
+                        description,
+                        data
+                    };
+                }
+                // Otherwise, i.e. if there are no additional data:
+                else {
+                    // Return the violation description.
+                    return description;
+                }
+            }
         }
-        if (tagName === 'INPUT') {
-          if (['button', 'radio', 'reset', 'submit'].some(typeName => type === typeName)) {
-            return hoverCursor !== 'default';
-          }
-          return hoverCursor !== 'text';
-        }
-        return ! ['auto', 'default'].includes(hoverCursor);
-      };
-      // Returns whether two hover styles are effectively identical.
-      const areAlike = (styles0, styles1) => {
-        // Return whether they are effectively identical.
-        const areAlike = ['cursor', 'backgroundColor', 'border', 'color', 'outline']
-        .every(style => styles1[style] === styles0[style]);
-        return areAlike;
-      };
-      // FUNCTION DEFINITIONS END
-      // Get its style data when neither focused nor hovered over.
-      const defaultStyleData = getStyleData();
-      // Correct the cursor value.
-      defaultStyleData.cursor = 'default';
-      // Get its style data when only focused.
-      element.focus();
-      const focusStyleData = getStyleData();
-      // Correct the cursor value.
-      focusStyleData.cursor = 'default';
-      // Get its style data when only hovered over.
-      element.blur();
-      element.dispatchEvent(new MouseEvent('mouseenter'));
-      const hoverStyleData = getStyleData();
-      const data = {};
-      // If the cursor is confusing when the element is only hovered over:
-      if (cursorIsBad(hoverStyleData.cursor)) {
-        // Add this to the violation types.
-        violationTypes.push(
-          `nonstandard mouse cursor (${hoverStyleData.cursor}) when hovered over`
-        );
-      }
-      // If the neutral and hover styles are indistinguishable:
-      if (areAlike(defaultStyleData, hoverStyleData)) {
-        // Add this to the violation types.
-        violationTypes.push('normal and hover styles are indistinguishable');
-        // Add the details to the data.
-        data.n_h = {
-          neutral: defaultStyleData,
-          hover: hoverStyleData
-        };
-      }
-      // If the focus and hoverstyles are indistinguishable:
-      if (areAlike(focusStyleData, hoverStyleData)) {
-        // Add this to the violation types.
-        violationTypes.push('focus and hover styles are indistinguishable');
-        // Add the details to the data.
-        data.f_h = {
-          focus: focusStyleData,
-          hover: hoverStyleData
-        };
-      }
-      // If any violations occurred:
-      if (violationTypes.length) {
-        const description = `Element styles do not clearly indicate hovering: ${violationTypes.join('; ')}`;
-        // If there are additional data:
-        if (Object.keys(data).length) {
-          // Return the violation description and data.
-          return {
-            description,
-            data
-          };
-        }
-        // Otherwise, i.e. if there are no additional data:
-        else {
-          // Return the violation description.
-          return description;
-        }
-      }
-    }
-  };
-  const selector = 'body a, body button, body input, body [onmouseenter], body [onmouseover]';
-  const whats = 'elements have confusing hover indicators';
-  return await doTest(page, report, withItems, 'hovInd', selector, whats, 1, getBadWhat.toString());
+    };
+    const selector = 'body a, body button, body input, body [onmouseenter], body [onmouseover]';
+    const whats = 'elements have confusing hover indicators';
+    return await (0, testaro_1.doTest)(page, report, withItems, 'hovInd', selector, whats, 1, getBadWhat.toString());
 };
+exports.reporter = reporter;

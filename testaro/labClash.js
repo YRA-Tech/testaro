@@ -1,3 +1,4 @@
+"use strict";
 /*
   © 2021–2023 CVS Health and/or one of its affiliates. All rights reserved.
   © 2026 Jeff Witt.
@@ -8,43 +9,40 @@
 
   SPDX-License-Identifier: MIT
 */
-
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.reporter = void 0;
+const testaro_1 = require("../procs/testaro");
 /*
   labClash
   This test reports redundant labeling of buttons, non-hidden inputs, select lists, and text areas. Redundant labels are labels that are superseded by other labels. Explicit and implicit (wrapped) labels are additive, not conflicting.
+  Compiled to labClash.js by tsc (issue #73); edit this file, not the emitted one.
 */
-
-// IMPORTS
-
-const {doTest} = require('../procs/testaro');
-
 // FUNCTIONS
-
 // Runs the test and returns the result.
-exports.reporter = async (page, report, _, withItems) => {
-  const getBadWhat = element => {
-    // Get the label types of the element.
-    const labelTypes = [];
-    // Attribute and reference labels.
-    ['aria-label', 'aria-labelledby'].forEach(type => {
-      if (element.hasAttribute(type)) {
-        labelTypes.push(type);
-      }
-    });
-    // Explicit and implicit labels.
-    const labels = Array.from(element.labels);
-    if (labels.length) {
-      labelTypes.push('label');
-    }
-    // If it has more than 1 label type:
-    if (labelTypes.length > 1) {
-      // Return a violation description.
-      return `Element has inconsistent label types (${labelTypes.join(', ')})`;
-    }
-  };
-  const selector = 'body button, body input:not([type=hidden]), body select, body textarea';
-  const whats = 'Elements have inconsistent label types';
-  return await doTest(
-    page, report, withItems, 'labClash', selector, whats, 2, getBadWhat.toString()
-  );
+const reporter = async (page, report, _, withItems) => {
+    // The candidate selector guarantees labelable form controls.
+    const getBadWhat = (element) => {
+        // Get the label types of the element.
+        const labelTypes = [];
+        // Attribute and reference labels.
+        ['aria-label', 'aria-labelledby'].forEach(type => {
+            if (element.hasAttribute(type)) {
+                labelTypes.push(type);
+            }
+        });
+        // Explicit and implicit labels.
+        const labels = Array.from(element.labels);
+        if (labels.length) {
+            labelTypes.push('label');
+        }
+        // If it has more than 1 label type:
+        if (labelTypes.length > 1) {
+            // Return a violation description.
+            return `Element has inconsistent label types (${labelTypes.join(', ')})`;
+        }
+    };
+    const selector = 'body button, body input:not([type=hidden]), body select, body textarea';
+    const whats = 'Elements have inconsistent label types';
+    return await (0, testaro_1.doTest)(page, report, withItems, 'labClash', selector, whats, 2, getBadWhat.toString());
 };
+exports.reporter = reporter;

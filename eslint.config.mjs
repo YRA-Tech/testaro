@@ -32,6 +32,15 @@ export default defineConfig([
     'surea11y/surea11y.browser.js',
     // Vendored Pour Engine bundle, built with esbuild (see pour/README.md).
     'pour/pour.min.js',
+    // Files emitted by tsc from TypeScript sources (issue #73); lint the .ts sources instead.
+    'types.js',
+    'procs/catalog.js',
+    'procs/standard.js',
+    'procs/testaro.js',
+    'procs/xPath.js',
+    'testaro/*.js',
+    'tests/*.js',
+    '**/*.d.ts',
     // Validation fixtures, some of which are intentionally defective.
     'validation/tests/targets/'
   ]),

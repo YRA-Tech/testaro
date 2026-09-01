@@ -1,0 +1,35 @@
+name: TypeScript
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  typecheck:
+    name: Type check and syntax check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Generate rule registry
+        run: npm run build:registry
+      - name: Compile TypeScript
+        run: npm run build:ts
+      - name: Committed emit matches sources
+        run: git diff --exit-code
+      - name: Syntax-check all JavaScript
+        run: |
+          set -e
+          find . -name '*.js' \
+            -not -path './node_modules/*' \
+            -not -path './.git/*' \
+            -not -path './dist/*' \
+            -not -path './ed11y/*' \
+            -print0 | xargs -0 -n1 node --check

@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "target": "es2022",
+    "module": "commonjs",
+    "moduleResolution": "node10",
+    "lib": ["es2022", "es2023.array", "dom", "dom.iterable"],
+    "types": ["node"],
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "declaration": true,
+    "removeComments": false
+  },
+  "include": ["**/*.ts"],
+  "exclude": ["node_modules", "htmlcs", "ed11y", "dist", "validation/tests/targets", "**/*.d.ts"]
+}

@@ -1,3 +1,4 @@
+"use strict";
 /*
   © 2023–2024 CVS Health and/or one of its affiliates. All rights reserved.
   © 2026 Jeff Witt.
@@ -8,23 +9,48 @@
 
   SPDX-License-Identifier: MIT
 */
-
-/*
-  aslint
-  Implements the ASLint ruleset for accessibility.
-*/
-
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.reporter = void 0;
 // IMPORTS
-
-const fs = require('fs/promises');
+const fs = __importStar(require("fs/promises"));
 // Shared configuration for timeout multiplier.
-const {applyMultiplier} = require('../procs/config');
-const {getNormalizedXPath, getXPathCatalogIndex} = require('../procs/xPath');
-// Functions to build standard results.
-const {getStandardResult, addInstance} = require('../procs/standard');
-
+const config_1 = require("../procs/config");
+const xPath_1 = require("../procs/xPath");
+const standard_1 = require("../procs/standard");
 // CONSTANTS
-
 /*
   Differentiates some rule IDs of aslint.
   If the purported rule ID is a key and the what property contains all of the strings except the
@@ -32,246 +58,247 @@ const {getStandardResult, addInstance} = require('../procs/standard');
   array item.
 */
 const aslintData = {
-  'misused_required_attribute': [
-    ['not needed', 'misused_required_attributeR']
-  ],
-  'accessible_svg': [
-    ['associated', 'accessible_svgI'],
-    ['tabindex', 'accessible_svgT']
-  ],
-  'audio_alternative': [
-    ['track', 'audio_alternativeT'],
-    ['alternative', 'audio_alternativeA'],
-    ['bgsound', 'audio_alternativeB']
-  ],
-  'table_missing_description': [
-    ['describedby', 'associated', 'table_missing_descriptionDM'],
-    ['labeledby', 'associated', 'table_missing_descriptionLM'],
-    ['caption', 'not been defined', 'table_missing_descriptionC'],
-    ['summary', 'empty', 'table_missing_descriptionS'],
-    ['describedby', 'empty', 'table_missing_descriptionDE'],
-    ['labeledby', 'empty', 'table_missing_descriptionLE'],
-    ['caption', 'no content', 'table_missing_descriptionE']
-  ],
-  'label_implicitly_associated': [
-    ['only whice spaces', 'label_implicitly_associatedW'],
-    ['more than one', 'label_implicitly_associatedM']
-  ],
-  'label_inappropriate_association': [
-    ['Missing', 'label_inappropriate_associationM'],
-    ['non-form', 'label_inappropriate_associationN']
-  ],
-  'table_row_and_column_headers': [
-    ['headers', 'table_row_and_column_headersRC'],
-    ['Content', 'table_row_and_column_headersB'],
-    ['head of the columns', 'table_row_and_column_headersH']
-  ],
-  'color_contrast_state_pseudo_classes_abstract': [
-    ['position: fixed', 'color_contrast_state_pseudo_classes_abstractF'],
-    ['transparent', 'color_contrast_state_pseudo_classes_abstractB'],
-    ['least 3:1', 'color_contrast_state_pseudo_classes_abstract3'],
-    ['least 4.5:1', 'color_contrast_state_pseudo_classes_abstract4']
-  ],
-  'color_contrast_state_pseudo_classes_active': [
-    ['position: fixed', 'color_contrast_state_pseudo_classes_abstractF'],
-    ['transparent', 'color_contrast_state_pseudo_classes_abstractB'],
-    ['least 3:1', 'color_contrast_state_pseudo_classes_abstract3'],
-    ['least 4.5:1', 'color_contrast_state_pseudo_classes_abstract4']
-  ],
-  'color_contrast_state_pseudo_classes_focus': [
-    ['position: fixed', 'color_contrast_state_pseudo_classes_abstractF'],
-    ['transparent', 'color_contrast_state_pseudo_classes_abstractB'],
-    ['least 3:1', 'color_contrast_state_pseudo_classes_abstract3'],
-    ['least 4.5:1', 'color_contrast_state_pseudo_classes_abstract4']
-  ],
-  'color_contrast_state_pseudo_classes_hover': [
-    ['position: fixed', 'color_contrast_state_pseudo_classes_abstractF'],
-    ['transparent', 'color_contrast_state_pseudo_classes_abstractB'],
-    ['least 3:1', 'color_contrast_state_pseudo_classes_abstract3'],
-    ['least 4.5:1', 'color_contrast_state_pseudo_classes_abstract4']
-  ],
-  'color_contrast_aaa': [
-    ['transparent', 'color_contrast_aaaB'],
-    ['least 4.5:1', 'color_contrast_aaa4'],
-    ['least 7:1', 'color_contrast_aaa7']
-  ],
-  'animation': [
-    ['duration', 'animationD'],
-    ['iteration', 'animationI'],
-    ['mechanism', 'animationM']
-  ],
-  'page_title': [
-    ['empty', 'page_titleN'],
-    ['not identify', 'page_titleU']
-  ],
-  'aria_labelledby_association': [
-    ['exist', 'aria_labelledby_associationN'],
-    ['empty', 'aria_labelledby_associationE']
-  ],
-  'html_lang_attr': [
-    ['parameters', 'html_lang_attrP'],
-    ['nothing', 'html_lang_attrN'],
-    ['empty', 'html_lang_attrE']
-  ],
-  'missing_label': [
-    ['associated', 'missing_labelI'],
-    ['defined', 'missing_labelN'],
-    ['multiple labels', 'missing_labelM']
-  ],
-  'orientation': [
-    ['loaded', 'orientationT']
-  ]
+    'misused_required_attribute': [
+        ['not needed', 'misused_required_attributeR']
+    ],
+    'accessible_svg': [
+        ['associated', 'accessible_svgI'],
+        ['tabindex', 'accessible_svgT']
+    ],
+    'audio_alternative': [
+        ['track', 'audio_alternativeT'],
+        ['alternative', 'audio_alternativeA'],
+        ['bgsound', 'audio_alternativeB']
+    ],
+    'table_missing_description': [
+        ['describedby', 'associated', 'table_missing_descriptionDM'],
+        ['labeledby', 'associated', 'table_missing_descriptionLM'],
+        ['caption', 'not been defined', 'table_missing_descriptionC'],
+        ['summary', 'empty', 'table_missing_descriptionS'],
+        ['describedby', 'empty', 'table_missing_descriptionDE'],
+        ['labeledby', 'empty', 'table_missing_descriptionLE'],
+        ['caption', 'no content', 'table_missing_descriptionE']
+    ],
+    'label_implicitly_associated': [
+        ['only whice spaces', 'label_implicitly_associatedW'],
+        ['more than one', 'label_implicitly_associatedM']
+    ],
+    'label_inappropriate_association': [
+        ['Missing', 'label_inappropriate_associationM'],
+        ['non-form', 'label_inappropriate_associationN']
+    ],
+    'table_row_and_column_headers': [
+        ['headers', 'table_row_and_column_headersRC'],
+        ['Content', 'table_row_and_column_headersB'],
+        ['head of the columns', 'table_row_and_column_headersH']
+    ],
+    'color_contrast_state_pseudo_classes_abstract': [
+        ['position: fixed', 'color_contrast_state_pseudo_classes_abstractF'],
+        ['transparent', 'color_contrast_state_pseudo_classes_abstractB'],
+        ['least 3:1', 'color_contrast_state_pseudo_classes_abstract3'],
+        ['least 4.5:1', 'color_contrast_state_pseudo_classes_abstract4']
+    ],
+    'color_contrast_state_pseudo_classes_active': [
+        ['position: fixed', 'color_contrast_state_pseudo_classes_abstractF'],
+        ['transparent', 'color_contrast_state_pseudo_classes_abstractB'],
+        ['least 3:1', 'color_contrast_state_pseudo_classes_abstract3'],
+        ['least 4.5:1', 'color_contrast_state_pseudo_classes_abstract4']
+    ],
+    'color_contrast_state_pseudo_classes_focus': [
+        ['position: fixed', 'color_contrast_state_pseudo_classes_abstractF'],
+        ['transparent', 'color_contrast_state_pseudo_classes_abstractB'],
+        ['least 3:1', 'color_contrast_state_pseudo_classes_abstract3'],
+        ['least 4.5:1', 'color_contrast_state_pseudo_classes_abstract4']
+    ],
+    'color_contrast_state_pseudo_classes_hover': [
+        ['position: fixed', 'color_contrast_state_pseudo_classes_abstractF'],
+        ['transparent', 'color_contrast_state_pseudo_classes_abstractB'],
+        ['least 3:1', 'color_contrast_state_pseudo_classes_abstract3'],
+        ['least 4.5:1', 'color_contrast_state_pseudo_classes_abstract4']
+    ],
+    'color_contrast_aaa': [
+        ['transparent', 'color_contrast_aaaB'],
+        ['least 4.5:1', 'color_contrast_aaa4'],
+        ['least 7:1', 'color_contrast_aaa7']
+    ],
+    'animation': [
+        ['duration', 'animationD'],
+        ['iteration', 'animationI'],
+        ['mechanism', 'animationM']
+    ],
+    'page_title': [
+        ['empty', 'page_titleN'],
+        ['not identify', 'page_titleU']
+    ],
+    'aria_labelledby_association': [
+        ['exist', 'aria_labelledby_associationN'],
+        ['empty', 'aria_labelledby_associationE']
+    ],
+    'html_lang_attr': [
+        ['parameters', 'html_lang_attrP'],
+        ['nothing', 'html_lang_attrN'],
+        ['empty', 'html_lang_attrE']
+    ],
+    'missing_label': [
+        ['associated', 'missing_labelI'],
+        ['defined', 'missing_labelN'],
+        ['multiple labels', 'missing_labelM']
+    ],
+    'orientation': [
+        ['loaded', 'orientationT']
+    ]
 };
-
+/*
+  aslint
+  Implements the ASLint ruleset for accessibility.
+  Compiled to aslint.js by tsc (issue #73); edit this file, not the emitted one.
+*/
 // FUNCTIONS
-
 // Conducts and reports the ASLint tests.
-exports.reporter = async (page, report, actIndex) => {
-  // Initialize the act report.
-  let data = {};
-  const result = {
-    nativeResult: {},
-    standardResult: {}
-  };
-  const standard = report.standard !== 'no';
-  // If standard results are to be reported:
-  if (standard) {
-    // Initialize the standard result.
-    result.standardResult = getStandardResult();
-  }
-  const {standardResult} = result;
-  // Get the ASLint runner and bundle scripts.
-  const aslintRunner = await fs.readFile(`${__dirname}/../procs/aslint.js`, 'utf8');
-  const aslintBundlePath = require.resolve('aslint-testaro/aslint.bundle.js');
-  const aslintBundle = await fs.readFile(aslintBundlePath, 'utf8');
-  // Get the nonce, if any.
-  const act = report.acts[actIndex];
-  const {jobData} = report;
-  const scriptNonce = jobData && jobData.lastScriptNonce;
-  // Inject the ASLint bundle and runner into the head of the page.
-  await page.evaluate(args => {
-    const {scriptNonce, aslintBundle, aslintRunner} = args;
-    // Bundle.
-    const bundleEl = document.createElement('script');
-    bundleEl.id = 'aslintBundle';
-    if (scriptNonce) {
-      bundleEl.nonce = scriptNonce;
-      console.log(`Added nonce ${scriptNonce} to bundle`);
-    }
-    bundleEl.textContent = aslintBundle;
-    document.head.insertAdjacentElement('beforeend', bundleEl);
-    // Runner.
-    const runnerEl = document.createElement('script');
-    if (scriptNonce) {
-      runnerEl.nonce = scriptNonce;
-      console.log(`Added nonce ${scriptNonce} to runner`);
-    }
-    runnerEl.textContent = aslintRunner;
-    document.body.insertAdjacentElement('beforeend', runnerEl);
-  }, {scriptNonce, aslintBundle, aslintRunner})
-  .catch(error => {
-    const message = `ERROR: ASLint injection failed (${error.message.slice(0, 400)})`;
-    console.log(message);
-    data.prevented = true;
-    data.error = message;
-    if (standard) {
-      standardResult.prevented = true;
-    }
-  });
-  const reportLoc = page.locator('#aslintResult');
-  // If the injection succeeded:
-  if (! data.prevented) {
-    try {
-      // Wait for the test results to be attached to the page.
-      const waitOptions = {
-        state: 'attached',
-        timeout: applyMultiplier(20000)
-      };
-      await reportLoc.waitFor(waitOptions);
-    }
-    catch(error) {
-      const message = 'Attachment of test results to page failed';
-      console.log(message);
-      data.prevented = true;
-      data.error = `${message} (${error.message})`;
+const reporter = async (page, report, actIndex) => {
+    // Initialize the act report.
+    let data = {};
+    const result = {
+        nativeResult: {},
+        standardResult: {}
     };
-  }
-  // If the injection and the result attachment both succeeded:
-  if (! data.prevented) {
-    // Get their text.
-    const actReport = await reportLoc.textContent();
-    try {
-      const nativeResult = result.nativeResult = JSON.parse(actReport);
-      // If any rules were reported violated:
-      if (nativeResult.rules) {
-        const {rules} = nativeResult;
-        // For each such rule:
-        for (const ruleID of Object.keys(rules)) {
-          const ruleData = rules[ruleID];
-          const {issueType, status} = ruleData;
-          const excluded = act.rules && ! act.rules.includes(ruleID);
-          const {type} = status;
-          // If rule is not an error or warning or is not to be tested:
-          if (
-            excluded
-            || ['passed', 'skipped'].includes(type)
-            || ! ['error', 'warning'].includes(issueType)
-          ) {
-            // Delete the rule report.
-            delete rules[ruleID];
-          }
+    const standard = report.standard !== 'no';
+    // If standard results are to be reported:
+    if (standard) {
+        // Initialize the standard result.
+        result.standardResult = (0, standard_1.getStandardResult)();
+    }
+    const { standardResult } = result;
+    // Get the ASLint runner and bundle scripts.
+    const aslintRunner = await fs.readFile(`${__dirname}/../procs/aslint.js`, 'utf8');
+    const aslintBundlePath = require.resolve('aslint-testaro/aslint.bundle.js');
+    const aslintBundle = await fs.readFile(aslintBundlePath, 'utf8');
+    // Get the nonce, if any.
+    const act = report.acts[actIndex];
+    const { jobData } = report;
+    const scriptNonce = (jobData && jobData.lastScriptNonce);
+    // Inject the ASLint bundle and runner into the head of the page.
+    await page.evaluate(args => {
+        const { scriptNonce, aslintBundle, aslintRunner } = args;
+        // Bundle.
+        const bundleEl = document.createElement('script');
+        bundleEl.id = 'aslintBundle';
+        if (scriptNonce) {
+            bundleEl.nonce = scriptNonce;
+            console.log(`Added nonce ${scriptNonce} to bundle`);
         }
-        // If standard results are to be reported:
+        bundleEl.textContent = aslintBundle;
+        document.head.insertAdjacentElement('beforeend', bundleEl);
+        // Runner.
+        const runnerEl = document.createElement('script');
+        if (scriptNonce) {
+            runnerEl.nonce = scriptNonce;
+            console.log(`Added nonce ${scriptNonce} to runner`);
+        }
+        runnerEl.textContent = aslintRunner;
+        document.body.insertAdjacentElement('beforeend', runnerEl);
+    }, { scriptNonce, aslintBundle, aslintRunner })
+        .catch(error => {
+        const message = `ERROR: ASLint injection failed (${error.message.slice(0, 400)})`;
+        console.log(message);
+        data.prevented = true;
+        data.error = message;
         if (standard) {
-          const ruleIDs = Object.keys(rules);
-          // For each violated rule:
-          for (let ruleID of ruleIDs) {
-            const ruleData = rules[ruleID];
-            const {issueType, results} = ruleData;
-            // For each violation:
-            for (const result of results) {
-              const {message, element} = result;
-              // Get a description of the violated rule.
-              const what = message?.actual?.description ?? '';
-              const changer = aslintData[ruleID]?.find(
-                specs => specs.slice(0, -1).every(matcher => what.includes(matcher))
-              );
-              // If the rule ID is differentiatable:
-              if (changer) {
-                // Differentiate it.
-                ruleID = changer[changer.length - 1];
-              }
-              // Get the ordinal severity of the violation.
-              const ordinalSeverity = issueType === 'warning' ? 1 : 2;
-              // Get the pathID of the element.
-              const {xpath} = element;
-              const pathID = getNormalizedXPath(xpath);
-              // Use it to get the index of the element in the catalog.
-              const catalogIndex = getXPathCatalogIndex(report, pathID);
-              // Add an instance to the standard result.
-              addInstance(standardResult, {
-                ruleID,
-                what,
-                ordinalSeverity,
-                outcome: issueType === 'warning' ? 'cantTell' : 'failed',
-                catalogIndex
-              });
-            }
-          }
+            standardResult.prevented = true;
         }
-      }
+    });
+    const reportLoc = page.locator('#aslintResult');
+    // If the injection succeeded:
+    if (!data.prevented) {
+        try {
+            // Wait for the test results to be attached to the page.
+            const waitOptions = {
+                state: 'attached',
+                timeout: (0, config_1.applyMultiplier)(20000)
+            };
+            await reportLoc.waitFor(waitOptions);
+        }
+        catch (error) {
+            const message = 'Attachment of test results to page failed';
+            console.log(message);
+            data.prevented = true;
+            data.error = `${message} (${error.message})`;
+        }
+        ;
     }
-    // If the results are not JSON:
-    catch(error) {
-      const message = `Result processing failed (${error.message})`;
-      console.log(`ERROR: ${message}`);
-      // Report this.
-      data.prevented = true;
-      data.error = message;
+    // If the injection and the result attachment both succeeded:
+    if (!data.prevented) {
+        // Get their text.
+        const actReport = await reportLoc.textContent();
+        try {
+            const nativeResult = result.nativeResult = JSON.parse(actReport);
+            // If any rules were reported violated:
+            if (nativeResult.rules) {
+                const { rules } = nativeResult;
+                // For each such rule:
+                for (const ruleID of Object.keys(rules)) {
+                    const ruleData = rules[ruleID];
+                    const { issueType, status } = ruleData;
+                    const excluded = act.rules && !act.rules.includes(ruleID);
+                    const { type } = status;
+                    // If rule is not an error or warning or is not to be tested:
+                    if (excluded
+                        || ['passed', 'skipped'].includes(type)
+                        || !['error', 'warning'].includes(issueType)) {
+                        // Delete the rule report.
+                        delete rules[ruleID];
+                    }
+                }
+                // If standard results are to be reported:
+                if (standard) {
+                    const ruleIDs = Object.keys(rules);
+                    // For each violated rule:
+                    for (let ruleID of ruleIDs) {
+                        const ruleData = rules[ruleID];
+                        const { issueType, results } = ruleData;
+                        // For each violation:
+                        for (const result of results) {
+                            const { message, element } = result;
+                            // Get a description of the violated rule.
+                            const what = message?.actual?.description ?? '';
+                            const changer = aslintData[ruleID]?.find(specs => specs.slice(0, -1).every(matcher => what.includes(matcher)));
+                            // If the rule ID is differentiatable:
+                            if (changer) {
+                                // Differentiate it.
+                                ruleID = changer[changer.length - 1];
+                            }
+                            // Get the ordinal severity of the violation.
+                            const ordinalSeverity = issueType === 'warning' ? 1 : 2;
+                            // Get the pathID of the element.
+                            const { xpath } = element;
+                            const pathID = (0, xPath_1.getNormalizedXPath)(xpath);
+                            // Use it to get the index of the element in the catalog.
+                            const catalogIndex = (0, xPath_1.getXPathCatalogIndex)(report, pathID);
+                            // Add an instance to the standard result.
+                            (0, standard_1.addInstance)(standardResult, {
+                                ruleID,
+                                what,
+                                ordinalSeverity,
+                                outcome: issueType === 'warning' ? 'cantTell' : 'failed',
+                                catalogIndex
+                            });
+                        }
+                    }
+                }
+            }
+        }
+        // If the results are not JSON:
+        catch (error) {
+            const message = `Result processing failed (${error.message})`;
+            console.log(`ERROR: ${message}`);
+            // Report this.
+            data.prevented = true;
+            data.error = message;
+        }
     }
-  }
-  return {
-    data,
-    result
-  };
+    return {
+        data,
+        result
+    };
 };
+exports.reporter = reporter;

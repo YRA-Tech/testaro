@@ -1,3 +1,4 @@
+"use strict";
 /*
   © 2023 CVS Health and/or one of its affiliates. All rights reserved.
   © 2026 Jeff Witt.
@@ -8,32 +9,31 @@
 
   SPDX-License-Identifier: MIT
 */
+// IMPORTS
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.reporter = void 0;
+const testaro_1 = require("../procs/testaro");
 /*
   linkTo
   This test reports links without href attributes.
+  Compiled to linkTo.js by tsc (issue #73); edit this file, not the emitted one.
 */
-// IMPORTS
-
-const {doTest} = require('../procs/testaro');
-
 // FUNCTIONS
-
 // Runs the test and returns the result.
-exports.reporter = async (page, report, _, withItems) => {
-  const getBadWhat = element => {
-    const isVisible = element.checkVisibility({
-      contentVisibilityAuto: true,
-      opacityProperty: true,
-      visibilityProperty: true
-    });
-    // If the element is visible:
-    if (isVisible) {
-      // Return a violation description.
-      return 'Element has no href attribute';
-    }
-  };
-  const whats = 'Links are missing href attributes';
-  return await doTest(
-    page, report, withItems, 'linkTo', 'body a:not([href]', whats, 2, getBadWhat.toString()
-  );
+const reporter = async (page, report, _, withItems) => {
+    const getBadWhat = element => {
+        const isVisible = element.checkVisibility({
+            contentVisibilityAuto: true,
+            opacityProperty: true,
+            visibilityProperty: true
+        });
+        // If the element is visible:
+        if (isVisible) {
+            // Return a violation description.
+            return `Element has no href attribute`;
+        }
+    };
+    const whats = 'Links are missing href attributes';
+    return await (0, testaro_1.doTest)(page, report, withItems, 'linkTo', 'body a:not([href]', whats, 2, getBadWhat.toString());
 };
+exports.reporter = reporter;
