@@ -449,6 +449,7 @@ process.on('unhandledRejection', reason => {
 // Conducts and reports Testaro tests.
 const reporter = async (page, report, actIndex) => {
     const act = report.acts[actIndex];
+    const givenPage = page;
     const { args, stopOnFail, withItems } = act;
     // A testaro act always has a target on itself or the report; verbatim from the original.
     const target = (act.target || report.target);
@@ -506,11 +507,14 @@ const reporter = async (page, report, actIndex) => {
             console.log(`Starting rule ${ruleResult.id}`);
             // Make the browser emulate headedness in all cases, because performance does not suffer.
             const headEmulation = ruleResult.id.startsWith('shoot') ? 'high' : 'high';
-            // Get whether the rule needs a new browser launched.
-            const needsLaunch = ruleIndex === 0
+            // Get whether the rule needs a new browser launched. Under page isolation the first rules
+            // run on the live page provided; a contaminating rule still gets a fresh page.
+            const previousRule = ruleIndex > 0 ? jobRules[ruleIndex - 1] : null;
+            const needsLaunch = (ruleIndex === 0 && !(page && report.jobData?.isolation === 'page'))
                 || justPrevented
-                || jobRules[ruleIndex - 1].contaminates
-                || jobRules[ruleIndex].needsAccessibleName && !jobRules[ruleIndex - 1].needsAccessibleName;
+                || Boolean(previousRule?.contaminates)
+                || jobRules[ruleIndex].needsAccessibleName && !previousRule?.needsAccessibleName
+                    && !(ruleIndex === 0 && page);
             const pageClosed = page && page.isClosed();
             // If it does, or if the page has closed:
             if (needsLaunch || pageClosed) {
@@ -688,6 +692,10 @@ const reporter = async (page, report, actIndex) => {
         const message = 'ERROR: Testaro rule specification invalid';
         data.error = message;
         console.log(message);
+    }
+    // Close the last page the tool launched, unless it is the live page it was given.
+    if (page && page !== givenPage) {
+        await (0, launch_1.browserClose)(page);
     }
     return {
         data,

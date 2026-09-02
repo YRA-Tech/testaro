@@ -1,5 +1,6 @@
 /*
   © 2024–2025 CVS Health and/or one of its affiliates. All rights reserved.
+  © 2026 Jeff Witt.
   © 2025–2026 Jonathan Robert Pool.
 
   Licensed under the MIT License. See LICENSE file at the project root or
@@ -9,9 +10,10 @@
 */
 
 /*
-  doActs
-  Performs the tests of an act.
-  This file is designed to be run as a child process.
+  doTestAct
+  Performs the tests of an act, under process isolation.
+  This file is designed to be run as a child process: it reads the temporary report, performs
+  the act with procs/testAct.js, writes the revised report, and messages the parent.
 */
 
 // ERROR LOGGING
@@ -32,33 +34,8 @@ process.on('unhandledRejection', reason => {
 
 // Module to perform file operations.
 const fs = require('fs/promises');
-// Module to close and launch browsers.
-const {browserClose, launch} = require('./launch');
-
-// CONSTANTS
-
-/*
-  Tool XPath requirements.
-    none: Needs no script or extra load time.
-    own: Needs extra load time for its own XPath computations.
-    script: Needs the window.getXPath script.
-    attribute: Needs data-xpath attributes made with window.getXPath.
-*/
-const xPathNeeds = {
-  alfa: 'own',
-  aslint: 'own',
-  axe: 'attribute',
-  ed11y: 'script',
-  htmlcs: 'attribute',
-  ibm: 'attribute',
-  nuVal: 'attribute',
-  nuVnu: 'attribute',
-  pour: 'script',
-  qualWeb: 'attribute',
-  surea11y: 'script',
-  wave: 'script'
-};
-const accessibleNameNeeders = ['testaro'];
+// Function to perform a test act.
+const {performTestAct} = require('./testAct');
 
 // FUNCTIONS
 
@@ -80,110 +57,32 @@ const doTestAct = async (reportPath, actIndex) => {
   // Get the temporary report.
   const reportJSON = await fs.readFile(reportPath, 'utf8');
   const report = JSON.parse(reportJSON);
-  // Get a reference to the act in the report.
   const act = report.acts[actIndex];
-  // Get the tool name.
-  const {which} = act;
-  let page;
-  // If the tool is not Testaro:
-  if (which !== 'testaro') {
-    const browserID = act.launch && act.launch.browserID || report.browserID;
-    const targetURL = act.launch && act.launch.target && act.launch.target.url || report.target.url;
-    // Launch a browser, navigate to the URL, and update the run-module page export.
-    page = await launch({
-      report,
-      actIndex,
-      tempBrowserID: browserID,
-      tempURL: targetURL,
-      xPathNeed: xPathNeeds[which] ?? 'none',
-      needsAccessibleName: accessibleNameNeeders.includes(which)
-    });
-    // If the launch aborted the job:
+  let status = 'ok';
+  let error = '';
+  try {
+    // Perform the act, revising the report.
+    await performTestAct({report, actIndex});
+    // If the launch aborted the job or no page existed, report that.
     if (report.jobData?.aborted) {
-      // Close the browser and its context, if they exist.
-      await browserClose(page);
-      const reportJSON = JSON.stringify(report);
-      // Save the revised report.
-      await fs.writeFile(reportPath, reportJSON);
-      // Report this.
-      sendMessage({
-        status: 'error',
-        error: 'Page launch aborted'
-      });
-      process.exit(1);
+      status = 'error';
+      error = 'Page launch aborted';
+    }
+    else if (act.data?.prevented && act.data.error === 'No page') {
+      status = 'error';
+      error = 'ERROR: No page';
     }
   }
-  // If the page exists after the launch, or if the tool is Testaro:
-  if (page || which === 'testaro') {
-    try {
-      // Make the act reporter perform the specified tests of the tool.
-      const actReport = await require(`../tests/${which}`).reporter(page, report, actIndex, 65);
-      // Add the data and result to the act, keeping any checkpoint replay record the launch
-      // added to the act's data.
-      const {replay} = act.data ?? {};
-      act.data = actReport.data ?? {};
-      if (replay) {
-        act.data.replay = replay;
-      }
-      act.result = actReport.result;
-      // If the tool reported that the page prevented testing:
-      if (act.data && act.data.prevented) {
-        const {standardResult} = act.result;
-        // Add this to any standard result.
-        if (standardResult) {
-          standardResult.prevented = true;
-        }
-        // Add prevention data to the job data.
-        report.jobData.preventions[which] = act.data.error;
-      }
-      // Close the browser and its context, if they exist.
-      await browserClose(page);
-      const reportJSON = JSON.stringify(report);
-      // Save the revised report.
-      await fs.writeFile(reportPath, reportJSON);
-      // Send a completion message.
-      sendMessage({
-        status: 'ok',
-      });
-      process.exit(0);
-    }
-    // If the tool invocation failed:
-    catch(error) {
-      // Close the browser and its context, if they exist.
-      await browserClose(page);
-      // Save the revised report.
-      const reportJSON = JSON.stringify(report);
-      await fs.writeFile(reportPath, reportJSON);
-      // Report the failure.
-      const message = error.message.slice(0, 400);
-      console.log(`ERROR: Test act ${act.which} failed (${message})`);
-      sendMessage({
-        status: 'error',
-        error: 'ERROR performing the act'
-      });
-      process.exit(1);
-    };
+  // If the tool invocation failed:
+  catch(err) {
+    console.log(`ERROR: Test act ${act.which} failed (${err.message.slice(0, 400)})`);
+    status = 'error';
+    error = 'ERROR performing the act';
   }
-  // Otherwise, i.e. if the page does not exist after the launch:
-  else {
-    // Add this to the act.
-    act.data ??= {};
-    act.data.prevented = true;
-    act.data.error = 'No page';
-    // Add the prevention to the job data.
-    report.jobData.preventions[which] = act.data.error;
-    const reportJSON = JSON.stringify(report);
-    // Save the revised report.
-    await fs.writeFile(reportPath, reportJSON);
-    // Report this.
-    const message = 'ERROR: No page';
-    console.log(message);
-    sendMessage({
-      status: 'error',
-      error: message
-    });
-    process.exit(1);
-  }
+  // Save the revised report and report the outcome to the parent.
+  await fs.writeFile(reportPath, JSON.stringify(report));
+  sendMessage(status === 'ok' ? {status} : {status, error});
+  process.exit(status === 'ok' ? 0 : 1);
 };
 process.on('uncaughtException', error => {
   console.log(`ERROR: uncaughtException (${error.message})`);

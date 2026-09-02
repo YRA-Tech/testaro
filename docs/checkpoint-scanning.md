@@ -1,8 +1,7 @@
 # Checkpoints: scanning across a serial action flow
 
-**Status:** Phases 0 and 1 shipped in Testaro 78.2 (2026-09-02). Phase 1b (the `isolation`
-option), Phase 2 (`report.flow`), and Phase 3 (`scope: 'changed'`) are designed here and
-remain follow-ups.
+**Status:** Phases 0, 1, and 1b shipped in Testaro 78.2 (2026-09-02). Phase 2 (`report.flow`)
+and Phase 3 (`scope: 'changed'`) are designed here and remain follow-ups.
 
 ## Why
 
@@ -97,10 +96,15 @@ pauses, and pass-to-pass comparisons between modalities are designed to slot in 
 - **Phase 1 (shipped):** the `checkpoint` act, `procs/checkpoint.js`, replay in the
   launcher, implicit checkpoints, tool gating, the `validation/tests/jobProperties/checkpoint`
   validator with report-level expectations.
-- **Phase 1b:** the `isolation` job property: `process` (today: a child process and browser
-  per test act), `browser` (one browser per job, a context per test act, replay), `page`
-  (tools run in sequence on the parent's live checkpoint page, no replay; contaminating
-  testaro rules fall back to a fresh context with replay). Recorded in `jobData.isolation`.
+- **Phase 1b (shipped):** the `isolation` job property (or the `ISOLATION` environment
+  default): `process` (the default: a child process and browser per test act), `browser`
+  (one browser shared by the job's launches, a fresh context per test act, replay), `page`
+  (tools run in sequence in the job's process on the live checkpoint page, no replay;
+  contaminating testaro rules still get a fresh context with replay). `procs/testAct.js`
+  performs a test act for both the child process and the in-process levels; the launcher
+  keeps the shared browser and prepares a live page (XPath script or attributes, accessible
+  names) without changing its DOM. Recorded in `jobData.isolation`. Only `process` can kill a
+  tool that overruns its time limit; the others report the act as timed out and continue.
 - **Phase 2:** `report.flow`: per-checkpoint summaries and deltas between consecutive
   checkpoints (`added`, `persisted`, `removed`) with issue identity `tool | ruleID | pathID |
   startTag`, plus a structure diff of the catalogs and a line diff of the ARIA snapshots.

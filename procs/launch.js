@@ -102,6 +102,26 @@ const settleWithin = promise => Promise.race([
     }
   })
 ]);
+/*
+  The browser shared by the launches of a job under browser or page isolation, if any. When set,
+  launchOnce creates contexts in it instead of launching browsers, and browserClose closes only
+  the context of a page it owns. The job closes it with closeSharedBrowser at its end.
+*/
+let sharedBrowser = null;
+let sharedBrowserID = '';
+exports.setSharedBrowser = (browser, browserID) => {
+  sharedBrowser = browser;
+  sharedBrowserID = browserID;
+};
+exports.getSharedBrowser = () => sharedBrowser;
+exports.closeSharedBrowser = async () => {
+  if (sharedBrowser) {
+    const browser = sharedBrowser;
+    sharedBrowser = null;
+    sharedBrowserID = '';
+    await settleWithin(browser.close());
+  }
+};
 const browserClose = exports.browserClose = async page => {
   if (page) {
     // Get the context (i.e. window) of the page and the browser of the context. These are methods, not properties; referencing them as properties made this function silently fail to close anything, because a function object has no close method and the resulting TypeError was caught and discarded.
@@ -110,7 +130,8 @@ const browserClose = exports.browserClose = async page => {
       // The browser is null for a context not owned by a browser, such as a persistent context.
       const browser = browserContext.browser();
       await settleWithin(browserContext.close());
-      if (browser) {
+      // Close the browser too, unless the job shares it.
+      if (browser && browser !== sharedBrowser) {
         await settleWithin(browser.close());
       }
     }
@@ -295,6 +316,63 @@ const getNonce = exports.getNonce = async response => {
   // Return the nonce, if any.
   return nonce;
 };
+// Path of the dom-accessibility-api bundle.
+const nameComputationPath = require.resolve('../dist/nameComputation.js');
+// Defines the accessible-name window methods in the page. Runs inside the page: closure-free.
+const installAccessibleName = () => {
+  // Add a window method to compute the accessible name of an element.
+  window.getAccessibleName = element => {
+    const nameIsComputable = element?.nodeType === Node.ELEMENT_NODE
+    && typeof window.computeAccessibleName === 'function';
+    return nameIsComputable ? window.computeAccessibleName(element) : '';
+  };
+  // Add a window method to return a standard proto-instance.
+  window.getProtoInstance = (
+    element, ruleID, what, count = 1, ordinalSeverity, summaryTagName = '', outcome = 'failed'
+  ) => {
+    // If an element has been specified:
+    if (element) {
+      // Get its properties.
+      return {
+        ruleID,
+        what,
+        count,
+        ordinalSeverity,
+        outcome,
+        pathID: window.getXPath(element)
+      };
+    }
+    // Otherwise, i.e. if no element has been specified, return a summary instance.
+    return {
+      ruleID,
+      what,
+      count,
+      ordinalSeverity,
+      outcome
+    };
+  };
+};
+const accessibleNameSource = `(${installAccessibleName.toString()})();`;
+// Prepares an already loaded page (the live page of a checkpoint, under page isolation) for a
+// tool, as launchOnce prepares a page it creates: XPath script or attributes, and accessible
+// names. Evaluates scripts rather than adding script elements, so the DOM is unchanged.
+exports.preparePage = async (page, {xPathNeed = 'script', needsAccessibleName = false} = {}) => {
+  if (xPathNeed !== 'none') {
+    await page.evaluate(getXPathSource);
+  }
+  if (xPathNeed === 'attribute') {
+    await page.evaluate(() => {
+      document.querySelectorAll('*').forEach(element => {
+        element.setAttribute('data-xpath', window.getXPath(element));
+      });
+    });
+  }
+  if (needsAccessibleName) {
+    const nameComputationSource = await fs.promises.readFile(nameComputationPath, 'utf8');
+    await page.evaluate(nameComputationSource);
+    await page.evaluate(accessibleNameSource);
+  }
+};
 // Creates a browser, context, and page; navigates to a URL; and returns the page.
 const launchOnce = async opts => {
   // Get the arguments.
@@ -387,8 +465,21 @@ const launchOnce = async opts => {
     }
     let browser, browserContext;
     try {
-      // Create a browser of the specified type.
-      browser = await browserType.launch(browserOptions);
+      // Use the job's shared browser if it exists and is of the specified type; otherwise
+      // create a browser of the specified type, and share it if the job shares browsers.
+      if (sharedBrowser && sharedBrowserID === browserID && sharedBrowser.isConnected()) {
+        browser = sharedBrowser;
+      }
+      else {
+        browser = await browserType.launch(browserOptions);
+        if (report.jobData?.isolation && report.jobData.isolation !== 'process') {
+          if (sharedBrowser) {
+            await settleWithin(sharedBrowser.close());
+          }
+          sharedBrowser = browser;
+          sharedBrowserID = browserID;
+        }
+      }
       // Create a context (i.e. window) for it.
       const contextOptions = {
         ...device.windowOptions,
@@ -476,41 +567,9 @@ const launchOnce = async opts => {
       // If an accessible-name computation script is needed:
       if (needsAccessibleName) {
         // Add the dom-accessibility-api script to the page to compute an accessible name.
-        await page.addInitScript({path: require.resolve('../dist/nameComputation.js')});
-        // Add a script to the page to:
-        await page.addInitScript(() => {
-          // Add a window method to compute the accessible name of an element.
-          window.getAccessibleName = element => {
-            const nameIsComputable = element?.nodeType === Node.ELEMENT_NODE
-            && typeof window.computeAccessibleName === 'function';
-            return nameIsComputable ? window.computeAccessibleName(element) : '';
-          };
-          // Add a window method to return a standard proto-instance.
-          window.getProtoInstance = (
-            element, ruleID, what, count = 1, ordinalSeverity, summaryTagName = '', outcome = 'failed'
-          ) => {
-            // If an element has been specified:
-            if (element) {
-              // Get its properties.
-              return {
-                ruleID,
-                what,
-                count,
-                ordinalSeverity,
-                outcome,
-                pathID: window.getXPath(element)
-              };
-            }
-            // Otherwise, i.e. if no element has been specified, return a summary instance.
-            return {
-              ruleID,
-              what,
-              count,
-              ordinalSeverity,
-              outcome
-            };
-          };
-        });
+        await page.addInitScript({path: nameComputationPath});
+        // Add the script defining the accessible-name window methods.
+        await page.addInitScript({content: accessibleNameSource});
       }
       // Base the wait on the need of the tool and the retry history.
       let waitUntil = xPathNeed === 'none' ? 'domcontentloaded' : 'networkidle';

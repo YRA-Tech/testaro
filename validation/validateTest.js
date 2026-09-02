@@ -65,6 +65,10 @@ exports.validateTest = async testID => {
   if (jobProperties.standard) {
     job.standard = jobProperties.standard;
   }
+  // Test-act isolation (process, browser, or page), if the validator specifies it.
+  if (jobProperties.isolation) {
+    job.isolation = jobProperties.isolation;
+  }
   // Rules that compare a page with its catalog image (motion) need one to be made.
   if (jobProperties.imageColor !== undefined) {
     job.imageColor = jobProperties.imageColor;

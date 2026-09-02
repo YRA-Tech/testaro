@@ -62,8 +62,23 @@ exports.toolInputs = {
   wave: 'url'
 };
 
+/*
+  Isolation levels for test acts:
+    process: each test act runs in a child process with its own browser (the default).
+    browser: test acts run in the job's process, each in a fresh context of one shared browser.
+    page: test acts run in the job's process on the live page of the current checkpoint.
+*/
+const isolationLevels = exports.isolationLevels = ['process', 'browser', 'page'];
+
 // FUNCTIONS
 
+// Returns the isolation level of a job: its own, else the ISOLATION environment variable, else process.
+exports.getIsolation = job => {
+  if (job && isolationLevels.includes(job.isolation)) {
+    return job.isolation;
+  }
+  return isolationLevels.includes(process.env.ISOLATION) ? process.env.ISOLATION : 'process';
+};
 // Validates a browser type.
 const isBrowserID = exports.isBrowserID = type => ['chromium', 'firefox', 'webkit'].includes(type);
 // Returns whether a variable has a specified type.
@@ -243,6 +258,12 @@ exports.isValidJob = job => {
     // `stealth` is optional. When omitted, Testaro defaults to enabling the
     // puppeteer-extra-plugin-stealth evasions on Chromium (historical
     // behavior). When present, it must be a boolean.
+    if (job.isolation !== undefined && ! isolationLevels.includes(job.isolation)) {
+      return {
+        isValid: false,
+        error: 'Bad job isolation (must be process, browser, or page if present)'
+      };
+    }
     if (stealth !== undefined && typeof stealth !== 'boolean') {
       return {
         isValid: false,

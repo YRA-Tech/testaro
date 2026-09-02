@@ -26,7 +26,7 @@ const validatorDir = `${__dirname}/../tests/jobProperties`;
 // Rules that ask an AI model to classify candidate instances.
 const aiRuleIDs = ['allCaps'];
 // Validators of features other than rules, run after the rule validators.
-const featureValidatorIDs = ['checkpoint'];
+const featureValidatorIDs = ['checkpoint', 'checkpoint-browser', 'checkpoint-page'];
 // Maximum number of seconds allowed for the validation of one rule.
 const ruleTimeLimit = 180;
 /*

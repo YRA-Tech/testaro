@@ -16,7 +16,9 @@
 // IMPORTS
 
 const {addError} = require('./error');
-const {launch} = require('./launch');
+const {closeSharedBrowser, launch} = require('./launch');
+// Function to perform a test act in this process (browser and page isolation).
+const {performTestAct} = require('./testAct');
 const {tools, toolInputs} = require('./job');
 const {fork} = require('child_process');
 const {pruneCatalog} = require('./catalog');
@@ -194,6 +196,8 @@ exports.doActs = async (report, opts = {}) => {
   let {acts} = tempReport;
   // Get the standardization specification.
   const standard = tempReport.standard || 'only';
+  // Get the isolation level of test acts.
+  const isolation = tempReport.jobData.isolation || 'process';
   // Get the path to a writable temporary directory.
   const {tmpDir} = report.jobData;
   let reportPath;
@@ -419,110 +423,165 @@ exports.doActs = async (report, opts = {}) => {
             continue;
           }
         }
-        let tempReportJSON = JSON.stringify(tempReport);
-        // Save a copy of the temporary report, which the child process will read.
-        await fs.writeFile(reportPath, tempReportJSON);
         let timedOut = false;
         const limitMs = applyMultiplier(1000 * (timeLimits[act.which] || 15));
-        const actResult = await new Promise(resolve => {
-          let closed = false;
-          // Create a child process to perform the act.
-          const child = fork(`${__dirname}/doTestAct`, [reportPath, actIndex]);
-          let killTimer = null;
-          // Start a timeout timer for the child process.
-          const timeoutTimer = setTimeout(() => {
-            if (! timedOut) {
-              timedOut = true;
-              console.log(`ERROR: Timed out at ${Math.round(limitMs / 1000)} seconds`);
-              child.kill('SIGTERM');
-              killTimer = setTimeout(() => {
-                if (! closed) {
-                  console.log('ERROR: Failed to exit on SIGTERM from parent');
+        // If test acts run in child processes:
+        if (isolation === 'process') {
+          let tempReportJSON = JSON.stringify(tempReport);
+          // Save a copy of the temporary report, which the child process will read.
+          await fs.writeFile(reportPath, tempReportJSON);
+          const limitMs = applyMultiplier(1000 * (timeLimits[act.which] || 15));
+          const actResult = await new Promise(resolve => {
+            let closed = false;
+            // Create a child process to perform the act.
+            const child = fork(`${__dirname}/doTestAct`, [reportPath, actIndex]);
+            let killTimer = null;
+            // Start a timeout timer for the child process.
+            const timeoutTimer = setTimeout(() => {
+              if (! timedOut) {
+                timedOut = true;
+                console.log(`ERROR: Timed out at ${Math.round(limitMs / 1000)} seconds`);
+                child.kill('SIGTERM');
+                killTimer = setTimeout(() => {
+                  if (! closed) {
+                    console.log('ERROR: Failed to exit on SIGTERM from parent');
+                  }
+                  child.kill('SIGKILL');
+                }, 2000);
+              }
+            }, limitMs);
+            // Clears any current timers.
+            const clearTimers = () => {
+              [timeoutTimer, killTimer].forEach(timer => {
+                if (timer) {
+                  clearTimeout(timer);
                 }
-                child.kill('SIGKILL');
-              }, 2000);
-            }
-          }, limitMs);
-          // Clears any current timers.
-          const clearTimers = () => {
-            [timeoutTimer, killTimer].forEach(timer => {
-              if (timer) {
-                clearTimeout(timer);
+              });
+            };
+            // If the child process sends a message (normally Act completed):
+            child.on('message', message => {
+              if (! closed) {
+                closed = true;
+                clearTimers();
+                // Return the message.
+                resolve({
+                  kind: 'message',
+                  message
+                });
               }
             });
-          };
-          // If the child process sends a message (normally Act completed):
-          child.on('message', message => {
-            if (! closed) {
-              closed = true;
-              clearTimers();
-              // Return the message.
-              resolve({
-                kind: 'message',
-                message
-              });
-            }
+            // If the child process sends an error:
+            child.on('error', error => {
+              if (! closed) {
+                closed = true;
+                clearTimers();
+                // Return the error message.
+                resolve({
+                  kind: 'error',
+                  error: error.message
+                });
+              }
+            });
+            // If the child process closes:
+            child.on('close', (code, signal) => {
+              if (! closed) {
+                closed = true;
+                clearTimers();
+                // Return the exit code, signal, and timeout status.
+                resolve({
+                  kind: 'close',
+                  code,
+                  signal,
+                  timedOut
+                });
+              }
+            });
           });
-          // If the child process sends an error:
-          child.on('error', error => {
-            if (! closed) {
-              closed = true;
-              clearTimers();
-              // Return the error message.
-              resolve({
-                kind: 'error',
-                error: error.message
-              });
+          // If the child process sent a message:
+          if (actResult.kind === 'message') {
+            // Get the revised tempReport file.
+            tempReportJSON = await fs.readFile(reportPath, 'utf8');
+            try {
+              // Reassign it to the temporary report.
+              tempReport = JSON.parse(tempReportJSON);
+              // Redefine the acts as those in the revised temporary report.
+              ({acts} = tempReport);
             }
-          });
-          // If the child process closes:
-          child.on('close', (code, signal) => {
-            if (! closed) {
-              closed = true;
-              clearTimers();
-              // Return the exit code, signal, and timeout status.
-              resolve({
-                kind: 'close',
-                code,
-                signal,
-                timedOut
-              });
+            // If the reassignment fails, leaving the temporary report and its acts unchanged:
+            catch (error) {
+              // Report this.
+              console.log(
+                `ERROR: Tool sent message ${actResult.message}. Report is no longer JSON (${error.message}) but is instead a(n) ${typeof tempReportJSON} of length ${tempReportJSON.length}:\n${tempReportJSON}`
+              );
+              // Report this and that the job was aborted.
+              addError(
+                false,
+                true,
+                tempReport,
+                actIndex,
+                `Non-JSON temporary report file after message ${actResult.message}`
+              );
+              // Stop processing acts.
+              break;
             }
-          });
-        });
-        // If the child process sent a message:
-        if (actResult.kind === 'message') {
-          // Get the revised tempReport file.
-          tempReportJSON = await fs.readFile(reportPath, 'utf8');
-          try {
-            // Reassign it to the temporary report.
-            tempReport = JSON.parse(tempReportJSON);
-            // Redefine the acts as those in the revised temporary report.
-            ({acts} = tempReport);
           }
-          // If the reassignment fails, leaving the temporary report and its acts unchanged:
-          catch (error) {
-            // Report this.
-            console.log(
-              `ERROR: Tool sent message ${actResult.message}. Report is no longer JSON (${error.message}) but is instead a(n) ${typeof tempReportJSON} of length ${tempReportJSON.length}:\n${tempReportJSON}`
-            );
-            // Report this and that the job was aborted.
-            addError(
-              false,
-              true,
-              tempReport,
-              actIndex,
-              `Non-JSON temporary report file after message ${actResult.message}`
-            );
-            // Stop processing acts.
-            break;
+          // Otherwise, i.e. if the child process closed abnormally:
+          else {
+            // Report this and, if so configured, that the job was aborted.
+            const {code, error, kind, signal} = actResult;
+            if (kind === 'close' && timedOut) {
+              addError(
+                false,
+                abortAssertively,
+                tempReport,
+                actIndex,
+                `Timed out at ${Math.round(limitMs / 1000)} seconds`
+              );
+            }
+            else if (kind === 'close') {
+              addError(
+                true,
+                abortAssertively,
+                tempReport,
+                actIndex,
+                `Closed with code ${code} and signal ${signal})`
+              );
+            }
+            else {
+              addError(
+                true, abortAssertively, tempReport, actIndex, `Terminated with error ${error}`
+              );
+            }
+            // If the job was aborted:
+            if (abortAssertively) {
+              // Stop processing acts.
+              break;
+            }
           }
         }
-        // Otherwise, i.e. if the child process closed abnormally:
+        // Otherwise, i.e. if test acts run in this process (browser or page isolation):
         else {
-          // Report this and, if so configured, that the job was aborted.
-          const {code, error, kind, signal} = actResult;
-          if (kind === 'close' && timedOut) {
+          // Perform the act on the live page (page isolation) or a fresh context, within the
+          // time limit. A tool that overruns cannot be killed in-process; the act is reported
+          // as timed out and the job continues.
+          let timer;
+          const timeout = new Promise(resolve => {
+            timer = setTimeout(() => {
+              timedOut = true;
+              resolve('timedOut');
+            }, limitMs);
+          });
+          try {
+            await Promise.race([
+              performTestAct({report: tempReport, actIndex, livePage: isolation === 'page' ? page : null}),
+              timeout
+            ]);
+          }
+          catch(error) {
+            addError(true, abortAssertively, tempReport, actIndex, `Tool failed (${error.message.slice(0, 200)})`);
+          }
+          clearTimeout(timer);
+          if (timedOut) {
             addError(
               false,
               abortAssertively,
@@ -531,23 +590,7 @@ exports.doActs = async (report, opts = {}) => {
               `Timed out at ${Math.round(limitMs / 1000)} seconds`
             );
           }
-          else if (kind === 'close') {
-            addError(
-              true,
-              abortAssertively,
-              tempReport,
-              actIndex,
-              `Closed with code ${code} and signal ${signal})`
-            );
-          }
-          else {
-            addError(
-              true, abortAssertively, tempReport, actIndex, `Terminated with error ${error}`
-            );
-          }
-          // If the job was aborted:
-          if (abortAssertively) {
-            // Stop processing acts.
+          if (abortAssertively && tempReport.jobData.aborted) {
             break;
           }
         }
@@ -639,6 +682,8 @@ exports.doActs = async (report, opts = {}) => {
     }
   }
   console.log('Acts completed');
+  // Close any browser shared by the job's launches.
+  await closeSharedBrowser();
   // If the results were standardized:
   if (['also', 'only'].includes(standard)) {
     // If the native results are not to be included in the report:
