@@ -5,36 +5,9 @@
     {
       "type": "launch",
       "target": {
-        "url": "file://validation/tests/targets/dupAtt/good.html",
-        "what": "page without duplicate attributes"
+        "url": "file://validation/tests/targets/dupAtt/bad.html",
+        "what": "page with duplicate attributes"
       }
-    },
-    {
-      "type": "test",
-      "which": "testaro",
-      "withItems": true,
-      "stopOnFail": true,
-      "expect": [
-        [
-          "standardResult.totals.2",
-          "=",
-          0
-        ],
-        [
-          "standardResult.instances.length",
-          "=",
-          0
-        ]
-      ],
-      "rules": [
-        "y",
-        "dupAtt"
-      ]
-    },
-    {
-      "type": "url",
-      "which": "file://validation/tests/targets/dupAtt/bad.html",
-      "what": "page with duplicate attributes"
     },
     {
       "type": "test",
@@ -54,13 +27,28 @@
         ],
         [
           "standardResult.instances.0.what",
-          "i",
-          "attributes with the same name"
+          "=",
+          "P element has 2 attributes named class"
         ],
         [
           "standardResult.instances.0.tagName",
           "=",
           "P"
+        ],
+        [
+          "standardResult.instances.0.id",
+          "=",
+          "daParagraph"
+        ],
+        [
+          "standardResult.instances.0.excerpt",
+          "=",
+          "Submit"
+        ],
+        [
+          "standardResult.instances.1.what",
+          "=",
+          "BUTTON element has 2 attributes named aria-label"
         ],
         [
           "standardResult.instances.1.tagName",
@@ -75,7 +63,7 @@
         [
           "standardResult.instances.1.location.doc",
           "=",
-          "source"
+          "dom"
         ],
         [
           "standardResult.instances.1.location.type",
@@ -90,7 +78,7 @@
         [
           "standardResult.instances.1.excerpt",
           "i",
-          "aria-label"
+          "A paragraph"
         ]
       ],
       "rules": [
@@ -123,6 +111,33 @@
           "standardResult.instances.0.count",
           "=",
           2
+        ]
+      ],
+      "rules": [
+        "y",
+        "dupAtt"
+      ]
+    },
+    {
+      "type": "url",
+      "which": "file://validation/tests/targets/dupAtt/good.html",
+      "what": "page without duplicate attributes"
+    },
+    {
+      "type": "test",
+      "which": "testaro",
+      "withItems": true,
+      "stopOnFail": true,
+      "expect": [
+        [
+          "standardResult.totals.2",
+          "=",
+          0
+        ],
+        [
+          "standardResult.instances.length",
+          "=",
+          0
         ]
       ],
       "rules": [

@@ -5,64 +5,9 @@
     {
       "type": "launch",
       "target": {
-        "url": "file://validation/tests/targets/attVal/good.html",
-        "what": "page with permitted attribute values"
+        "url": "file://validation/tests/targets/attVal/bad.html",
+        "what": "page with illicit attribute values"
       }
-    },
-    {
-      "type": "test",
-      "which": "testaro",
-      "withItems": true,
-      "stopOnFail": true,
-      "expect": [
-        [
-          "standardResult.totals.2",
-          "=",
-          0
-        ],
-        [
-          "standardResult.instances.length",
-          "=",
-          0
-        ]
-      ],
-      "rules": [
-        "y",
-        "attVal"
-      ],
-      "args": {
-        "attVal": ["lang", true, ["en-US", "de-CH"]]
-      }
-    },
-    {
-      "type": "test",
-      "which": "testaro",
-      "withItems": false,
-      "stopOnFail": true,
-      "expect": [
-        [
-          "standardResult.totals.2",
-          "=",
-          0
-        ],
-        [
-          "standardResult.instances.length",
-          "=",
-          0
-        ]
-      ],
-      "rules": [
-        "y",
-        "attVal"
-      ],
-      "args": {
-        "attVal": ["lang", true, ["en-US", "de-CH"]]
-      }
-    },
-    {
-      "type": "url",
-      "which": "file://validation/tests/targets/attVal/bad.html",
-      "what": "page with illicit attribute values"
     },
     {
       "type": "test",
@@ -169,6 +114,61 @@
           "standardResult.instances.0.what",
           "i",
           "Elements have attribute lang"
+        ]
+      ],
+      "rules": [
+        "y",
+        "attVal"
+      ],
+      "args": {
+        "attVal": ["lang", true, ["en-US", "de-CH"]]
+      }
+    },
+    {
+      "type": "url",
+      "which": "file://validation/tests/targets/attVal/good.html",
+      "what": "page with permitted attribute values"
+    },
+    {
+      "type": "test",
+      "which": "testaro",
+      "withItems": true,
+      "stopOnFail": true,
+      "expect": [
+        [
+          "standardResult.totals.2",
+          "=",
+          0
+        ],
+        [
+          "standardResult.instances.length",
+          "=",
+          0
+        ]
+      ],
+      "rules": [
+        "y",
+        "attVal"
+      ],
+      "args": {
+        "attVal": ["lang", true, ["en-US", "de-CH"]]
+      }
+    },
+    {
+      "type": "test",
+      "which": "testaro",
+      "withItems": false,
+      "stopOnFail": true,
+      "expect": [
+        [
+          "standardResult.totals.2",
+          "=",
+          0
+        ],
+        [
+          "standardResult.instances.length",
+          "=",
+          0
         ]
       ],
       "rules": [

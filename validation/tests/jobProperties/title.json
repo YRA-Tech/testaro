@@ -15,9 +15,14 @@
       "stopOnFail": true,
       "expect": [
         [
-          "result.title.data.title",
+          "data.ruleData.title.title",
           "=",
           "Test page"
+        ],
+        [
+          "standardResult.instances.length",
+          "=",
+          0
         ]
       ],
       "withItems": true,
@@ -37,9 +42,14 @@
       "stopOnFail": true,
       "expect": [
         [
-          "result.title.data.title",
+          "data.ruleData.title.title",
           "=",
           ""
+        ],
+        [
+          "standardResult.instances.length",
+          "=",
+          0
         ]
       ],
       "withItems": true,

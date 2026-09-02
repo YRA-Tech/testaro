@@ -5,7 +5,7 @@
     {
       "type": "launch",
       "target": {
-        "url": "file://validation/tests/targets/lineheight/index.html",
+        "url": "file://validation/tests/targets/lineHeight/index.html",
         "what": "page with various line heights"
       }
     },
@@ -110,7 +110,7 @@
         [
           "standardResult.instances.0.what",
           "i",
-          "heights less than 1.5 times"
+          "line heights are less than 1.5 times"
         ]
       ],
       "rules": [

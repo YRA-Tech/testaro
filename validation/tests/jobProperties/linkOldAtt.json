@@ -33,7 +33,7 @@
         [
           "standardResult.instances.0.what",
           "i",
-          "Element has a deprecated attribute"
+          "charset attribute is deprecated"
         ],
         [
           "standardResult.instances.0.ordinalSeverity",
@@ -64,6 +64,16 @@
           "standardResult.instances.0.excerpt",
           "=",
           "French information"
+        ],
+        [
+          "standardResult.instances.1.what",
+          "i",
+          "name attribute is deprecated"
+        ],
+        [
+          "standardResult.instances.1.excerpt",
+          "=",
+          "German information"
         ]
       ],
       "rules": [
@@ -100,7 +110,7 @@
         [
           "standardResult.instances.0.tagName",
           "=",
-          "A"
+          ""
         ],
         [
           "standardResult.instances.0.ordinalSeverity",

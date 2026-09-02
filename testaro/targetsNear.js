@@ -87,8 +87,8 @@ const reporter = async (page, report, _, withItems) => {
                 if (minPlanarDistance < 44) {
                     // Get whether it is less than 24px.
                     const isVeryNear = minPlanarDistance < 24;
-                    // Get the ordinal severity of the violation.
-                    const ordinalSeverity = isVeryNear ? 3 : 2;
+                    // Get the ordinal severity of the violation, matching the totals and the summary instances (formerly 3 or 2, which contradicted them).
+                    const ordinalSeverity = isVeryNear ? 1 : 0;
                     // Increment the applicable violation count.
                     violationCounts[isVeryNear ? 1 : 0]++;
                     // If itemization is required:
@@ -137,13 +137,11 @@ const reporter = async (page, report, _, withItems) => {
     }, withItems);
     // Convert the XPaths of the proto-instances to catalog indexes.
     protoResult.standardInstances = protoResult.standardInstances.map(instance => {
-        /*
-          Summary instances (withItems false) carry no xPath, so this passes undefined and
-          getXPathTagName throws, marking the rule prevented. Preserved verbatim from the
-          JavaScript original; flagged for a behavior-correcting follow-up.
-        */
-        instance.catalogIndex = (0, xPath_1.getXPathCatalogIndex)(report, instance.xPath);
-        delete instance.xPath;
+        // Summary instances (withItems false) carry no xPath and get no catalog index; formerly they were passed to getXPathCatalogIndex, which threw and marked the rule prevented.
+        if (instance.xPath !== undefined) {
+            instance.catalogIndex = (0, xPath_1.getXPathCatalogIndex)(report, instance.xPath);
+            delete instance.xPath;
+        }
         return instance;
     });
     // Return the result.

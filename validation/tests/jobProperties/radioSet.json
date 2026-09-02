@@ -5,37 +5,9 @@
     {
       "type": "launch",
       "target": {
-        "url": "file://validation/tests/targets/radioSet/good.html",
-        "what": "page with standard radio-button grouping"
+        "url": "file://validation/tests/targets/radioSet/bad.html",
+        "what": "page with deviant radio-button grouping"
       }
-    },
-    {
-      "type": "test",
-      "which": "testaro",
-      "what": "radioSet",
-      "withItems": true,
-      "stopOnFail": true,
-      "expect": [
-        [
-          "standardResult.totals.2",
-          "=",
-          0
-        ],
-        [
-          "standardResult.instances.length",
-          "=",
-          0
-        ]
-      ],
-      "rules": [
-        "y",
-        "radioSet"
-      ]
-    },
-    {
-      "type": "url",
-      "which": "file://validation/tests/targets/radioSet/bad.html",
-      "what": "page with deviant radio-button grouping"
     },
     {
       "type": "test",
@@ -179,6 +151,34 @@
           "standardResult.instances.0.count",
           "=",
           11
+        ]
+      ],
+      "rules": [
+        "y",
+        "radioSet"
+      ]
+    },
+    {
+      "type": "url",
+      "which": "file://validation/tests/targets/radioSet/good.html",
+      "what": "page with standard radio-button grouping"
+    },
+    {
+      "type": "test",
+      "which": "testaro",
+      "what": "radioSet",
+      "withItems": true,
+      "stopOnFail": true,
+      "expect": [
+        [
+          "standardResult.totals.2",
+          "=",
+          0
+        ],
+        [
+          "standardResult.instances.length",
+          "=",
+          0
         ]
       ],
       "rules": [

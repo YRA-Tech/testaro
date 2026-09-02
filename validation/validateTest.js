@@ -57,6 +57,9 @@ exports.validateTest = async testID => {
   const jobProperties = require(`./tests/jobProperties/${testID}.json`);
   // Use the data to complete a copy of the job template, so jobs cannot contaminate each other.
   const job = structuredClone(jobTemplate);
+  // Give the job an ID unique to this process, so concurrent validations do not share a
+  // temporary directory (run.js keeps and deletes tmp/<jobID>).
+  job.id = `${jobTemplate.id}-${process.pid}-${Date.now().toString(36)}`;
   if (jobProperties.standard) {
     job.standard = jobProperties.standard;
   }

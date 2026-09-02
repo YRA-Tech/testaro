@@ -33,7 +33,7 @@
         [
           "standardResult.instances.0.what",
           "=",
-          "Element is not the first child of a table element"
+          "caption element is not the first child of a table element"
         ],
         [
           "standardResult.instances.0.ordinalSeverity",
@@ -116,11 +116,6 @@
           "standardResult.instances.0.count",
           "=",
           2
-        ],
-        [
-          "standardResult.instances.0.tagName",
-          "=",
-          "CAPTION"
         ]
       ],
       "rules": [

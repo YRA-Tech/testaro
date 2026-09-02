@@ -23,7 +23,7 @@
         [
           "standardResult.totals.3",
           "=",
-          2
+          3
         ],
         [
           "standardResult.instances.0.ruleID",
@@ -33,7 +33,7 @@
         [
           "standardResult.instances.0.what",
           "=",
-          "list attribute of the element references an ambiguous or missing datalist element"
+          "input element list attribute is empty"
         ],
         [
           "standardResult.instances.0.ordinalSeverity",
@@ -66,9 +66,24 @@
           "material"
         ],
         [
+          "standardResult.instances.1.what",
+          "=",
+          "input element list attribute references a missing element"
+        ],
+        [
           "standardResult.instances.1.excerpt",
           "i",
           "city"
+        ],
+        [
+          "standardResult.instances.2.what",
+          "=",
+          "input element list attribute references a non-datalist element"
+        ],
+        [
+          "standardResult.instances.2.excerpt",
+          "i",
+          "thing"
         ]
       ],
       "rules": [
@@ -90,7 +105,7 @@
         [
           "standardResult.totals.3",
           "=",
-          2
+          3
         ],
         [
           "standardResult.instances.0.ruleID",
@@ -100,7 +115,7 @@
         [
           "standardResult.instances.0.what",
           "=",
-          "list attributes of elements reference ambiguous or missing datalist elements"
+          "list attributes of input elements are empty or IDs of no or non-datalist elements"
         ],
         [
           "standardResult.instances.0.ordinalSeverity",
@@ -110,7 +125,7 @@
         [
           "standardResult.instances.0.count",
           "=",
-          2
+          3
         ]
       ],
       "rules": [

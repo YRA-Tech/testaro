@@ -5,44 +5,9 @@
     {
       "type": "launch",
       "target": {
-        "url": "file://validation/tests/targets/hover/good.html",
-        "what": "page with standard hover behavior"
+        "url": "file://validation/tests/targets/hover/bad.html",
+        "what": "page with deviant hover behavior"
       }
-    },
-    {
-      "type": "test",
-      "which": "testaro",
-      "withItems": true,
-      "stopOnFail": true,
-      "expect": [
-        [
-          "standardResult.totals.0",
-          "=",
-          0
-        ],
-        [
-          "standardResult.totals.2",
-          "=",
-          0
-        ],
-        [
-          "standardResult.instances.length",
-          "=",
-          0
-        ]
-      ],
-      "rules": [
-        "y",
-        "hover"
-      ],
-      "args": {
-        "hover": [5]
-      }
-    },
-    {
-      "type": "url",
-      "which": "file://validation/tests/targets/hover/bad.html",
-      "what": "page with deviant hover behavior"
     },
     {
       "type": "test",
@@ -182,6 +147,43 @@
         "y",
         "hover"
       ]
+    },
+    {
+      "type": "url",
+      "which": "file://validation/tests/targets/hover/good.html",
+      "what": "page with standard hover behavior"
+    },
+    {
+      "type": "test",
+      "which": "testaro",
+      "withItems": true,
+      "stopOnFail": true,
+      "expect": [
+        [
+          "standardResult.totals.0",
+          "=",
+          0
+        ],
+        [
+          "standardResult.totals.2",
+          "=",
+          0
+        ],
+        [
+          "standardResult.instances.length",
+          "=",
+          0
+        ]
+      ],
+      "rules": [
+        "y",
+        "hover"
+      ],
+      "args": {
+        "hover": [
+          5
+        ]
+      }
     }
   ]
 }

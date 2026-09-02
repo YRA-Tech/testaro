@@ -78,6 +78,14 @@ const allRules: RuleMeta[] = [
     defaultOn: true
   },
   {
+    id: 'allCapStyle',
+    what: 'elements with all-capital text transformation styles',
+    contaminates: false,
+    needsAccessibleName: false,
+    timeOut: 5,
+    defaultOn: false
+  },
+  {
     id: 'allCaps',
     what: 'elements with unnecessarily all-capital text substrings',
     contaminates: false,

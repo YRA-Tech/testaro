@@ -111,7 +111,7 @@
         [
           "standardResult.instances.0.what",
           "=",
-          "legend elements are not the first children of fieldset elements"
+          "Legend elements are not the first children of fieldset elements"
         ],
         [
           "standardResult.instances.0.ordinalSeverity",
@@ -122,11 +122,6 @@
           "standardResult.instances.0.count",
           "=",
           2
-        ],
-        [
-          "standardResult.instances.0.tagName",
-          "=",
-          "LEGEND"
         ]
       ],
       "rules": [

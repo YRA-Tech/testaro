@@ -19,7 +19,7 @@ exports.reporter = void 0;
   Compiled to elements.js by tsc (issue #73); edit this file, not the emitted one.
 */
 // FUNCTIONS
-const reporter = async (page, _0, _1, detailLevel = 0, tagName = null, onlyVisible = false, attribute) => {
+const reporter = async (page, _0, _1, _2, detailLevel = 0, tagName = null, onlyVisible = false, attribute) => {
     // Determine a selector of the specified elements, including any descendants of open shadow roots.
     let selector = `body ${tagName ? tagName.toLowerCase() : '*'}`;
     if (attribute) {

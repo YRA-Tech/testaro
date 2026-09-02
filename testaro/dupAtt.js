@@ -18,6 +18,17 @@ const xPath_1 = require("../procs/xPath");
   Compiled to dupAtt.js by tsc (issue #73); edit this file, not the emitted one.
 */
 // ########## FUNCTIONS
+// Returns the catalog index of the element with an ID and tag name, or of the body if none does. Duplicate attributes are found in the source, not the DOM, so the ID is the only handle on the element.
+const getIDCatalogIndex = (report, tagName, id) => {
+    const { catalog } = report;
+    if (id && catalog) {
+        const index = Object.keys(catalog).find(key => catalog[key].id === id && catalog[key].tagName === tagName);
+        if (index !== undefined) {
+            return index;
+        }
+    }
+    return (0, xPath_1.getXPathCatalogIndex)(report, '/html/body');
+};
 // Runs the test and returns the result.
 const reporter = async (page, report, _, withItems) => {
     // Initialize the data and standard result.
@@ -94,7 +105,7 @@ const reporter = async (page, report, _, withItems) => {
                     what: `${item.tagName} element has 2 attributes named ${item.duplicatedAttribute}`,
                     ordinalSeverity: 2,
                     count: 1,
-                    catalogIndex: (0, xPath_1.getXPathCatalogIndex)(report, '/html/body')
+                    catalogIndex: getIDCatalogIndex(report, item.tagName, item.id)
                 });
             });
         }

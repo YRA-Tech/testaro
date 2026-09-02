@@ -13,7 +13,16 @@
     <title>Page with valid and invalid elements in the head</title>
     <meta name="description" content="tester">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <p>This is a paragraph containing a <span id="headSpan">span</span>. Both are invalid.</p>
+    <!-- The HTML parser moves any p or span written literally inside the head into the body, so the invalid head children must be created by script for the rule to see them in the DOM. -->
+    <script>
+      const headP = document.createElement('p');
+      headP.textContent = 'This is a paragraph. It is invalid in the head.';
+      document.head.appendChild(headP);
+      const headSpan = document.createElement('span');
+      headSpan.id = 'headSpan';
+      headSpan.textContent = 'This span is also invalid in the head.';
+      document.head.appendChild(headSpan);
+    </script>
   </head>
   <body>
     <main>

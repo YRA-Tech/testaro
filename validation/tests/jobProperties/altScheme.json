@@ -23,7 +23,7 @@
         [
           "standardResult.totals.2",
           "=",
-          3
+          0
         ],
         [
           "standardResult.instances.0.ruleID",
@@ -33,12 +33,12 @@
         [
           "standardResult.instances.0.what",
           "=",
-          "Element has an alt attribute with a URL as its entire value"
+          "img element has an alt attribute with the URL of an image file as its value"
         ],
         [
           "standardResult.instances.0.ordinalSeverity",
           "=",
-          2
+          1
         ],
         [
           "standardResult.instances.0.tagName",
@@ -73,7 +73,7 @@
         [
           "standardResult.instances.1.what",
           "=",
-          "Element has an alt attribute with a URL as its entire value"
+          "img element has an alt attribute with a file name as its value"
         ],
         [
           "standardResult.instances.1.tagName",
@@ -94,6 +94,21 @@
           "standardResult.instances.2.excerpt",
           "i",
           "favicon"
+        ],
+        [
+          "standardResult.totals.1",
+          "=",
+          3
+        ],
+        [
+          "standardResult.instances.length",
+          "=",
+          3
+        ],
+        [
+          "standardResult.instances.2.what",
+          "=",
+          "img element has an alt attribute with the URL of an image file as its value"
         ]
       ],
       "rules": [
@@ -110,12 +125,12 @@
         [
           "standardResult.totals.1",
           "=",
-          0
+          3
         ],
         [
           "standardResult.totals.2",
           "=",
-          3
+          0
         ],
         [
           "standardResult.instances.0.ruleID",
@@ -125,12 +140,12 @@
         [
           "standardResult.instances.0.what",
           "=",
-          "img elements have alt attributes with URLs as their entire values"
+          "img elements have alt attributes with URL or filename values"
         ],
         [
           "standardResult.instances.0.ordinalSeverity",
           "=",
-          2
+          1
         ],
         [
           "standardResult.instances.0.count",

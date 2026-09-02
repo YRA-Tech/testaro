@@ -64,12 +64,17 @@
         [
           "standardResult.instances.0.what",
           "i",
-          "large number"
+          "visible elements"
         ],
         [
           "standardResult.instances.0.ordinalSeverity",
           "=",
           0
+        ],
+        [
+          "standardResult.instances.0.count",
+          "=",
+          1
         ]
       ],
       "withItems": true,

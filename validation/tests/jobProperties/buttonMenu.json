@@ -5,48 +5,24 @@
     {
       "type": "launch",
       "target": {
-        "url": "file://validation/tests/targets/buttonMenu/good.html",
-        "what": "page with standard menu navigation"
+        "url": "file://validation/tests/targets/buttonMenu/bad.html",
+        "what": "page with deviant menu navigation"
       }
     },
     {
       "type": "test",
       "which": "testaro",
       "withItems": true,
-      "stopOnFail": true,
-      "expect": [
-        [
-          "standardResult.totals.1",
-          "=",
-          0
-        ],
-        [
-          "standardResult.totals.2",
-          "=",
-          0
-        ],
-        [
-          "standardResult.instances.length",
-          "=",
-          0
-        ]
-      ],
-      "rules": [
-        "y",
-        "buttonMenu"
-      ]
-    },
-    {
-      "type": "url",
-      "which": "file://validation/tests/targets/buttonMenu/bad.html",
-      "what": "page with deviant menu navigation"
-    },
-    {
-      "type": "test",
-      "which": "testaro",
-      "withItems": true,
       "args": {
-        "buttonMenu": [["End", "+", "-", "-", "Home"]]
+        "buttonMenu": [
+          [
+            "End",
+            "+",
+            "-",
+            "-",
+            "Home"
+          ]
+        ]
       },
       "stopOnFail": true,
       "expect": [
@@ -88,12 +64,12 @@
         [
           "standardResult.instances.0.tagName",
           "=",
-          "UL"
+          "BUTTON"
         ],
         [
           "standardResult.instances.0.id",
           "=",
-          "persMenu"
+          "persButton"
         ],
         [
           "standardResult.instances.0.location.doc",
@@ -108,7 +84,7 @@
         [
           "standardResult.instances.0.location.spec",
           "=",
-          "#persMenu"
+          "#persButton"
         ],
         [
           "standardResult.instances.0.excerpt",
@@ -128,17 +104,22 @@
         [
           "standardResult.instances.1.tagName",
           "=",
-          "UL"
+          "BUTTON"
         ],
         [
           "standardResult.instances.1.id",
           "=",
-          "techMenu"
+          "techButton"
         ],
         [
           "standardResult.instances.1.excerpt",
           "i",
           "Technologies"
+        ],
+        [
+          "standardResult.instances.length",
+          "=",
+          2
         ]
       ],
       "rules": [
@@ -150,8 +131,16 @@
       "type": "test",
       "which": "testaro",
       "withItems": false,
-      "args":{
-        "buttonMenu": [["End", "+", "-", "-", "Home"]]
+      "args": {
+        "buttonMenu": [
+          [
+            "End",
+            "+",
+            "-",
+            "-",
+            "Home"
+          ]
+        ]
       },
       "stopOnFail": true,
       "expect": [
@@ -199,6 +188,38 @@
           "standardResult.instances.0.count",
           "=",
           2
+        ]
+      ],
+      "rules": [
+        "y",
+        "buttonMenu"
+      ]
+    },
+    {
+      "type": "url",
+      "which": "file://validation/tests/targets/buttonMenu/good.html",
+      "what": "page with standard menu navigation"
+    },
+    {
+      "type": "test",
+      "which": "testaro",
+      "withItems": true,
+      "stopOnFail": true,
+      "expect": [
+        [
+          "standardResult.totals.1",
+          "=",
+          0
+        ],
+        [
+          "standardResult.totals.2",
+          "=",
+          0
+        ],
+        [
+          "standardResult.instances.length",
+          "=",
+          0
         ]
       ],
       "rules": [

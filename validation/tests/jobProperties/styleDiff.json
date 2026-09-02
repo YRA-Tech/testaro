@@ -39,7 +39,7 @@
     {
       "type": "url",
       "which": "file://validation/tests/targets/styleDiff/bad.html",
-      "what": "page with consistent styles"
+      "what": "page with inconsistent styles"
     },
     {
       "type": "test",
@@ -68,6 +68,11 @@
           2
         ],
         [
+          "standardResult.instances.length",
+          "=",
+          4
+        ],
+        [
           "standardResult.instances.0.ruleID",
           "=",
           "styleDiff"
@@ -88,9 +93,34 @@
           0
         ],
         [
-          "standardResult.instances.0.tagName",
+          "standardResult.instances.0.outcome",
           "=",
-          "A"
+          "failed"
+        ],
+        [
+          "standardResult.instances.1.what",
+          "i",
+          "Links in columns have 2"
+        ],
+        [
+          "standardResult.instances.1.count",
+          "=",
+          1
+        ],
+        [
+          "standardResult.instances.1.ordinalSeverity",
+          "=",
+          1
+        ],
+        [
+          "standardResult.instances.2.what",
+          "i",
+          "Buttons have 2"
+        ],
+        [
+          "standardResult.instances.2.ordinalSeverity",
+          "=",
+          2
         ],
         [
           "standardResult.instances.3.ruleID",
@@ -113,9 +143,9 @@
           3
         ],
         [
-          "standardResult.instances.3.tagName",
+          "standardResult.outcomeTotals.failed",
           "=",
-          "H2"
+          5
         ]
       ],
       "rules": [

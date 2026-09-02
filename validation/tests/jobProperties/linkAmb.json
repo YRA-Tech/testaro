@@ -24,7 +24,7 @@
         [
           "standardResult.totals.2",
           "=",
-          1
+          4
         ],
         [
           "standardResult.instances.length",
@@ -39,7 +39,7 @@
         [
           "standardResult.instances.0.what",
           "i",
-          "Link has the same text"
+          "links with the text “basque information” have 2 different destinations"
         ],
         [
           "standardResult.instances.0.ordinalSeverity",
@@ -47,29 +47,24 @@
           2
         ],
         [
-          "standardResult.instances.0.tagName",
+          "standardResult.instances.0.count",
           "=",
-          "A"
+          4
         ],
         [
-          "standardResult.instances.0.id",
+          "standardResult.instances.0.outcome",
           "=",
-          "basqueInfoICB"
+          "failed"
+        ],
+        [
+          "standardResult.instances.0.tagName",
+          "=",
+          "BODY"
         ],
         [
           "standardResult.instances.0.location.doc",
           "=",
           "dom"
-        ],
-        [
-          "standardResult.instances.0.location.type",
-          "=",
-          "selector"
-        ],
-        [
-          "standardResult.instances.0.location.spec",
-          "=",
-          "#basqueInfoICB"
         ],
         [
           "standardResult.instances.0.excerpt",
@@ -97,7 +92,7 @@
         [
           "standardResult.totals.2",
           "=",
-          1
+          4
         ],
         [
           "standardResult.instances.length",
@@ -112,12 +107,12 @@
         [
           "standardResult.instances.0.count",
           "=",
-          1
+          4
         ],
         [
           "standardResult.instances.0.what",
           "i",
-          "Links have the same texts"
+          "Links have the same text but different destinations"
         ]
       ],
       "rules": [

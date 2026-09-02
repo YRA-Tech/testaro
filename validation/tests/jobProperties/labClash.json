@@ -5,41 +5,9 @@
     {
       "type": "launch",
       "target": {
-        "url": "file://validation/tests/targets/labClash/good.html",
-        "what": "page with standard labeling"
+        "url": "file://validation/tests/targets/labClash/bad.html",
+        "what": "page with deviant labeling"
       }
-    },
-    {
-      "type": "test",
-      "which": "testaro",
-      "withItems": true,
-      "stopOnFail": true,
-      "expect": [
-        [
-          "standardResult.totals.2",
-          "=",
-          0
-        ],
-        [
-          "standardResult.totals.3",
-          "=",
-          0
-        ],
-        [
-          "standardResult.instances.length",
-          "=",
-          0
-        ]
-      ],
-      "rules": [
-        "y",
-        "labClash"
-      ]
-    },
-    {
-      "type": "url",
-      "which": "file://validation/tests/targets/labClash/bad.html",
-      "what": "page with deviant labeling"
     },
     {
       "type": "test",
@@ -61,6 +29,11 @@
           "standardResult.totals.1",
           "=",
           0
+        ],
+        [
+          "standardResult.instances.length",
+          "=",
+          3
         ],
         [
           "standardResult.instances.0.ruleID",
@@ -101,6 +74,68 @@
           "standardResult.instances.0.excerpt",
           "i",
           "button"
+        ],
+        [
+          "standardResult.instances.0.outcome",
+          "=",
+          "failed"
+        ],
+        [
+          "standardResult.instances.1.what",
+          "i",
+          "aria-label, label"
+        ],
+        [
+          "standardResult.instances.1.tagName",
+          "=",
+          "INPUT"
+        ],
+        [
+          "standardResult.instances.1.id",
+          "=",
+          "cbox"
+        ],
+        [
+          "standardResult.instances.2.what",
+          "i",
+          "aria-label, aria-labelledby"
+        ],
+        [
+          "standardResult.instances.2.tagName",
+          "=",
+          "INPUT"
+        ]
+      ],
+      "rules": [
+        "y",
+        "labClash"
+      ]
+    },
+    {
+      "type": "url",
+      "which": "file://validation/tests/targets/labClash/good.html",
+      "what": "page with standard labeling"
+    },
+    {
+      "type": "test",
+      "which": "testaro",
+      "withItems": true,
+      "stopOnFail": true,
+      "expect": [
+        [
+          "standardResult.totals.2",
+          "=",
+          0
+        ],
+        [
+          "standardResult.totals.3",
+          "=",
+          0
+        ],
+        [
+          "standardResult.instances.length",
+          "=",
+          0
         ]
       ],
       "rules": [

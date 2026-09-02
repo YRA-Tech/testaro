@@ -1,12 +1,12 @@
 {
-  "rule": "titledEl",
+  "rule": "targetsNear",
   "timeLimit": 20,
   "acts": [
     {
       "type": "launch",
       "target": {
-        "url": "file://validation/tests/targets/titledEl/index.html",
-        "what": "page with valid and invalid title attributes"
+        "url": "file://validation/tests/targets/targetsNear/index.html",
+        "what": "page with variously sized and spaced pointer targets"
       }
     },
     {
@@ -18,7 +18,12 @@
         [
           "standardResult.totals.0",
           "=",
-          3
+          4
+        ],
+        [
+          "standardResult.totals.1",
+          "=",
+          2
         ],
         [
           "standardResult.totals.2",
@@ -33,17 +38,22 @@
         [
           "standardResult.instances.length",
           "=",
-          3
+          6
         ],
         [
           "standardResult.instances.0.ruleID",
           "=",
-          "titledEl"
+          "targetsNear"
         ],
         [
           "standardResult.instances.0.what",
           "i",
-          "Likely ineffective title attribute is used on the p element"
+          "Pointer-target centerpoint is only"
+        ],
+        [
+          "standardResult.instances.0.what",
+          "i",
+          "px from another one"
         ],
         [
           "standardResult.instances.0.ordinalSeverity",
@@ -58,7 +68,7 @@
         [
           "standardResult.instances.0.tagName",
           "=",
-          "P"
+          "LABEL"
         ],
         [
           "standardResult.instances.0.location.doc",
@@ -71,44 +81,89 @@
           "box"
         ],
         [
-          "standardResult.instances.0.location.spec.y",
+          "standardResult.instances.0.location.spec.height",
           ">",
           0
         ],
         [
           "standardResult.instances.0.excerpt",
-          "i",
-          "This paragraph"
+          "=",
+          "Small box:"
         ],
         [
           "standardResult.instances.1.tagName",
           "=",
-          "P"
+          "LABEL"
         ],
         [
           "standardResult.instances.1.excerpt",
-          "i",
-          "still violates"
+          "=",
+          "Tiny box:"
         ],
         [
-          "standardResult.instances.2.what",
-          "i",
-          "on the button element"
+          "standardResult.instances.1.ordinalSeverity",
+          "=",
+          0
         ],
         [
           "standardResult.instances.2.tagName",
           "=",
-          "BUTTON"
+          "A"
         ],
         [
           "standardResult.instances.2.excerpt",
-          "i",
-          "Click me"
+          "=",
+          "Wikimedia Foundation (small)"
+        ],
+        [
+          "standardResult.instances.2.ordinalSeverity",
+          "=",
+          0
+        ],
+        [
+          "standardResult.instances.3.tagName",
+          "=",
+          "A"
+        ],
+        [
+          "standardResult.instances.3.excerpt",
+          "=",
+          "Wikimedia Foundation (tiny)"
+        ],
+        [
+          "standardResult.instances.3.location.spec.y",
+          ">",
+          0
+        ],
+        [
+          "standardResult.instances.4.tagName",
+          "=",
+          "A"
+        ],
+        [
+          "standardResult.instances.4.excerpt",
+          "=",
+          "World Wide Web Consortium (stacked)"
+        ],
+        [
+          "standardResult.instances.4.ordinalSeverity",
+          "=",
+          1
+        ],
+        [
+          "standardResult.instances.5.excerpt",
+          "=",
+          "Wikimedia Foundation (stacked)"
+        ],
+        [
+          "standardResult.instances.5.ordinalSeverity",
+          "=",
+          1
         ]
       ],
       "rules": [
         "y",
-        "titledEl"
+        "targetsNear"
       ]
     },
     {
@@ -120,52 +175,62 @@
         [
           "standardResult.totals.0",
           "=",
-          3
+          4
         ],
         [
           "standardResult.totals.1",
           "=",
-          0
-        ],
-        [
-          "standardResult.totals.2",
-          "=",
-          0
+          2
         ],
         [
           "standardResult.instances.length",
           "=",
-          1
+          2
         ],
         [
           "standardResult.instances.0.ruleID",
           "=",
-          "titledEl"
+          "targetsNear"
         ],
         [
           "standardResult.instances.0.what",
-          "i",
-          "title attributes are used on elements they are likely ineffective on"
+          "=",
+          "Pointer-target centerpoints are less than 24px from others"
         ],
         [
           "standardResult.instances.0.ordinalSeverity",
           "=",
-          0
+          1
         ],
         [
           "standardResult.instances.0.count",
           "=",
-          3
+          2
         ],
         [
           "standardResult.instances.0.tagName",
           "=",
           ""
+        ],
+        [
+          "standardResult.instances.1.what",
+          "=",
+          "Pointer-target centerpoints are less than 44px from others"
+        ],
+        [
+          "standardResult.instances.1.ordinalSeverity",
+          "=",
+          0
+        ],
+        [
+          "standardResult.instances.1.count",
+          "=",
+          4
         ]
       ],
       "rules": [
         "y",
-        "titledEl"
+        "targetsNear"
       ]
     }
   ]

@@ -26,6 +26,11 @@
           0
         ],
         [
+          "standardResult.instances.length",
+          "=",
+          1
+        ],
+        [
           "standardResult.instances.0.ruleID",
           "=",
           "pseudoP"
@@ -33,7 +38,7 @@
         [
           "standardResult.instances.0.what",
           "i",
-          "Adjacent BR elements within"
+          "Element follows another br element"
         ],
         [
           "standardResult.instances.0.ordinalSeverity",
@@ -64,6 +69,11 @@
           "standardResult.instances.0.excerpt",
           "i",
           "Shame"
+        ],
+        [
+          "standardResult.instances.0.outcome",
+          "=",
+          "failed"
         ]
       ],
       "rules": [
@@ -95,7 +105,7 @@
         [
           "standardResult.instances.0.what",
           "i",
-          "Elements contain 2 or more"
+          "br elements follow other br elements"
         ],
         [
           "standardResult.instances.0.ordinalSeverity",
@@ -104,6 +114,11 @@
         ],
         [
           "standardResult.instances.0.count",
+          "=",
+          1
+        ],
+        [
+          "standardResult.instances.length",
           "=",
           1
         ]

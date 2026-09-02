@@ -72,9 +72,9 @@
           "HTML"
         ],
         [
-          "standardResult.instances.0.location.spec",
+          "standardResult.instances.0.outcome",
           "=",
-          "html"
+          "failed"
         ]
       ],
       "withItems": true,

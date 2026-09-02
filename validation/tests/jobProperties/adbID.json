@@ -26,6 +26,11 @@
           2
         ],
         [
+          "standardResult.instances.length",
+          "=",
+          2
+        ],
+        [
           "standardResult.instances.0.ruleID",
           "=",
           "adbID"
@@ -33,7 +38,7 @@
         [
           "standardResult.instances.0.what",
           "=",
-          "Referenced description of the element is ambiguous or missing"
+          "No element has the aria-describedby ID wwwWhat"
         ],
         [
           "standardResult.instances.0.ordinalSeverity",
@@ -79,6 +84,21 @@
           "standardResult.instances.1.location.spec.y",
           ">",
           0
+        ],
+        [
+          "standardResult.instances.1.what",
+          "=",
+          "Multiple elements share the aria-describedby ID usaAlt"
+        ],
+        [
+          "standardResult.instances.1.ordinalSeverity",
+          "=",
+          3
+        ],
+        [
+          "standardResult.instances.1.outcome",
+          "=",
+          "failed"
         ]
       ],
       "rules": [
@@ -110,7 +130,7 @@
         [
           "standardResult.instances.0.what",
           "=",
-          "Referenced descriptions of elements are ambiguous or missing"
+          "Elements have aria-describedby attributes with missing or invalid id values"
         ],
         [
           "standardResult.instances.0.ordinalSeverity",
@@ -121,6 +141,11 @@
           "standardResult.instances.0.count",
           "=",
           2
+        ],
+        [
+          "standardResult.instances.length",
+          "=",
+          1
         ]
       ],
       "rules": [

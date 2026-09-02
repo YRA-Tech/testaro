@@ -5,41 +5,9 @@
     {
       "type": "launch",
       "target": {
-        "url": "file://validation/tests/targets/zIndex/good.html",
-        "what": "page with no explicit z-index attributes"
+        "url": "file://validation/tests/targets/zIndex/bad.html",
+        "what": "page with explicit z-index attributes"
       }
-    },
-    {
-      "type": "test",
-      "which": "testaro",
-      "withItems": true,
-      "stopOnFail": true,
-      "expect": [
-        [
-          "standardResult.totals.0",
-          "=",
-          0
-        ],
-        [
-          "standardResult.totals.1",
-          "=",
-          0
-        ],
-        [
-          "standardResult.instances.length",
-          "=",
-          0
-        ]
-      ],
-      "rules": [
-        "y",
-        "zIndex"
-      ]
-    },
-    {
-      "type": "url",
-      "which": "file://validation/tests/targets/zIndex/bad.html",
-      "what": "page with explicit z-index attributes"
     },
     {
       "type": "test",
@@ -65,7 +33,7 @@
         [
           "standardResult.instances.0.what",
           "i",
-          "non-default Z index (1)"
+          "z-index style property of the element is 1"
         ],
         [
           "standardResult.instances.0.ordinalSeverity",
@@ -86,6 +54,11 @@
           "standardResult.instances.0.excerpt",
           "i",
           "Button 0"
+        ],
+        [
+          "standardResult.instances.1.what",
+          "=",
+          "z-index style property of the element is 2"
         ],
         [
           "standardResult.instances.1.excerpt",
@@ -133,6 +106,38 @@
           "standardResult.instances.0.count",
           "=",
           2
+        ]
+      ],
+      "rules": [
+        "y",
+        "zIndex"
+      ]
+    },
+    {
+      "type": "url",
+      "which": "file://validation/tests/targets/zIndex/good.html",
+      "what": "page with no explicit z-index attributes"
+    },
+    {
+      "type": "test",
+      "which": "testaro",
+      "withItems": true,
+      "stopOnFail": true,
+      "expect": [
+        [
+          "standardResult.totals.0",
+          "=",
+          0
+        ],
+        [
+          "standardResult.totals.1",
+          "=",
+          0
+        ],
+        [
+          "standardResult.instances.length",
+          "=",
+          0
         ]
       ],
       "rules": [

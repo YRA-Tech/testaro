@@ -285,7 +285,7 @@ export const reporter = async (
                 }
                 else if (spec === '+') {
                   trialKeys.push(
-                    extraData.orientation === 'horizontal' ? 'ArrowtRight' : 'ArrowDown'
+                    extraData.orientation === 'horizontal' ? 'ArrowRight' : 'ArrowDown'
                   );
                 }
               });

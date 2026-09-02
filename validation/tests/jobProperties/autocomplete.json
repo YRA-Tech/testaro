@@ -70,9 +70,14 @@
           3
         ],
         [
+          "standardResult.instances.0.what",
+          "i",
+          "autocomplete=\"given-name\""
+        ],
+        [
           "standardResult.instances.1.what",
           "i",
-          "value family-name"
+          "autocomplete=\"family-name\""
         ],
         [
           "standardResult.instances.1.tagName",
@@ -103,6 +108,11 @@
           "standardResult.instances.2.ordinalSeverity",
           "=",
           2
+        ],
+        [
+          "standardResult.instances.2.what",
+          "i",
+          "autocomplete=\"email\""
         ]
       ],
       "rules": [

@@ -16,14 +16,19 @@
       "stopOnFail": true,
       "expect": [
         [
+          "standardResult.totals.0",
+          "=",
+          2
+        ],
+        [
           "standardResult.totals.1",
           "=",
-          3
+          0
         ],
         [
           "standardResult.instances.length",
           "=",
-          3
+          2
         ],
         [
           "standardResult.instances.0.ruleID",
@@ -33,17 +38,17 @@
         [
           "standardResult.instances.0.what",
           "=",
-          "Element violates the logical level order in its sectioning container"
+          "First child heading is H2, but another is H1"
         ],
         [
           "standardResult.instances.0.ordinalSeverity",
           "=",
-          1
+          0
         ],
         [
           "standardResult.instances.0.tagName",
           "=",
-          "H2"
+          "SECTION"
         ],
         [
           "standardResult.instances.0.location.doc",
@@ -62,28 +67,23 @@
         ],
         [
           "standardResult.instances.0.excerpt",
-          "=",
-          "This heading is illogical"
+          "i",
+          "This heads a truly illogical section."
         ],
         [
           "standardResult.instances.1.tagName",
           "=",
-          "H1"
+          "ARTICLE"
+        ],
+        [
+          "standardResult.instances.1.what",
+          "=",
+          "First child heading is H2, but another is H1"
         ],
         [
           "standardResult.instances.1.excerpt",
-          "=",
-          "This heading is fundamentally illogical"
-        ],
-        [
-          "standardResult.instances.2.tagName",
-          "=",
-          "H2"
-        ],
-        [
-          "standardResult.instances.2.excerpt",
-          "=",
-          "This article heading is illogical"
+          "i",
+          "This heads an illogical article."
         ]
       ],
       "rules": [
@@ -98,9 +98,14 @@
       "stopOnFail": true,
       "expect": [
         [
+          "standardResult.totals.0",
+          "=",
+          2
+        ],
+        [
           "standardResult.totals.1",
           "=",
-          3
+          0
         ],
         [
           "standardResult.totals.3",
@@ -120,12 +125,12 @@
         [
           "standardResult.instances.0.count",
           "=",
-          3
+          2
         ],
         [
           "standardResult.instances.0.what",
           "=",
-          "Heading elements violate the logical level order in their sectioning containers"
+          "First child headings of sectioning containers are deeper than others"
         ]
       ],
       "rules": [

@@ -18,7 +18,7 @@
         [
           "standardResult.totals.2",
           "=",
-          2
+          1
         ],
         [
           "standardResult.totals.0",
@@ -63,17 +63,12 @@
         [
           "standardResult.instances.0.excerpt",
           "i",
-          "river2"
-        ],
-        [
-          "standardResult.instances.1.tagName",
-          "=",
-          "INPUT"
-        ],
-        [
-          "standardResult.instances.1.excerpt",
-          "i",
           "company2"
+        ],
+        [
+          "standardResult.instances.length",
+          "=",
+          1
         ]
       ],
       "rules": [
@@ -90,7 +85,7 @@
         [
           "standardResult.totals.2",
           "=",
-          2
+          1
         ],
         [
           "standardResult.totals.1",
@@ -120,12 +115,7 @@
         [
           "standardResult.instances.0.count",
           "=",
-          2
-        ],
-        [
-          "standardResult.instances.0.tagName",
-          "=",
-          "INPUT"
+          1
         ]
       ],
       "rules": [
