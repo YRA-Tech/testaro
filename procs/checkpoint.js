@@ -16,7 +16,8 @@
 // IMPORTS
 
 const {createHash} = require('crypto');
-const {catalogPage, getAriaSnapshot} = require('./catalog');
+const {catalogPage, getAriaSnapshot, pruneCheckpoint} = require('./catalog');
+const {getStructureDiff} = require('./scope');
 const {shoot} = require('./shoot');
 
 // FUNCTIONS
@@ -97,5 +98,13 @@ exports.makeCheckpoint = async ({
     testActs: []
   };
   report.checkpoints.push(checkpoint);
+  // If there is a previous checkpoint, record what changed since it (job-time; report.flow
+  // takes it over at job end), then prune the previous checkpoint's uncited entries, which
+  // no later test act can cite.
+  if (index > 0) {
+    checkpoint.structure = getStructureDiff(report, index - 1, index);
+    const prunedCount = pruneCheckpoint(report, index - 1);
+    console.log(`Pruned ${prunedCount} uncited catalog entries of checkpoint ${index - 1}`);
+  }
   return checkpoint;
 };

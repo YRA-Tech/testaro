@@ -204,6 +204,10 @@ const isValidAct = exports.isValidAct = act => {
         return false;
       }
     }
+    // A checkbox or radio act needs a text substring or a selector to identify its element.
+    if (['checkbox', 'radio'].includes(type) && ! act.which && ! act.selector) {
+      return false;
+    }
     // Return whether the act is valid.
     return Object.keys(validator).every(property => {
       if (property === 'name') {

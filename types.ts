@@ -151,6 +151,8 @@ export interface Checkpoint {
   domDigest?: string;
   elapsedMs: number;
   testActs: number[];
+  // Job-time: the structure diff with the previous checkpoint, moved into report.flow at job end.
+  structure?: StructureDiff;
 }
 
 // One act of a job. Permissive in Phase 0; see the file comment.
@@ -241,6 +243,8 @@ export interface FlowDelta {
   added: FlowIssue[];
   persisted: FlowIssue[];
   removed: FlowIssue[];
+  // Earlier issues outside the changed subtrees a tool's later acts were all scoped to.
+  notRetested: FlowIssue[];
   structure: StructureDiff;
   aria: AriaDiff;
 }

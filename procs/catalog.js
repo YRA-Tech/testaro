@@ -8,7 +8,7 @@
   SPDX-License-Identifier: MIT
 */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.pruneCatalog = exports.getCatalog = exports.catalogPage = exports.getAriaSnapshot = void 0;
+exports.pruneCatalog = exports.pruneCheckpoint = exports.getCatalog = exports.catalogPage = exports.getAriaSnapshot = void 0;
 // Module to close and launch browsers.
 const launch_1 = require("./launch");
 const shoot_1 = require("./shoot");
@@ -277,16 +277,16 @@ const getCatalog = async (report) => {
     return {};
 };
 exports.getCatalog = getCatalog;
-// Prunes a catalog.
-const pruneCatalog = (report) => {
-    console.log('Pruning catalog');
-    // The catalog always exists by pruning time (getCatalog ran at job start).
+// Returns the catalog indexes cited by the standard instances of the test acts (all of them,
+// or those of one checkpoint), plus the heading indexes of the cited entries.
+const getCitedIndexes = (report, checkpoint = null) => {
     const { acts, catalog } = report;
     const citedElementIndexes = new Set();
     // For each act in the report:
     acts.forEach(act => {
-        // If it is a test with a standard result:
-        if (act.type === 'test' && act.result?.standardResult) {
+        // If it is a test (of the checkpoint, if one is specified) with a standard result:
+        if (act.type === 'test' && act.result?.standardResult
+            && (checkpoint === null || act.checkpoint === checkpoint)) {
             // The guard above makes the fallback unreachable and instances present; the
             // expression is kept verbatim from the JavaScript original.
             const { instances } = (act.result?.standardResult ?? []);
@@ -308,6 +308,37 @@ const pruneCatalog = (report) => {
             });
         }
     });
+    return citedElementIndexes;
+};
+/*
+  Prunes the entries of one checkpoint that no test act of that checkpoint cites, and drops
+  its job-time XPath map. Called when the next checkpoint is created: test acts belong to the
+  latest checkpoint, so no later act can cite the earlier one, and pruning it then bounds the
+  temporary report that every test act reads. The structure diff with the next checkpoint is
+  computed before this runs (procs/checkpoint.js).
+*/
+const pruneCheckpoint = (report, checkpoint) => {
+    const { catalog } = report;
+    const cited = getCitedIndexes(report, checkpoint);
+    let prunedCount = 0;
+    Object.keys(catalog).forEach(elementIndex => {
+        if (catalog[elementIndex].checkpoint === checkpoint && !cited.has(elementIndex)) {
+            delete catalog[elementIndex];
+            prunedCount++;
+        }
+    });
+    if (report.pathIDs) {
+        delete report.pathIDs[checkpoint];
+    }
+    return prunedCount;
+};
+exports.pruneCheckpoint = pruneCheckpoint;
+// Prunes a catalog.
+const pruneCatalog = (report) => {
+    console.log('Pruning catalog');
+    // The catalog always exists by pruning time (getCatalog ran at job start).
+    const { catalog } = report;
+    const citedElementIndexes = getCitedIndexes(report);
     // Delete the temporary job-time properties of the report.
     delete report.pathIDs;
     delete report.catalogNextIndex;

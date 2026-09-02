@@ -70,6 +70,7 @@ export interface Checkpoint {
     domDigest?: string;
     elapsedMs: number;
     testActs: number[];
+    structure?: StructureDiff;
 }
 export interface Act {
     type: string;
@@ -138,6 +139,7 @@ export interface FlowDelta {
     added: FlowIssue[];
     persisted: FlowIssue[];
     removed: FlowIssue[];
+    notRetested: FlowIssue[];
     structure: StructureDiff;
     aria: AriaDiff;
 }

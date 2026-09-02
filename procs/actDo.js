@@ -330,7 +330,8 @@ exports.doInteractionAct = async ({
     }
     // Otherwise, if the act is a move:
     else if (moves[type]) {
-      const selector = typeof moves[type] === 'string' ? moves[type] : act.what;
+      // The act's own selector (any Playwright selector) replaces the type's element selector.
+      const selector = act.selector || (typeof moves[type] === 'string' ? moves[type] : act.what);
       // Try up to 5 times to:
       act.result = {found: false};
       let selection = {};
@@ -538,6 +539,14 @@ exports.doInteractionAct = async ({
               await selection.selectOption({index});
               optionText = optionTexts[index];
             }
+            // If no option text matches, try the specification as an option value or label.
+            else {
+              const selected = await selection.selectOption(act.what, {timeout: 2000})
+              .catch(() => []);
+              if (selected.length) {
+                optionText = act.what;
+              }
+            }
           }
           act.result.success = true;
           act.result.move = 'selected';
@@ -561,8 +570,13 @@ exports.doInteractionAct = async ({
             const envValue = process.env[envKey];
             what = what.replace(/__[A-Z]+__/, envValue);
           }
-          // Enter the text.
-          await selection.type(what);
+          // Enter the text, replacing any existing value if the act says so.
+          if (act.clear) {
+            await selection.fill(what);
+          }
+          else {
+            await selection.type(what);
+          }
           report.jobData.presses += what.length;
           act.result.success = true;
           act.result.move = 'entered';

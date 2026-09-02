@@ -13,4 +13,5 @@ export declare const catalogPage: (page: Page, report: Report, { checkpoint, res
     restoreDetails: boolean;
 }) => Promise<CatalogSnapshot>;
 export declare const getCatalog: (report: Report) => Promise<Catalog>;
+export declare const pruneCheckpoint: (report: Report, checkpoint: number) => number;
 export declare const pruneCatalog: (report: Report) => void;

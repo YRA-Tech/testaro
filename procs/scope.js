@@ -168,7 +168,12 @@ exports.getChangedRoots = (report, checkpointIndex) => {
   if (! Number.isInteger(checkpointIndex) || checkpointIndex < 1) {
     return {applied: false, reason: 'no previous checkpoint to compare', roots: [], pathIDs: []};
   }
-  const diff = getStructureDiff(report, checkpointIndex - 1, checkpointIndex);
+  // Use the diff recorded when the checkpoint was made (the previous checkpoint's uncited
+  // entries were pruned then), else compute it.
+  const checkpoint = (report.checkpoints ?? [])[checkpointIndex];
+  const diff = checkpoint && checkpoint.structure
+    ? checkpoint.structure
+    : getStructureDiff(report, checkpointIndex - 1, checkpointIndex);
   const {roots: pathIDs} = diff;
   if (! pathIDs.length) {
     return {applied: false, reason: 'no change since the previous checkpoint', roots: [], pathIDs};

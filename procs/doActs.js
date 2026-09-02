@@ -721,6 +721,10 @@ exports.doActs = async (report, opts = {}) => {
   if (flow) {
     tempReport.flow = flow;
   }
+  // The per-checkpoint structure diffs were job-time; flow holds them now.
+  (tempReport.checkpoints ?? []).forEach(checkpoint => {
+    delete checkpoint.structure;
+  });
   // If the results were standardized:
   if (['also', 'only'].includes(standard)) {
     // If the native results are not to be included in the report:
@@ -735,8 +739,9 @@ exports.doActs = async (report, opts = {}) => {
     // If a catalog was created:
     if (tempReport.catalog) {
       let {catalog} = tempReport;
-      // Get its element count.
-      const elementCount = Object.keys(catalog).length;
+      // Get its element count: every entry ever made (checkpoint entries and stubs), since a
+      // checkpoint's uncited entries are pruned when the next checkpoint is made.
+      const elementCount = tempReport.catalogNextIndex ?? Object.keys(catalog).length;
       // Prune it, removing elements with no reported violations.
       pruneCatalog(tempReport);
       ({catalog} = tempReport);

@@ -50,11 +50,21 @@ const getIdentity = (tool, instance, catalog) => {
     key: [tool, instance.ruleID, pathID, startTag].join('|')
   };
 };
-// Returns the issues found at a checkpoint, keyed by identity, and the tools that observed it.
+// Returns whether an XPath is one of, or inside one of, the given root XPaths.
+const isWithin = (pathID, roots) => roots.some(
+  root => pathID === root || pathID.startsWith(`${root}/`)
+);
+/*
+  Returns the issues found at a checkpoint, keyed by identity; the tools that observed it;
+  and, for each tool whose every act at the checkpoint was scoped to changed subtrees, the
+  XPaths of those subtrees (scopedRoots), since such a tool observed nothing outside them.
+*/
 const getCheckpointIssues = (report, checkpointIndex) => {
   const catalog = report.catalog ?? {};
   const issues = {};
   const tools = new Set();
+  const unscopedTools = new Set();
+  const scopedRoots = {};
   report.acts.forEach((act, actIndex) => {
     if (act.type !== 'test' || act.checkpoint !== checkpointIndex) {
       return;
@@ -68,6 +78,13 @@ const getCheckpointIssues = (report, checkpointIndex) => {
       return;
     }
     tools.add(act.which);
+    const scope = act.data && act.data.scope;
+    if (scope && scope.applied) {
+      scopedRoots[act.which] = [... (scopedRoots[act.which] ?? []), ... (scope.pathIDs ?? [])];
+    }
+    else {
+      unscopedTools.add(act.which);
+    }
     (standardResult.instances ?? []).forEach(instance => {
       const identity = getIdentity(act.which, instance, catalog);
       const issue = issues[identity.key] ??= {
@@ -87,7 +104,10 @@ const getCheckpointIssues = (report, checkpointIndex) => {
       }
     });
   });
-  return {issues, tools};
+  unscopedTools.forEach(tool => {
+    delete scopedRoots[tool];
+  });
+  return {issues, tools, scopedRoots};
 };
 // Returns a string ending with a newline, so the last line of a snapshot compares as a line.
 const withFinalNewline = text => text && ! text.endsWith('\n') ? `${text}\n` : text;
@@ -130,7 +150,9 @@ const getAriaDiff = (before, after) => {
   checkpoints. For each pair of consecutive checkpoints, the issues of the tools that observed
   both are compared: added (only at the later), persisted (at both), removed (only at the
   earlier). Tools that observed only one of the two are listed as notObserved, since their
-  issues cannot be compared.
+  issues cannot be compared. An earlier issue that a tool did not re-test at the later
+  checkpoint, because its acts there were all scoped to changed subtrees and the issue's
+  element lies outside them, is listed as notRetested rather than removed.
 */
 exports.getFlow = report => {
   const checkpoints = report.checkpoints ?? [];
@@ -163,6 +185,7 @@ exports.getFlow = report => {
     const added = [];
     const persisted = [];
     const removed = [];
+    const notRetested = [];
     Object.keys(after.issues).forEach(key => {
       const issue = after.issues[key];
       if (comparable(issue)) {
@@ -172,10 +195,15 @@ exports.getFlow = report => {
     Object.keys(before.issues).forEach(key => {
       const issue = before.issues[key];
       if (comparable(issue) && ! after.issues[key]) {
-        removed.push(issue);
+        const roots = after.scopedRoots[issue.tool];
+        const retested = ! roots || (issue.pathID && isWithin(issue.pathID, roots));
+        (retested ? removed : notRetested).push(issue);
       }
     });
-    const structure = getStructureDiff(report, checkpoints[index - 1].index, checkpoints[index].index);
+    // The structure diff recorded when the checkpoint was made, else one computed now (on a
+    // stored report, over the cited entries only).
+    const structure = checkpoints[index].structure
+      ?? getStructureDiff(report, checkpoints[index - 1].index, checkpoints[index].index);
     deltas.push({
       from: checkpoints[index - 1].index,
       to: checkpoints[index].index,
@@ -184,6 +212,7 @@ exports.getFlow = report => {
       added,
       persisted,
       removed,
+      notRetested,
       structure,
       aria: getAriaDiff(checkpoints[index - 1].ariaSnapshot, checkpoints[index].ariaSnapshot)
     });

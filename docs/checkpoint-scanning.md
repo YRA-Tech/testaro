@@ -1,8 +1,9 @@
 # Checkpoints: scanning across a serial action flow
 
-**Status:** Phases 0, 1, and 1b shipped in Testaro 78.2 (2026-09-02); Phases 2 (`report.flow`)
-and 3 (`scope: 'changed'`) shipped in 78.3 (2026-09-02). Phase 4 (incremental pruning) and the
-interaction modalities remain follow-ups.
+**Status:** Phases 0, 1, and 1b shipped in Testaro 78.2 (2026-09-02); Phases 2 (`report.flow`),
+3 (`scope: 'changed'`), and 4 (incremental pruning, selector acts, the user-path converter)
+shipped in 78.3 (2026-09-02). The interaction modalities and the yra-monitor ingestion changes
+remain follow-ups.
 
 ## Why
 
@@ -82,8 +83,8 @@ prevents the test act with `checkpoint replay failed at act N (…)` and is not 
 - `jobData.catalogData.checkpoints[k]`: element and entry counts per checkpoint.
 - `report.flow` (two or more checkpoints): `{checkpoints: [{index, name, kind, url, actIndex,
   testActs, tools, issueCount}], deltas: [{from, to, tools, notObserved, added, persisted,
-  removed, structure, aria}]}`; each issue is `{tool, ruleID, pathID, startTag, what,
-  ordinalSeverity, outcome, count, actIndexes}`.
+  removed, notRetested, structure, aria}]}`; each issue is `{tool, ruleID, pathID, startTag,
+  what, ordinalSeverity, outcome, count, actIndexes}`.
 - Test acts: `scope` (`page` default or `changed`) and `data.scope = {requested, applied,
   reason, roots, pathIDs, commonRoot, localRules?, pageRules?}`. Job-time only, deleted by
   `pruneCatalog`: `report.scope`, `report.ruleScopeRoots`.
@@ -150,9 +151,39 @@ pauses, and pass-to-pass comparisons between modalities are designed to slot in 
   same-tag indexes and the changed set can grow to the container (correct but coarse); a
   changed-scope act finds only defects inside the roots, so `flow` unions the findings of every
   act at a checkpoint rather than trusting one act.
-- **Phase 4 (follow-up):** prune checkpoint `k`'s uncited entries when checkpoint `k + 1` is
-  created, bounding the temp-report size; map yra-monitor user-path `checkpoint` actions 1:1
-  to `checkpoint` acts.
+- **Phase 4 (shipped):** three parts.
+  - *Incremental pruning.* When checkpoint `k + 1` is created, `makeCheckpoint` first records
+    the structure diff between `k` and `k + 1` on the new checkpoint (job-time
+    `checkpoints[k + 1].structure`, which `getChangedRoots` and `getFlow` read instead of
+    recomputing, and which the acts loop deletes once `flow` holds it), then calls
+    `pruneCheckpoint(report, k)` (`procs/catalog.ts`), which deletes checkpoint `k`'s entries
+    that no test act of checkpoint `k` cites and drops its job-time XPath map. No later test
+    act can cite checkpoint `k`, since a test act belongs to the latest checkpoint, so the
+    temporary report that every test act reads stays bounded by one checkpoint's page plus
+    the cited entries of earlier ones. `catalogData.elementCount` is therefore the count of
+    entries ever made (`catalogNextIndex`), not the count at pruning time. A single-checkpoint
+    job is unaffected.
+  - *Selector acts.* The move acts (`button`, `checkbox`, `link`, `radio`, `search`, `select`,
+    `text`) accept a `selector` property, any Playwright selector (CSS, `text=`, `role=`,
+    `label=`), which replaces the act type's element selector and text matching; `index`
+    still picks among matches. A `text` act with `clear: true` replaces the input's value
+    instead of appending to it, and a `select` act whose `what` matches no option text falls
+    back to Playwright's value-or-label matching. Replay uses the same executors, so
+    selector acts replay like the rest.
+  - *User-path converter.* `procs/userPath.js` `getUserPathActs({startUrl, actions,
+    testActs, scanAtCheckpoints, what})` maps a recorded user path of the shape yra-monitor
+    stores (actions `click`, `fill`, `select`, `navigate`, `wait`, `checkpoint`, with
+    Playwright selectors) to a job's acts: launch, then one act per action (`button`, `text`
+    with `clear`, `select`, `url`, `state: idle` for a pause), and for each `checkpoint`
+    action a `checkpoint` act (named from its label, made unique) followed by a copy of each
+    requested test act, with `scope: 'changed'` downgraded to `page` at the first checkpoint.
+    The `userPath` validator runs the converter's output for a fill, select, checkpoint,
+    click, wait, checkpoint, navigate, checkpoint path. yra-monitor's user-path executor still
+    replays actions itself and runs a stub axe scan at checkpoints; replacing that with a
+    Testaro job built by this converter waits on the ingestion changes below.
+  - `flow` and scoped acts: a tool whose acts at a checkpoint were all scoped to changed
+    subtrees observed nothing outside them, so an earlier issue of that tool whose element
+    lies outside the roots is listed in the delta as `notRetested`, not `removed`.
 
 ## Relationship to yra-monitor
 
