@@ -92,11 +92,16 @@ exports.performTestAct = async ({report, actIndex, livePage = null}) => {
       const actReport = await require(`../tests/${which}`)
       .reporter(useLivePage && which === 'testaro' ? livePage : page, report, actIndex, 65);
       // Add the data and result to the act, keeping any checkpoint replay record the launch
-      // added to the act's data.
-      const {replay} = act.data ?? {};
+      // added to the act's data and any scope record the acts loop added (which the tool may
+      // have extended).
+      const {replay, scope} = act.data ?? {};
+      const toolScope = actReport.data && actReport.data.scope;
       act.data = actReport.data ?? {};
       if (replay) {
         act.data.replay = replay;
+      }
+      if (scope) {
+        act.data.scope = {... scope, ... (toolScope ?? {})};
       }
       act.result = actReport.result;
       // If the tool reported that the page prevented testing:

@@ -1,7 +1,8 @@
 # Checkpoints: scanning across a serial action flow
 
-**Status:** Phases 0, 1, and 1b shipped in Testaro 78.2 (2026-09-02). Phase 2 (`report.flow`)
-and Phase 3 (`scope: 'changed'`) are designed here and remain follow-ups.
+**Status:** Phases 0, 1, and 1b shipped in Testaro 78.2 (2026-09-02); Phases 2 (`report.flow`)
+and 3 (`scope: 'changed'`) shipped in 78.3 (2026-09-02). Phase 4 (incremental pruning) and the
+interaction modalities remain follow-ups.
 
 ## Why
 
@@ -79,6 +80,13 @@ prevents the test act with `checkpoint replay failed at act N (…)` and is not 
   later checkpoints' images are indexed by `checkpoints[k].imageIndexes`. The testaro `motion`
   rule compares against its checkpoint's image.
 - `jobData.catalogData.checkpoints[k]`: element and entry counts per checkpoint.
+- `report.flow` (two or more checkpoints): `{checkpoints: [{index, name, kind, url, actIndex,
+  testActs, tools, issueCount}], deltas: [{from, to, tools, notObserved, added, persisted,
+  removed, structure, aria}]}`; each issue is `{tool, ruleID, pathID, startTag, what,
+  ordinalSeverity, outcome, count, actIndexes}`.
+- Test acts: `scope` (`page` default or `changed`) and `data.scope = {requested, applied,
+  reason, roots, pathIDs, commonRoot, localRules?, pageRules?}`. Job-time only, deleted by
+  `pruneCatalog`: `report.scope`, `report.ruleScopeRoots`.
 - Progress events: `checkpointStart` and `checkpointEnd` (with `kind` and `elapsedMs`);
   `actEnd` carries `checkpoint`.
 
@@ -105,14 +113,46 @@ pauses, and pass-to-pass comparisons between modalities are designed to slot in 
   keeps the shared browser and prepares a live page (XPath script or attributes, accessible
   names) without changing its DOM. Recorded in `jobData.isolation`. Only `process` can kill a
   tool that overruns its time limit; the others report the act as timed out and continue.
-- **Phase 2:** `report.flow`: per-checkpoint summaries and deltas between consecutive
-  checkpoints (`added`, `persisted`, `removed`) with issue identity `tool | ruleID | pathID |
-  startTag`, plus a structure diff of the catalogs and a line diff of the ARIA snapshots.
-- **Phase 3:** `scope: 'page' | 'changed'` on test acts. The changed subtree roots come from
-  diffing the checkpoint catalogs; only rules declared element-local (`local: true` in
-  `allRules`) and tools with a root option (axe `include`, surea11y `contextSelector`) are
-  scoped; page-level rules always run on the whole page. Whether a partial scan is valid is
-  not automated; the author chooses, and the rule metadata protects the choice.
+- **Phase 2 (shipped):** `report.flow` (`procs/flow.js`, `getFlow(report)`), added at job end
+  before pruning when the job has two or more checkpoints, and usable standalone on a stored
+  report (the structure diff then covers cited elements only). `flow.checkpoints[k]`
+  summarizes each checkpoint; `flow.deltas[k - 1]` compares checkpoints `k - 1` and `k`:
+  `added`, `persisted`, and `removed` issues with identity `tool | ruleID | pathID | startTag`
+  (box and text excluded, since layout and copy shift without the defect changing; a summary
+  instance has an empty element key), compared only for the `tools` that observed both
+  checkpoints with a non-prevented act (`notObserved` lists the rest); `structure`, the
+  catalog diff (`procs/scope.js`, `getStructureDiff`): `added`, `removed`, and `changed`
+  (start tag) XPaths, `textChanged` XPaths, and `roots`, the outermost changed elements (the
+  nearest surviving ancestor stands for a removed element; a text change counts only where no
+  descendant changed, because the catalog text of an element includes its descendants'); and
+  `aria`, a line diff of the ARIA snapshots (`diff`, the jsdiff library yra-monitor also uses;
+  at most 500 changed lines recorded, `truncated` otherwise).
+- **Phase 3 (shipped):** `scope: 'page' | 'changed'` on test acts (`actSpecs.js`; a job with a
+  changed-scope act must have a checkpoint act). Before such an act the acts loop calls
+  `getChangedRoots(report, k)`, which converts the structure roots of the diff between
+  checkpoints `k - 1` and `k` to CSS selectors (`/html/body/main[1]/div[2]` becomes
+  `html > body > main:nth-of-type(1) > div:nth-of-type(2)`, exact because `getXPath`
+  subscripts among same-tag siblings, which is what `nth-of-type` counts) and gives them to
+  the tool as the job-time `report.scope` when the tool is in `toolScopes` (`procs/job.js`:
+  axe, surea11y, testaro). The act records `data.scope`; when the act cannot be scoped (no
+  previous checkpoint, no change, more than `maxRoots` = 50 roots, an XPath with no selector,
+  a tool without a root option) it tests the whole page with `applied: false` and a reason,
+  and `jobData.warnings` says so. axe takes the roots as its `include` context; surea11y takes
+  the nearest common ancestor of the roots (`commonRoot`), since its context is one selector;
+  the testaro tool sets `report.ruleScopeRoots` per rule to the roots for a rule with
+  `local: true` in `allRules` and to null otherwise, and `doTest` keeps only candidates inside
+  a root (`getBasicResult` rules, hover and role, are not local). The conservative first-pass
+  classification marks as not local: allHidden, bulk, docType, dupAtt, headEl, headingAmb,
+  secHeading, linkAmb, labClash, radioSet, styleDiff, targetsNear, title, motion, role, hover,
+  hovInd, focAll, focAndOp, focInd, focVis, tabNav, buttonMenu, elements, textNodes. Whether a
+  partial scan is valid is not automated; the author chooses per act, and the rule metadata
+  protects the choice. Limits: the diff is by XPath, so inserting one sibling shifts later
+  same-tag indexes and the changed set can grow to the container (correct but coarse); a
+  changed-scope act finds only defects inside the roots, so `flow` unions the findings of every
+  act at a checkpoint rather than trusting one act.
+- **Phase 4 (follow-up):** prune checkpoint `k`'s uncited entries when checkpoint `k + 1` is
+  created, bounding the temp-report size; map yra-monitor user-path `checkpoint` actions 1:1
+  to `checkpoint` acts.
 
 ## Relationship to yra-monitor
 

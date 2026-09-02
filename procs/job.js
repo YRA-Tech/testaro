@@ -63,6 +63,23 @@ exports.toolInputs = {
 };
 
 /*
+  Scopes of a test act: page (the default) tests the whole page of its checkpoint; changed tests
+  only the subtrees that changed since the previous checkpoint, for rules and tools that can be
+  so restricted (toolScopes), and the whole page for the rest.
+*/
+const testScopes = exports.testScopes = ['page', 'changed'];
+/*
+  Tools that can restrict their tests to subtree roots (scope: 'changed'): axe by its include
+  context, surea11y by its context selector, and testaro by filtering the candidates of its
+  element-local rules. Other tools test the whole page whatever the scope.
+*/
+exports.toolScopes = {
+  axe: true,
+  surea11y: true,
+  testaro: true
+};
+
+/*
   Isolation levels for test acts:
     process: each test act runs in a child process with its own browser (the default).
     browser: test acts run in the job's process, each in a fresh context of one shared browser.
@@ -134,6 +151,9 @@ const hasSubtype = (variable, subtype) => {
     }
     else if (subtype === 'isState') {
       return isState(variable);
+    }
+    else if (subtype === 'isScope') {
+      return testScopes.includes(variable);
     }
     else {
       console.log(`ERROR: ${subtype} not a known subtype`);
@@ -330,6 +350,13 @@ exports.isValidJob = job => {
       return {
         isValid: false,
         error: 'Bad job acts (a checkpoint act precedes any launch act)'
+      };
+    }
+    // A changed-scope test act needs checkpoints to compare.
+    if (firstCheckpointIndex === -1 && acts.some(act => act.type === 'test' && act.scope === 'changed')) {
+      return {
+        isValid: false,
+        error: 'Bad job acts (a test act has scope changed but the job has no checkpoint act)'
       };
     }
     if (jobData && typeof jobData !== 'object') {

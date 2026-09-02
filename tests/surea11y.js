@@ -101,9 +101,12 @@ const reporter = async (page, report, actIndex) => {
         data.error = 'ERROR: surea11y bundle missing (see surea11y/README.md for vendoring instructions)';
         return { data, result };
     }
+    // If the act is scoped to changed subtrees, the engine tests their nearest common ancestor
+    // (its context is one selector, resolved with querySelector).
+    const contextSelector = report.scope?.commonRoot || null;
     // Perform the tests and populate the native result.
     result.nativeResult = await page.evaluate(args => new Promise(async (resolve) => {
-        const { scriptNonce, script } = args;
+        const { scriptNonce, script, contextSelector } = args;
         // Detect page-CSP blocking of the injection (the violation event is
         // dispatched as a task, so the check below waits a tick).
         let cspBlocked = false;
@@ -141,7 +144,7 @@ const reporter = async (page, report, actIndex) => {
             // adapters' kitchen-sink default; testilo's taxonomy decides per rule
             // what counts downstream. runa11yCoreInPage is synchronous; await
             // tolerates a future promise-returning version.
-            const sureReport = await a11ycore.runa11yCoreInPage(location.href, null, {}, null);
+            const sureReport = await a11ycore.runa11yCoreInPage(location.href, contextSelector, {}, null);
             // Dotted WCAG criterion (e.g. 1.4.3) from a rule's normative mappings.
             const criterionOf = (meta) => {
                 const mappings = meta && meta.normativeMappings || [];
@@ -229,7 +232,8 @@ const reporter = async (page, report, actIndex) => {
         ;
     }), {
         scriptNonce,
-        script
+        script,
+        contextSelector
     });
     const { nativeResult } = result;
     // If the tool ran and rules were selected:

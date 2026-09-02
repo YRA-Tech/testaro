@@ -171,7 +171,93 @@ export interface Act {
   expectationFailures?: number;
   // The checkpoint a test act belongs to, assigned by doActs.
   checkpoint?: number | null;
+  // What a test act tests: its checkpoint's whole page (default) or the subtrees changed
+  // since the previous checkpoint (for the rules and tools that can be so restricted).
+  scope?: TestScope;
   [key: string]: unknown;
+}
+
+// The scope of a test act.
+export type TestScope = 'page' | 'changed';
+
+// What a changed-scope test act was given, recorded as act.data.scope.
+export interface ScopeData {
+  requested: TestScope;
+  // Whether the tool restricted its tests to the roots.
+  applied: boolean;
+  // Why not, if not.
+  reason: string;
+  // CSS selectors of the changed subtree roots, and their XPaths.
+  roots: string[];
+  pathIDs: string[];
+  // A selector of the nearest common ancestor of the roots, for tools that take one root.
+  commonRoot?: string;
+  // For the testaro tool: which of its rules were scoped to the roots and which tested the page.
+  localRules?: string[];
+  pageRules?: string[];
+}
+
+// An issue found at a checkpoint, identified across checkpoints by tool, rule, element XPath,
+// and start tag (report.flow).
+export interface FlowIssue {
+  tool: ToolID;
+  ruleID: string;
+  pathID: string;
+  startTag: string;
+  what: string;
+  ordinalSeverity: number;
+  outcome?: Outcome;
+  count: number;
+  actIndexes: number[];
+}
+
+// The difference between the catalogs of two checkpoints, as XPaths.
+export interface StructureDiff {
+  added: string[];
+  removed: string[];
+  changed: string[];
+  textChanged: string[];
+  // The outermost changed elements, whose subtrees contain every change.
+  roots: string[];
+  counts: Record<'before' | 'after' | 'added' | 'removed' | 'changed' | 'textChanged' | 'roots', number>;
+}
+
+// The line difference between the ARIA snapshots of two checkpoints.
+export interface AriaDiff {
+  addedLineCount: number;
+  removedLineCount: number;
+  truncated: boolean;
+  changes: {type: 'added' | 'removed'; line: number; text: string}[];
+}
+
+// What changed between two consecutive checkpoints: issues and page structure.
+export interface FlowDelta {
+  from: number;
+  to: number;
+  // Tools that observed both checkpoints, whose issues are compared.
+  tools: ToolID[];
+  // Tools that observed only one of the two.
+  notObserved: ToolID[];
+  added: FlowIssue[];
+  persisted: FlowIssue[];
+  removed: FlowIssue[];
+  structure: StructureDiff;
+  aria: AriaDiff;
+}
+
+// The running list of issues across a job's checkpoints (reports with 2 or more checkpoints).
+export interface Flow {
+  checkpoints: {
+    index: number;
+    name: string;
+    kind: Checkpoint['kind'];
+    url: string;
+    actIndex: number | null;
+    testActs: number[];
+    tools: ToolID[];
+    issueCount: number;
+  }[];
+  deltas: FlowDelta[];
 }
 
 // A job before execution and the report it becomes during and after execution.
@@ -207,6 +293,12 @@ export interface Report {
   pathIDs?: Record<string, Record<string, string>>;
   catalogNextIndex?: number;
   activeCheckpoint?: number | null;
+  // Job-time: the changed subtree roots of the current changed-scope test act, and, within
+  // the testaro tool, those of the current rule (null for a page-level rule).
+  scope?: {roots: string[]; commonRoot?: string} | null;
+  ruleScopeRoots?: string[] | null;
+  // The running list of issues across checkpoints, added at job end when there are 2 or more.
+  flow?: Flow;
   jobData?: {
     aborted?: boolean;
     abortedAct?: number;

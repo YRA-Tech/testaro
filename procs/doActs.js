@@ -19,7 +19,11 @@ const {addError} = require('./error');
 const {closeSharedBrowser, launch} = require('./launch');
 // Function to perform a test act in this process (browser and page isolation).
 const {performTestAct} = require('./testAct');
-const {tools, toolInputs} = require('./job');
+const {tools, toolInputs, toolScopes} = require('./job');
+// Function to find the subtrees changed since the previous checkpoint.
+const {getChangedRoots} = require('./scope');
+// Function to build the running list of issues across checkpoints.
+const {getFlow} = require('./flow');
 const {fork} = require('child_process');
 const {pruneCatalog} = require('./catalog');
 // Function to perform an act on a live page.
@@ -423,6 +427,31 @@ exports.doActs = async (report, opts = {}) => {
             continue;
           }
         }
+        // If the act is to test only the subtrees changed since the previous checkpoint, find
+        // them, and give them to the tool (report.scope) if it can restrict itself to them.
+        tempReport.scope = null;
+        if (act.scope === 'changed') {
+          const changed = getChangedRoots(tempReport, act.checkpoint);
+          const scopable = Boolean(toolScopes[act.which]);
+          const applied = changed.applied && scopable;
+          act.data = {
+            ... (act.data ?? {}),
+            scope: {
+              requested: 'changed',
+              applied,
+              reason: scopable ? changed.reason : `Tool ${act.which} cannot restrict its tests to subtrees`,
+              roots: changed.roots,
+              pathIDs: changed.pathIDs,
+              commonRoot: changed.commonRoot
+            }
+          };
+          if (applied) {
+            tempReport.scope = {roots: changed.roots, commonRoot: changed.commonRoot};
+          }
+          else {
+            addWarning(`Test act ${actIndex} tests the whole page (${act.data.scope.reason})`);
+          }
+        }
         let timedOut = false;
         const limitMs = applyMultiplier(1000 * (timeLimits[act.which] || 15));
         // If test acts run in child processes:
@@ -596,6 +625,9 @@ exports.doActs = async (report, opts = {}) => {
         }
         // Get the (usually revised) act.
         act = acts[actIndex];
+        // The scope was for this act only.
+        delete tempReport.scope;
+        delete tempReport.ruleScopeRoots;
         // Stamp the act's checkpoint on its standard instances.
         if (act.checkpoint !== undefined) {
           (act.result?.standardResult?.instances ?? []).forEach(instance => {
@@ -684,6 +716,11 @@ exports.doActs = async (report, opts = {}) => {
   console.log('Acts completed');
   // Close any browser shared by the job's launches.
   await closeSharedBrowser();
+  // If the job has more than one checkpoint, add the running list of issues across them.
+  const flow = getFlow(tempReport);
+  if (flow) {
+    tempReport.flow = flow;
+  }
   // If the results were standardized:
   if (['also', 'only'].includes(standard)) {
     // If the native results are not to be included in the report:

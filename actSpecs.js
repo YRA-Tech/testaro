@@ -151,7 +151,8 @@ exports.actSpecs = {
       {
         which: [true, 'string', 'isTest', 'tool name'],
         launch: [false, 'object', '', 'new target, browserID, and/or what, if any'],
-        rules: [false, 'array', 'areStrings', 'rule IDs or (for testaro, nuVal, or nuVnu) specifications, if not all']
+        rules: [false, 'array', 'areStrings', 'rule IDs or (for testaro, nuVal, or nuVnu) specifications, if not all'],
+        scope: [false, 'string', 'isScope', 'page (default) or changed (only the subtrees changed since the previous checkpoint, for rules and tools that can be so restricted)']
       }
     ],
     text: [

@@ -8,6 +8,10 @@ export declare const reporter: (page: Page | undefined, report: Report, actIndex
         rulesInvalid: string[];
         ruleTestTimes: [string, number][];
         ruleData: Record<string, unknown>;
+        scope?: {
+            localRules: string[];
+            pageRules: string[];
+        };
     };
     result: {
         nativeResult: Record<string, unknown>;

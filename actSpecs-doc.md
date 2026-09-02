@@ -87,4 +87,6 @@ SPDX-License-Identifier: MIT
 
 ## Checkpoint acts
 
+A `test` act may have a `scope` property: `page` (the default) tests the whole page of the act's checkpoint; `changed` tests only the subtrees that changed since the previous checkpoint, for the rules and tools that can be so restricted (the element-local `testaro` rules, `axe`, and `surea11y`), and the whole page for the rest. A job with a changed-scope test act must have a checkpoint act. The act records what it was given as `data.scope`. See `docs/checkpoint-scanning.md`.
+
 A `checkpoint` act snapshots the current page state as a checkpoint that subsequent `test` acts observe. Its `which` property names the checkpoint (unique within the job, and not `start`, the name of checkpoint 0). A checkpoint act must follow a `launch` act. See `docs/checkpoint-scanning.md`.

@@ -87,7 +87,72 @@ export interface Act {
     expectations?: unknown;
     expectationFailures?: number;
     checkpoint?: number | null;
+    scope?: TestScope;
     [key: string]: unknown;
+}
+export type TestScope = 'page' | 'changed';
+export interface ScopeData {
+    requested: TestScope;
+    applied: boolean;
+    reason: string;
+    roots: string[];
+    pathIDs: string[];
+    commonRoot?: string;
+    localRules?: string[];
+    pageRules?: string[];
+}
+export interface FlowIssue {
+    tool: ToolID;
+    ruleID: string;
+    pathID: string;
+    startTag: string;
+    what: string;
+    ordinalSeverity: number;
+    outcome?: Outcome;
+    count: number;
+    actIndexes: number[];
+}
+export interface StructureDiff {
+    added: string[];
+    removed: string[];
+    changed: string[];
+    textChanged: string[];
+    roots: string[];
+    counts: Record<'before' | 'after' | 'added' | 'removed' | 'changed' | 'textChanged' | 'roots', number>;
+}
+export interface AriaDiff {
+    addedLineCount: number;
+    removedLineCount: number;
+    truncated: boolean;
+    changes: {
+        type: 'added' | 'removed';
+        line: number;
+        text: string;
+    }[];
+}
+export interface FlowDelta {
+    from: number;
+    to: number;
+    tools: ToolID[];
+    notObserved: ToolID[];
+    added: FlowIssue[];
+    persisted: FlowIssue[];
+    removed: FlowIssue[];
+    structure: StructureDiff;
+    aria: AriaDiff;
+}
+export interface Flow {
+    checkpoints: {
+        index: number;
+        name: string;
+        kind: Checkpoint['kind'];
+        url: string;
+        actIndex: number | null;
+        testActs: number[];
+        tools: ToolID[];
+        issueCount: number;
+    }[];
+    deltas: FlowDelta[];
 }
 export interface Report {
     id: string;
@@ -117,6 +182,12 @@ export interface Report {
     pathIDs?: Record<string, Record<string, string>>;
     catalogNextIndex?: number;
     activeCheckpoint?: number | null;
+    scope?: {
+        roots: string[];
+        commonRoot?: string;
+    } | null;
+    ruleScopeRoots?: string[] | null;
+    flow?: Flow;
     jobData?: {
         aborted?: boolean;
         abortedAct?: number;

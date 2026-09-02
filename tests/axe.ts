@@ -116,8 +116,13 @@ export const reporter = async (page: Page, report: Report, actIndex: number) => 
     else {
       axeOptions.runOnly = ['experimental', 'best-practice', 'wcag2a', 'wcag2aa', 'wcag2aaa', 'wcag21a', 'wcag21aa', 'wcag21aaa'];
     }
+    // If the act is scoped to changed subtrees, test only them (axe's include context).
+    const scopeRoots = report.scope?.roots;
+    const context = scopeRoots && scopeRoots.length
+      ? {include: scopeRoots} as unknown as Parameters<typeof axePlaywright.getAxeResults>[1]
+      : null as unknown as undefined;
     const axeReport = await axePlaywright.getAxeResults(
-      page as Parameters<typeof injectAxe>[0], null as unknown as undefined, axeOptions
+      page as Parameters<typeof injectAxe>[0], context, axeOptions
     );
     const {inapplicable, passes, incomplete, violations} = axeReport;
     // If the test succeeded:
