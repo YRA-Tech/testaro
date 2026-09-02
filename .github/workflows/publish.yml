@@ -46,4 +46,5 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
-      - run: npm publish --provenance --access public
+      # Verbose, so the log shows the trusted-publishing (OIDC) token exchange.
+      - run: npm publish --provenance --access public --loglevel verbose
