@@ -6,11 +6,10 @@
 # SPDX-License-Identifier: MIT
 
 # Publishes the package to npm when a GitHub release is published (the release tag must equal
-# v<package.json version>), or on manual dispatch. Authenticates by npm trusted publishing
-# (OIDC): the testaro package on npmjs.com names this repository and workflow file as a trusted
-# publisher, so no token is needed; the job must not configure any registry token, or the CLI
-# skips the OIDC exchange. prepublishOnly regenerates the rule registry and the emitted
-# TypeScript, and the version check refuses a release tag that does not match.
+# v<package.json version>), or on manual dispatch. Authenticates with the NPM_TOKEN repository
+# secret, a granular access token with publish permission for the testaro package.
+# prepublishOnly regenerates the rule registry and the emitted TypeScript, and the version
+# check refuses a release tag that does not match.
 
 name: Publish
 
@@ -33,8 +32,7 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      # Trusted publishing needs npm 11.5.1 or later.
-      - run: npm install -g npm@11 && npm --version
+          registry-url: https://registry.npmjs.org
       - name: Check that the release tag matches the package version
         if: github.event_name == 'release'
         run: |
@@ -46,17 +44,6 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
-      # Show the identity-token claims npm's trusted publisher entry must match
-      # (never the token itself).
-      - name: Show identity token claims
-        run: |
-          token=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=npm:registry.npmjs.org" | node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).value")
-          node -e "
-            const [, payload] = process.argv[1].split('.');
-            const claims = JSON.parse(Buffer.from(payload, 'base64url').toString());
-            const shown = ['iss', 'aud', 'repository', 'repository_owner', 'repository_owner_id', 'repository_id', 'workflow', 'workflow_ref', 'job_workflow_ref', 'ref', 'ref_type', 'environment', 'event_name', 'runner_environment', 'sub'];
-            console.log(JSON.stringify(Object.fromEntries(shown.map(k => [k, claims[k]])), null, 2));
-          " "$token"
-      # Verbose, so the log shows the trusted-publishing (OIDC) token exchange.
-      - run: npm publish --provenance --access public --loglevel verbose
+      - run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
