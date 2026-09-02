@@ -34,7 +34,9 @@ const tools = exports.tools = {
   ibm: 'Accessibility Checker',
   nuVal: 'Html Checker API',
   nuVnu: 'Html Checker',
+  pour: 'Pour Engine',
   qualWeb: 'QualWeb',
+  surea11y: 'SureA11y',
   testaro: 'Testaro',
   wave: 'WAVE',
 };

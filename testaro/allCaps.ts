@@ -10,6 +10,8 @@
 // IMPORTS
 
 import * as https from 'https';
+// Function to build a standard instance.
+import {getInstance} from '../procs/standard';
 import type {Catalog, Report, StandardInstance} from '../types';
 
 // TYPES
@@ -196,23 +198,31 @@ export const reporter = async (_0: unknown, report: Report, _1: unknown, withIte
   const estimatedLeftOut = data.leftOut?.estimatedViolations ?? 0;
   // Add the estimated violation count to the totals.
   totals[0] = violations.length + estimatedLeftOut;
+  // The estimates are AI judgements, so every instance is uncertain.
+  const certainty = {outcome: 'cantTell', uncertainty: 'judgement-required'} as const;
   // If itemization is required:
   if (withItems) {
     // For each entry deemed a violation:
     for (const {catalogIndex, what} of violations) {
       // Add an instance to the standard instances.
-      standardInstances.push({ruleID, what, ordinalSeverity: 0, count: 1, catalogIndex});
+      standardInstances.push(
+        getInstance({ruleID, what, ordinalSeverity: 0, catalogIndex, ... certainty})
+      );
     }
     // If any entries were truncated:
     if (estimatedLeftOut) {
       // Add a summary instance for them.
-      standardInstances.push({ruleID, what: whats, ordinalSeverity: 0, count: estimatedLeftOut});
+      standardInstances.push(
+        getInstance({ruleID, what: whats, ordinalSeverity: 0, count: estimatedLeftOut, ... certainty})
+      );
     }
   }
   // Otherwise, i.e. if itemization is not required, and if any violations exist:
   else if (totals[0]) {
     // Add a summary instance for them.
-    standardInstances.push({ruleID, what: whats, ordinalSeverity: 0, count: totals[0]});
+    standardInstances.push(
+      getInstance({ruleID, what: whats, ordinalSeverity: 0, count: totals[0], ... certainty})
+    );
   }
   return {data, totals, standardInstances};
 };

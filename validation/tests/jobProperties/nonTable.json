@@ -26,6 +26,11 @@
           0
         ],
         [
+          "standardResult.instances.length",
+          "=",
+          3
+        ],
+        [
           "standardResult.instances.0.ruleID",
           "=",
           "nonTable"
@@ -33,7 +38,7 @@
         [
           "standardResult.instances.0.what",
           "i",
-          "is misused"
+          "Element contains another table"
         ],
         [
           "standardResult.instances.0.ordinalSeverity",
@@ -89,6 +94,36 @@
           "standardResult.instances.2.location.spec",
           "=",
           "#ring"
+        ],
+        [
+          "standardResult.instances.0.outcome",
+          "=",
+          "failed"
+        ],
+        [
+          "standardResult.instances.1.what",
+          "=",
+          "Element has only one row or one column"
+        ],
+        [
+          "standardResult.instances.1.tagName",
+          "=",
+          "TABLE"
+        ],
+        [
+          "standardResult.instances.1.excerpt",
+          "i",
+          "Advertising"
+        ],
+        [
+          "standardResult.instances.2.what",
+          "=",
+          "Element contains an object or player"
+        ],
+        [
+          "standardResult.instances.2.tagName",
+          "=",
+          "TABLE"
         ]
       ],
       "rules": [
@@ -120,7 +155,7 @@
         [
           "standardResult.instances.0.what",
           "i",
-          "are misused"
+          "table elements are misused"
         ],
         [
           "standardResult.instances.0.ordinalSeverity",
@@ -130,7 +165,17 @@
         [
           "standardResult.instances.0.tagName",
           "=",
-          "TABLE"
+          ""
+        ],
+        [
+          "standardResult.instances.0.count",
+          "=",
+          3
+        ],
+        [
+          "standardResult.instances.length",
+          "=",
+          1
         ]
       ],
       "rules": [

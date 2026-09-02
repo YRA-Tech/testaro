@@ -49,6 +49,7 @@ const fs = __importStar(require("fs/promises"));
 // Shared configuration for timeout multiplier.
 const config_1 = require("../procs/config");
 const xPath_1 = require("../procs/xPath");
+const standard_1 = require("../procs/standard");
 // CONSTANTS
 /*
   Differentiates some rule IDs of aslint.
@@ -165,11 +166,7 @@ const reporter = async (page, report, actIndex) => {
     // If standard results are to be reported:
     if (standard) {
         // Initialize the standard result.
-        result.standardResult = {
-            prevented: false,
-            totals: [0, 0, 0, 0],
-            instances: []
-        };
+        result.standardResult = (0, standard_1.getStandardResult)();
     }
     const { standardResult } = result;
     // Get the ASLint runner and bundle scripts.
@@ -278,15 +275,13 @@ const reporter = async (page, report, actIndex) => {
                             // Use it to get the index of the element in the catalog.
                             const catalogIndex = (0, xPath_1.getXPathCatalogIndex)(report, pathID);
                             // Add an instance to the standard result.
-                            standardResult.instances.push({
+                            (0, standard_1.addInstance)(standardResult, {
                                 ruleID,
                                 what,
                                 ordinalSeverity,
-                                count: 1,
+                                outcome: issueType === 'warning' ? 'cantTell' : 'failed',
                                 catalogIndex
                             });
-                            // Increment the standard total.
-                            standardResult.totals[ordinalSeverity]++;
                         }
                     }
                 }

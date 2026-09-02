@@ -12,8 +12,10 @@
 
 // Function to get a catalog index from an XPath.
 import {getXPathCatalogIndex} from './xPath';
+// Function to build a standard instance.
+import {getInstance, type InstanceSpec} from './standard';
 import type {Locator, Page} from 'playwright';
-import type {GetBadWhat, Report, SeverityTotals, StandardInstance} from '../types';
+import type {GetBadWhat, Outcome, Report, SeverityTotals, StandardInstance, UncertaintyCode} from '../types';
 
 /*
   testaro
@@ -27,6 +29,7 @@ import type {GetBadWhat, Report, SeverityTotals, StandardInstance} from '../type
 interface ProtoInstance {
   what: string;
   ordinalSeverity: number;
+  outcome?: Outcome;
   xPath: string;
 }
 // What doTest and getBasicResult return to the calling rule module.
@@ -39,9 +42,23 @@ export interface RuleResult {
 interface BasicViolation {
   loc: Locator;
   what: string;
+  // A violation may specify its own certainty.
+  outcome?: Outcome;
+  uncertainty?: UncertaintyCode;
+  needed?: string;
 }
 
 // ########## FUNCTIONS
+
+// Returns a standard instance, leaving the outcome unset if the violation did not specify one, so
+// that the testaro tool can apply the rule's default outcome.
+const getRuleInstance = (spec: InstanceSpec): StandardInstance => {
+  const instance = getInstance(spec);
+  if (! spec.outcome) {
+    instance.outcome = undefined;
+  }
+  return instance;
+};
 
 // Tests for a testaro rule.
 export const doTest = async (
@@ -67,6 +84,8 @@ export const doTest = async (
     let violationCount = 0;
     // Initialize proto-instances.
     const protoInstances: ProtoInstance[] = [];
+    // Initialize counts of cantTell violations by ordinal severity, for summary instances.
+    const cantTellTotals = [0, 0, 0, 0];
     /*
       Parse the supplied string to get the classifier. The predicate travels as
       source text (serialized with toString() by the rule module) because it
@@ -101,24 +120,33 @@ export const doTest = async (
           // Get it.
           ruleWhat = violationWhat as string;
         }
+        let ordinalSeverity = severity;
+        let outcome: 'cantTell' | undefined;
         // A predicate that returns a truthy non-object non-string would make this throw,
         // exactly as in the JavaScript original.
-        const ruleWhatStart = (ruleWhat as string).slice(0, 2);
-        let ordinalSeverity = severity;
-        // If this violation has a custom severity:
-        if (/[0-3]:/.test(ruleWhatStart)) {
-          // Get it.
-          ordinalSeverity = Number((ruleWhat as string)[0]);
-          // Remove it from the violation description.
-          ruleWhat = (ruleWhat as string).slice(2);
+        // If this violation has a custom severity or outcome prefix (e.g. 2:, 2?:, or ?:):
+        const prefixMatch = (ruleWhat as string).match(/^([0-3])?(\?)?:/);
+        if (prefixMatch) {
+          // If the prefix has a severity, get it.
+          if (prefixMatch[1]) {
+            ordinalSeverity = Number(prefixMatch[1]);
+          }
+          // If the prefix marks the violation as uncertain, record this.
+          if (prefixMatch[2]) {
+            outcome = 'cantTell';
+            cantTellTotals[ordinalSeverity]++;
+          }
+          // Remove the prefix from the violation description.
+          ruleWhat = (ruleWhat as string).slice(prefixMatch[0].length);
         }
         // Increment the applicable rule-violation total.
         totals[ordinalSeverity]++;
         // If itemization is required:
         if (withItems) {
-          const protoInstance = {
+          const protoInstance: ProtoInstance = {
             what: ruleWhat as string,
             ordinalSeverity,
+            outcome,
             xPath: window.getXPath(candidate as Element) ?? '/html'
           };
           // Add a proto-instance to the proto-instances.
@@ -129,6 +157,7 @@ export const doTest = async (
     return {
       data,
       totals,
+      cantTellTotals,
       protoInstances
     }
   }, [
@@ -138,47 +167,52 @@ export const doTest = async (
       getBadWhatString
     ] as const
   );
-  // Initialize the standard instances.
+  // Initialize the standard instances. Any instance without an outcome gets the rule's default
+  // outcome from the testaro tool.
   let standardInstances: StandardInstance[] = [];
-  const {data, totals, protoInstances} = ruleData;
+  const {data, totals, cantTellTotals, protoInstances} = ruleData;
   // If itemization is required:
   if (withItems) {
     // For each proto-instance:
     protoInstances.forEach(protoInstance => {
-      const {what, ordinalSeverity, xPath} = protoInstance;
-      // Initialize a standard instance.
-      const standardInstance: StandardInstance = {
+      const {what, ordinalSeverity, outcome, xPath} = protoInstance;
+      // Add a standard instance to the standard instances.
+      standardInstances.push(getRuleInstance({
         ruleID,
         what,
-        ordinalSeverity: ordinalSeverity as StandardInstance['ordinalSeverity'],
-        count: 1
-      };
-      // If the proto-instance includes an XPath:
-      if (xPath) {
-        // Add the catalog index to the standard instance.
-        standardInstance.catalogIndex = getXPathCatalogIndex(report, xPath);
-      }
-      // Add the standard instance to the standard instances.
-      standardInstances.push(standardInstance);
+        ordinalSeverity,
+        outcome,
+        catalogIndex: xPath ? getXPathCatalogIndex(report, xPath) : undefined
+      }));
     });
   }
   // Otherwise, i.e. if itemization is not required:
   else {
     // For each ordinal severity:
-    for (const index in totals) {
-      // If there were any violations at that severity:
-      if (totals[index as unknown as number]) {
+    totals.forEach((total, ordinalSeverity) => {
+      const cantTellTotal = cantTellTotals[ordinalSeverity];
+      // If there were any asserted violations at that severity:
+      if (total - cantTellTotal) {
         // Add a summary standard instance to the standard instances.
-        standardInstances.push({
+        standardInstances.push(getRuleInstance({
           ruleID,
           what: whats,
-          // Numeric, not the for...in string index, so summary instances match
-          // itemized instances and validator expectations (issue #99).
-          ordinalSeverity: Number(index) as StandardInstance['ordinalSeverity'],
-          count: totals[index as unknown as number]
-        });
+          ordinalSeverity,
+          count: total - cantTellTotal
+        }));
       }
-    }
+      // If there were any uncertain violations at that severity:
+      if (cantTellTotal) {
+        // Add a summary standard instance for them.
+        standardInstances.push(getRuleInstance({
+          ruleID,
+          what: whats,
+          ordinalSeverity,
+          outcome: 'cantTell',
+          count: cantTellTotal
+        }));
+      }
+    });
   }
   // Return the data, totals, and standard instances.
   return {
@@ -225,14 +259,16 @@ export const getBasicResult = async (
   if (withItems) {
     // For each violation:
     for (const violation of violations) {
-      const {loc, what} = violation;
+      const {loc, what, outcome, uncertainty, needed} = violation;
       // Initialize a standard instance.
-      const protoInstance: StandardInstance = {
+      const protoInstance = getRuleInstance({
         ruleID,
         what,
         ordinalSeverity,
-        count: 1
-      };
+        outcome,
+        uncertainty,
+        needed
+      });
       // Add a catalog index to it, awaited so the index is present before the
       // report can be serialized (issue #100).
       await addCatalogIndex(protoInstance, loc, report);
@@ -242,12 +278,20 @@ export const getBasicResult = async (
   }
   // Otherwise, i.e. if itemization is not required:
   else {
-    // Add a summary instance to the instances.
-    standardInstances.push({
-      ruleID,
-      what: whats,
-      ordinalSeverity,
-      count: violations.length
+    // Add a summary instance per outcome to the instances.
+    const outcomeCounts: Partial<Record<Outcome, number>> = {};
+    violations.forEach(violation => {
+      const outcome = violation.outcome || 'failed';
+      outcomeCounts[outcome] = (outcomeCounts[outcome] || 0) + 1;
+    });
+    (Object.keys(outcomeCounts) as Outcome[]).forEach(outcome => {
+      standardInstances.push(getRuleInstance({
+        ruleID,
+        what: whats,
+        ordinalSeverity,
+        outcome,
+        count: outcomeCounts[outcome]
+      }));
     });
   }
   // Return the result.

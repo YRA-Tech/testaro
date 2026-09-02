@@ -5,68 +5,9 @@
     {
       "type": "launch",
       "target": {
-        "url": "file://validation/tests/targets/linkUl/na.html",
-        "what": "page without inline links"
+        "url": "file://validation/tests/targets/linkUl/bad.html",
+        "what": "page with nonunderlined inline links"
       }
-    },
-    {
-      "type": "test",
-      "which": "testaro",
-      "withItems": true,
-      "stopOnFail": true,
-      "expect": [
-        [
-          "standardResult.totals.1",
-          "=",
-          0
-        ],
-        [
-          "standardResult.instances.length",
-          "=",
-          0
-        ]
-      ],
-      "rules": [
-        "y",
-        "linkUl"
-      ]
-    },
-    {
-      "type": "url",
-      "which": "file://validation/tests/targets/linkUl/good.html",
-      "what": "page with underlined inline links"
-    },
-    {
-      "type": "test",
-      "which": "testaro",
-      "withItems": true,
-      "stopOnFail": true,
-      "expect": [
-        [
-          "standardResult.totals.1",
-          "=",
-          0
-        ],
-        [
-          "standardResult.totals.2",
-          "=",
-          0
-        ],
-        [
-          "standardResult.instances.length",
-          "=",
-          0
-        ]
-      ],
-      "rules": [
-        "y",
-        "linkUl"
-      ]
-    },
-    {
-      "type": "url",
-      "which": "file://validation/tests/targets/linkUl/bad.html",
-      "what": "page with nonunderlined inline links"
     },
     {
       "type": "test",
@@ -97,7 +38,7 @@
         [
           "standardResult.instances.0.what",
           "i",
-          "but has no"
+          "is not underlined"
         ],
         [
           "standardResult.instances.0.ordinalSeverity",
@@ -137,7 +78,7 @@
         [
           "standardResult.instances.1.what",
           "i",
-          "but has no"
+          "is not underlined"
         ],
         [
           "standardResult.instances.1.tagName",
@@ -199,7 +140,7 @@
         [
           "standardResult.instances.0.what",
           "i",
-          "missing"
+          "not underlined"
         ],
         [
           "standardResult.instances.0.ordinalSeverity",
@@ -214,12 +155,71 @@
         [
           "standardResult.instances.0.tagName",
           "=",
-          "A"
+          ""
         ],
         [
           "standardResult.instances.0.location.doc",
           "=",
           ""
+        ]
+      ],
+      "rules": [
+        "y",
+        "linkUl"
+      ]
+    },
+    {
+      "type": "url",
+      "which": "file://validation/tests/targets/linkUl/good.html",
+      "what": "page with underlined inline links"
+    },
+    {
+      "type": "test",
+      "which": "testaro",
+      "withItems": true,
+      "stopOnFail": true,
+      "expect": [
+        [
+          "standardResult.totals.1",
+          "=",
+          0
+        ],
+        [
+          "standardResult.totals.2",
+          "=",
+          0
+        ],
+        [
+          "standardResult.instances.length",
+          "=",
+          0
+        ]
+      ],
+      "rules": [
+        "y",
+        "linkUl"
+      ]
+    },
+    {
+      "type": "url",
+      "which": "file://validation/tests/targets/linkUl/na.html",
+      "what": "page without inline links"
+    },
+    {
+      "type": "test",
+      "which": "testaro",
+      "withItems": true,
+      "stopOnFail": true,
+      "expect": [
+        [
+          "standardResult.totals.1",
+          "=",
+          0
+        ],
+        [
+          "standardResult.instances.length",
+          "=",
+          0
         ]
       ],
       "rules": [

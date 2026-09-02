@@ -5,41 +5,9 @@
     {
       "type": "launch",
       "target": {
-        "url": "file://validation/tests/targets/focInd/good.html",
-        "what": "page with outline focus indication"
+        "url": "file://validation/tests/targets/focInd/bad.html",
+        "what": "page with mixed focus indication"
       }
-    },
-    {
-      "type": "test",
-      "which": "testaro",
-      "withItems": true,
-      "stopOnFail": true,
-      "expect": [
-        [
-          "standardResult.totals.2",
-          "=",
-          0
-        ],
-        [
-          "standardResult.totals.3",
-          "=",
-          0
-        ],
-        [
-          "standardResult.instances.length",
-          "=",
-          0
-        ]
-      ],
-      "rules": [
-        "y",
-        "focInd"
-      ]
-    },
-    {
-      "type": "url",
-      "which": "file://validation/tests/targets/focInd/bad.html",
-      "what": "page with mixed focus indication"
     },
     {
       "type": "test",
@@ -154,6 +122,38 @@
           "standardResult.instances.0.what",
           "i",
           "Elements fail"
+        ]
+      ],
+      "rules": [
+        "y",
+        "focInd"
+      ]
+    },
+    {
+      "type": "url",
+      "which": "file://validation/tests/targets/focInd/good.html",
+      "what": "page with outline focus indication"
+    },
+    {
+      "type": "test",
+      "which": "testaro",
+      "withItems": true,
+      "stopOnFail": true,
+      "expect": [
+        [
+          "standardResult.totals.2",
+          "=",
+          0
+        ],
+        [
+          "standardResult.totals.3",
+          "=",
+          0
+        ],
+        [
+          "standardResult.instances.length",
+          "=",
+          0
         ]
       ],
       "rules": [

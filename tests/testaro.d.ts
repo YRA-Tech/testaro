@@ -1,5 +1,5 @@
 import type { Page } from 'playwright';
-import type { Report, StandardInstance } from '../types';
+import type { Outcome, Report, StandardInstance } from '../types';
 export declare const reporter: (page: Page | undefined, report: Report, actIndex: number) => Promise<{
     data: {
         prevented: boolean;
@@ -14,6 +14,7 @@ export declare const reporter: (page: Page | undefined, report: Report, actIndex
         standardResult: {
             prevented: boolean;
             totals: number[];
+            outcomeTotals: Record<Outcome, number>;
             instances: StandardInstance[];
         };
     };

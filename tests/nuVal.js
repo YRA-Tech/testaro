@@ -13,6 +13,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.reporter = void 0;
 const nu_1 = require("../procs/nu");
 const xPath_1 = require("../procs/xPath");
+const standard_1 = require("../procs/standard");
 /*
   nuVal
   Subjects a page and its source to the Nu Html Checker, thereby testing scripted content found only in the loaded page and erroneous content before the browser corrects it. The API erratically replaces left and right double quotation marks with invalid UTF-8, which appears as 2 or 3 successive instances of the replacement character (U+fffd). Therefore, this test removes all such quotation marks and the replacement character. That causes 'Bad value “” for' to become 'Bad value  for'. Since the corruption of quotation marks is erratic, no better solution is known.
@@ -35,11 +36,7 @@ const reporter = async (page, report, actIndex) => {
     // If standard results are to be reported:
     if (standard) {
         // Initialize the standard result.
-        result.standardResult = {
-            prevented: false,
-            totals: [0, 0, 0, 0],
-            instances: []
-        };
+        result.standardResult = (0, standard_1.getStandardResult)();
     }
     const { standardResult } = result;
     // Get the content.
@@ -95,15 +92,13 @@ const reporter = async (page, report, actIndex) => {
         if (standard) {
             // For each message in the native result:
             result.nativeResult.messages.forEach(message => {
-                const ordinalSeverity = message.type === 'info' ? 0 : 3;
-                // Increment the applicable standard-result total.
-                standardResult.totals[ordinalSeverity]++;
-                // Initialize a standard instance.
+                const isInfo = message.type === 'info';
+                // Initialize a standard instance. Informational messages are uncertainty.
                 const standardInstance = {
                     ruleID: message.message,
                     what: message.message,
-                    ordinalSeverity,
-                    count: 1,
+                    ordinalSeverity: isInfo ? 0 : 3,
+                    outcome: isInfo ? 'cantTell' : 'failed'
                 };
                 // Get the XPath of the element from its extract.
                 const xPath = (0, xPath_1.getAttributeXPath)(message.extract);
@@ -120,7 +115,7 @@ const reporter = async (page, report, actIndex) => {
                     standardInstance.what = `${message.message} Extract: ${extractExcerpt}`;
                 }
                 // Add the standard instance to the standard result.
-                standardResult.instances.push(standardInstance);
+                (0, standard_1.addInstance)(standardResult, standardInstance);
             });
         }
     }

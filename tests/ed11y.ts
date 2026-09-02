@@ -14,6 +14,7 @@
 import * as fs from 'fs/promises';
 import type {Page} from 'playwright';
 import {getXPathCatalogIndex} from '../procs/xPath';
+import {getStandardResult, pushInstance} from '../procs/standard';
 import type {Act, Report, SeverityTotals, StandardInstance, StandardResult} from '../types';
 
 // TYPES
@@ -84,11 +85,7 @@ export const reporter = async (page: Page, report: Report, actIndex: number) => 
   // If standard results are to be reported:
   if (standard) {
     // Initialize the standard result.
-    result.standardResult = {
-      prevented: false,
-      totals: [0, 0, 0, 0],
-      instances: []
-    };
+    result.standardResult = getStandardResult();
   }
   // Get the tool script.
   const script = await fs.readFile(`${__dirname}/../ed11y/editoria11y.min.js`, 'utf8');
@@ -163,13 +160,15 @@ export const reporter = async (page: Page, report: Report, actIndex: number) => 
     results.forEach(nativeInstance => {
       // Create a standard-result instance.
       const {test, content, dismissalKey, xPath} = nativeInstance;
-      const instance = {} as StandardInstance;
-      instance.ruleID = test;
-      instance.what = content;
-      instance.ordinalSeverity = dismissalKey ? 0 : 2;
-      instance.count = 1;
-      instance.catalogIndex = getXPathCatalogIndex(report, xPath as string);
-      standardResult.instances!.push(instance);
+      // A dismissable warning is a manual check.
+      pushInstance(standardResult, {
+        ruleID: test,
+        what: content,
+        ordinalSeverity: dismissalKey ? 0 : 2,
+        outcome: dismissalKey ? 'cantTell' : 'failed',
+        uncertainty: dismissalKey ? 'judgement-required' : undefined,
+        catalogIndex: getXPathCatalogIndex(report, xPath as string)
+      });
     });
   }
   return {

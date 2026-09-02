@@ -20,9 +20,11 @@
 import type {Page} from 'playwright';
 import {applyMultiplier} from '../procs/config';
 import {launch} from '../procs/launch';
+// Function to get an empty standard result.
+import {getStandardResult} from '../procs/standard';
 import {ruleModules} from '../testaro/registry';
 import type {RuleID, RuleModule} from '../testaro/registry';
-import type {Act, BrowserID, Report, StandardInstance} from '../types';
+import type {Act, BrowserID, Outcome, Report, StandardInstance, UncertaintyCode} from '../types';
 
 // TYPES
 
@@ -32,6 +34,11 @@ interface RuleMeta {
   what: string;
   contaminates: boolean;
   needsAccessibleName: boolean;
+  // Default outcome of the rule's violations ('failed' unless specified): 'cantTell' for a
+  // heuristic rule whose violations need human confirmation; a violation may override it.
+  outcome?: Outcome;
+  // Default uncertainty code of the rule's cantTell violations.
+  uncertainty?: UncertaintyCode;
   timeOut: number;
   defaultOn: boolean;
   // Read below but defined by no rule, so the temporary-directory branch never runs;
@@ -71,10 +78,20 @@ const allRules: RuleMeta[] = [
     defaultOn: true
   },
   {
+    id: 'allCapStyle',
+    what: 'elements with all-capital text transformation styles',
+    contaminates: false,
+    needsAccessibleName: false,
+    timeOut: 5,
+    defaultOn: false
+  },
+  {
     id: 'allCaps',
     what: 'elements with unnecessarily all-capital text substrings',
     contaminates: false,
     needsAccessibleName: false,
+    outcome: 'cantTell',
+    uncertainty: 'judgement-required',
     timeOut: 30,
     defaultOn: true
   },
@@ -516,14 +533,16 @@ export const reporter = async (page: Page | undefined, report: Report, actIndex:
     standardResult: {
       prevented: boolean;
       totals: number[];
+      outcomeTotals: Record<Outcome, number>;
       instances: StandardInstance[];
     };
   } = {
     nativeResult: {},
-    standardResult: {
-      prevented: false,
-      totals: [0, 0, 0, 0],
-      instances: []
+    standardResult: getStandardResult() as {
+      prevented: boolean;
+      totals: number[];
+      outcomeTotals: Record<Outcome, number>;
+      instances: StandardInstance[];
     }
   };
   const {standardResult} = result;
@@ -659,6 +678,14 @@ export const reporter = async (page: Page | undefined, report: Report, actIndex:
             });
           }
           if (ruleResult.instances?.length) {
+            // Apply the rule's default outcome to instances without their own.
+            ruleResult.instances.forEach(instance => {
+              instance.outcome ??= rule.outcome ?? 'failed';
+              if (instance.outcome === 'cantTell' && rule.uncertainty) {
+                instance.uncertainty ??= rule.uncertainty;
+              }
+              standardResult.outcomeTotals[instance.outcome] += instance.count || 1;
+            });
             standardResult.instances.push(... ruleResult.instances);
           }
           justPrevented = false;

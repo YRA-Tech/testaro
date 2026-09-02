@@ -17,6 +17,7 @@ import type {Page} from 'playwright';
 import {curate, getContent, getExtractExcerpt} from '../procs/nu';
 import type {NuResult} from '../procs/nu';
 import {getAttributeXPath, getXPathCatalogIndex} from '../procs/xPath';
+import {getStandardResult, addInstance} from '../procs/standard';
 import type {Act, Report, StandardInstance, StandardResult} from '../types';
 // vnu-jar ships no type declarations, so its import stays a require and is untyped.
 const {vnu} = require('vnu-jar');
@@ -51,11 +52,7 @@ export const reporter = async (page: Page, report: Report, actIndex: number) => 
   // If standard results are to be reported:
   if (standard) {
     // Initialize the standard result.
-    result.standardResult = {
-      prevented: false,
-      totals: [0, 0, 0, 0],
-      instances: []
-    };
+    result.standardResult = getStandardResult();
   }
   const {standardResult} = result;
   // Get the nuVal act, if it exists.
@@ -99,15 +96,13 @@ export const reporter = async (page: Page, report: Report, actIndex: number) => 
       if (standard) {
         // For each message in the native result:
         result.nativeResult.messages.forEach(message => {
-          const ordinalSeverity = message.type === 'info' ? 0 : 3;
-          // Increment the applicable standard-result total.
-          standardResult.totals![ordinalSeverity]++;
-          // Initialize a standard instance.
+          const isInfo = message.type === 'info';
+          // Initialize a standard instance. Informational messages are uncertainty.
           const standardInstance: StandardInstance = {
             ruleID: message.message,
             what: message.message,
-            ordinalSeverity,
-            count: 1,
+            ordinalSeverity: isInfo ? 0 : 3,
+            outcome: isInfo ? 'cantTell' : 'failed'
           };
           // Get the XPath of the element from its extract.
           const xPath = getAttributeXPath(message.extract);
@@ -124,7 +119,7 @@ export const reporter = async (page: Page, report: Report, actIndex: number) => 
             standardInstance.what = `${message.message} Extract: ${extractExcerpt}`;
           }
           // Add the standard instance to the standard result.
-          standardResult.instances!.push(standardInstance);
+          addInstance(standardResult, standardInstance);
         });
       }
     }

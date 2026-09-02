@@ -12,6 +12,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.reporter = void 0;
 const xPath_1 = require("../procs/xPath");
+const standard_1 = require("../procs/standard");
 const axePlaywright = require('axe-playwright');
 // CONSTANTS
 const { injectAxe } = axePlaywright;
@@ -57,11 +58,7 @@ const reporter = async (page, report, actIndex) => {
     // If standard results are to be reported:
     if (standard) {
         // Initialize the standard result.
-        result.standardResult = {
-            prevented: false,
-            totals: [0, 0, 0, 0],
-            instances: []
-        };
+        result.standardResult = (0, standard_1.getStandardResult)();
     }
     const { nativeResult, standardResult } = result;
     // Inject axe-core into the page.
@@ -187,22 +184,19 @@ const reporter = async (page, report, actIndex) => {
                                 // Get the ordinal severity of the suspicion.
                                 const ordinalSeverity = severityWeights[node.impact]
                                     + (certainty === 'violations' ? 2 : 0);
-                                // Increment the standard total.
-                                standardResult.totals[ordinalSeverity]++;
                                 // Get the XPath of the suspected element from its data-xpath
                                 // attribute. Prefer the full value resolved from the live DOM
                                 // (above); fall back to parsing it out of axe's node.html,
                                 // which axe truncates and can corrupt the XPath.
                                 const xPath = fullXPathByTargetKey[JSON.stringify(node.target)]
                                     || (0, xPath_1.getAttributeXPath)(node.html);
-                                const instance = {
+                                (0, standard_1.addInstance)(standardResult, {
                                     ruleID: rule.id,
                                     what: Array.from(whatSet.values()).join('; '),
-                                    ordinalSeverity: ordinalSeverity,
-                                    count: 1,
+                                    ordinalSeverity,
+                                    outcome: certainty === 'violations' ? 'failed' : 'cantTell',
                                     catalogIndex: (0, xPath_1.getXPathCatalogIndex)(report, xPath)
-                                };
-                                standardResult.instances.push(instance);
+                                });
                             });
                         });
                     }

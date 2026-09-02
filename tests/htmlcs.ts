@@ -14,6 +14,7 @@
 import * as fs from 'fs/promises';
 import type {Page} from 'playwright';
 import {getAttributeXPath, getXPathCatalogIndex} from '../procs/xPath';
+import {getStandardResult, pushInstance} from '../procs/standard';
 import type {Act, Report, StandardInstance, StandardResult} from '../types';
 
 // TYPES
@@ -61,11 +62,7 @@ export const reporter = async (page: Page, report: Report, actIndex: number) => 
   // If standard results are to be reported:
   if (standard) {
     // Initialize the standard result.
-    result.standardResult = {
-      prevented: false,
-      totals: [0, 0, 0, 0],
-      instances: []
-    };
+    result.standardResult = getStandardResult();
   }
   const {nativeResult, standardResult} = result;
   // Get the HTMLCS script.
@@ -161,14 +158,13 @@ export const reporter = async (page: Page, report: Report, actIndex: number) => 
       // If standard results are to be reported and the message reports an error or warning:
       if (standard && ['Error', 'Warning'].includes(parts[0])) {
         const xPath = getAttributeXPath(parts[5]);
-        const instance: StandardInstance = {
+        pushInstance(standardResult, {
           ruleID: `${parts[0][0]}-${parts[1]}`,
           what: parts[4],
           ordinalSeverity: parts[0] === 'Warning' ? 0 : 2,
-          count: 1,
+          outcome: parts[0] === 'Warning' ? 'cantTell' : 'failed',
           catalogIndex: getXPathCatalogIndex(report, xPath)
-        };
-        standardResult.instances!.push(instance);
+        });
       }
     }
     // If standard results are to be reported:

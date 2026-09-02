@@ -26,6 +26,11 @@
           0
         ],
         [
+          "standardResult.instances.length",
+          "=",
+          4
+        ],
+        [
           "standardResult.instances.0.ruleID",
           "=",
           "textSem"
@@ -33,7 +38,7 @@
         [
           "standardResult.instances.0.what",
           "=",
-          "Element is semantically vague"
+          "Element type (I) is semantically vague"
         ],
         [
           "standardResult.instances.0.ordinalSeverity",
@@ -99,6 +104,21 @@
           "standardResult.instances.3.excerpt",
           "=",
           "This situation is rare and probably does not apply to you."
+        ],
+        [
+          "standardResult.instances.2.what",
+          "=",
+          "Element type (B) is semantically vague"
+        ],
+        [
+          "standardResult.instances.3.what",
+          "=",
+          "Element type (SMALL) is semantically vague"
+        ],
+        [
+          "standardResult.instances.0.outcome",
+          "=",
+          "failed"
         ]
       ],
       "rules": [
@@ -141,6 +161,11 @@
           "standardResult.instances.0.count",
           "=",
           4
+        ],
+        [
+          "standardResult.instances.length",
+          "=",
+          1
         ]
       ],
       "rules": [

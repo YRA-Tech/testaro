@@ -13,6 +13,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.reporter = void 0;
 const config_1 = require("../procs/config");
 const launch_1 = require("../procs/launch");
+// Function to get an empty standard result.
+const standard_1 = require("../procs/standard");
 const registry_1 = require("../testaro/registry");
 // CONSTANTS
 // Metadata of all rules in default execution order.
@@ -26,10 +28,20 @@ const allRules = [
         defaultOn: true
     },
     {
+        id: 'allCapStyle',
+        what: 'elements with all-capital text transformation styles',
+        contaminates: false,
+        needsAccessibleName: false,
+        timeOut: 5,
+        defaultOn: false
+    },
+    {
         id: 'allCaps',
         what: 'elements with unnecessarily all-capital text substrings',
         contaminates: false,
         needsAccessibleName: false,
+        outcome: 'cantTell',
+        uncertainty: 'judgement-required',
         timeOut: 30,
         defaultOn: true
     },
@@ -458,11 +470,7 @@ const reporter = async (page, report, actIndex) => {
     // Initialize the act result.
     const result = {
         nativeResult: {},
-        standardResult: {
-            prevented: false,
-            totals: [0, 0, 0, 0],
-            instances: []
-        }
+        standardResult: (0, standard_1.getStandardResult)()
     };
     const { standardResult } = result;
     const allRuleIDs = allRules.map(rule => rule.id);
@@ -591,6 +599,14 @@ const reporter = async (page, report, actIndex) => {
                         });
                     }
                     if (ruleResult.instances?.length) {
+                        // Apply the rule's default outcome to instances without their own.
+                        ruleResult.instances.forEach(instance => {
+                            instance.outcome ??= rule.outcome ?? 'failed';
+                            if (instance.outcome === 'cantTell' && rule.uncertainty) {
+                                instance.uncertainty ??= rule.uncertainty;
+                            }
+                            standardResult.outcomeTotals[instance.outcome] += instance.count || 1;
+                        });
                         standardResult.instances.push(...ruleResult.instances);
                     }
                     justPrevented = false;

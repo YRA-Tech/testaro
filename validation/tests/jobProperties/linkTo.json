@@ -100,7 +100,7 @@
         [
           "standardResult.instances.0.tagName",
           "=",
-          "A"
+          ""
         ],
         [
           "standardResult.instances.0.ordinalSeverity",

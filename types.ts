@@ -29,9 +29,23 @@ export type ToolID =
   | 'ibm'
   | 'nuVal'
   | 'nuVnu'
+  | 'pour'
   | 'qualWeb'
+  | 'surea11y'
   | 'testaro'
   | 'wave';
+
+// Whether a rule engine asserted a violation or reported that it could not tell (ACT vocabulary).
+export type Outcome = 'failed' | 'cantTell';
+
+// Reasons a rule engine may give for a cantTell outcome.
+export type UncertaintyCode =
+  | 'not-computable'
+  | 'judgement-required'
+  | 'runtime-dependent'
+  | 'spec-only'
+  | 'equivalence-unknown'
+  | 'out-of-scope';
 
 // The browser types a job may specify.
 export type BrowserID = 'chromium' | 'firefox' | 'webkit';
@@ -44,6 +58,12 @@ export interface StandardInstance {
   ruleID: string;
   what: string;
   ordinalSeverity: 0 | 1 | 2 | 3;
+  // Certainty of the violation (v78.1+ reports); the authoritative certainty signal.
+  outcome?: Outcome;
+  // Reason for a cantTell outcome, if the rule engine gave one.
+  uncertainty?: UncertaintyCode;
+  // What a reviewer must determine to resolve a cantTell outcome, if the rule engine said.
+  needed?: string;
   count?: number;
   // Key of the violating element in the report catalog (v70+ reports).
   catalogIndex?: string | number;
@@ -71,6 +91,8 @@ export interface BoundingBox {
 export interface StandardResult {
   prevented?: boolean;
   totals?: SeverityTotals;
+  // Counts of violations by outcome (v78.1+ reports).
+  outcomeTotals?: Record<Outcome, number>;
   instances?: StandardInstance[];
 }
 

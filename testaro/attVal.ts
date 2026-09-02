@@ -41,8 +41,12 @@ export const reporter = async (
       return `Element has attribute ${attributeName} with illicit value ${value}`;
     }
   };
+  // The predicate runs inside the page, so bind its parameters as literals in the serialized source.
+  const getBadWhatString = `((attributeName, areLicit, values) => ${
+    getBadWhat.toString()
+  })(${JSON.stringify(attributeName)}, ${Boolean(areLicit)}, ${JSON.stringify(values)})`;
   const whats = `Elements have attribute ${attributeName} with illicit values`;
   return await doTest(
-    page, report, withItems, 'attVal', `body [${attributeName}]`, whats, 2, getBadWhat.toString()
+    page, report, withItems, 'attVal', `[${attributeName}]`, whats, 2, getBadWhatString
   );
 };

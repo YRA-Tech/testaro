@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<!--
+  © 2021–2023 CVS Health and/or one of its affiliates. All rights reserved.
+  © 2026 Jeff Witt.
+
+  Licensed under the MIT License. See LICENSE file at the project root or
+  https://opensource.org/license/mit/ for details.
+
+  SPDX-License-Identifier: MIT
+-->
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <title>Page with all-capital text transformations</title>
+    <meta name="description" content="tester">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+  </head>
+  <body>
+    <main>
+      <h1>Page with all-capital text transformations</h1>
+      <p>This paragraph has ordinary text with an <abbr>HTML</abbr> abbreviation typed in capitals, which is not a style transformation.</p>
+      <p id="shout" style="text-transform: uppercase">Defect 1: This paragraph is transformed into capitals. Its <span>child span</span> inherits the transformation and is not separately reported.</p>
+      <p>Defect 2: This paragraph contains a <span id="capSpan" style="text-transform: uppercase">span transformed into capitals</span> within ordinary text.</p>
+    </main>
+  </body>
+</html>

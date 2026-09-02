@@ -12,6 +12,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.reporter = void 0;
 const xPath_1 = require("../procs/xPath");
+const standard_1 = require("../procs/standard");
 const accessibilityChecker = require('accessibility-checker');
 const { getCompliance } = accessibilityChecker;
 /*
@@ -128,11 +129,7 @@ const reporter = async (page, report, actIndex) => {
     // If standard results are to be reported:
     if (standard) {
         // Initialize the standard result.
-        result.standardResult = {
-            prevented: false,
-            totals: [0, 0, 0, 0],
-            instances: []
-        };
+        result.standardResult = (0, standard_1.getStandardResult)();
     }
     try {
         // Conduct the tests.
@@ -162,12 +159,13 @@ const reporter = async (page, report, actIndex) => {
                 // For each item of the native result (without itemization, items is
                 // undefined and this throws, caught below; verbatim from the original):
                 nativeResult.items.forEach(item => {
-                    // Populate a standard instance.
+                    // Populate a standard instance. Potential violations, potential recommendations, and
+                    // manual checks are engine-flagged uncertainty.
                     const standardItem = {
                         ruleID: item.ruleId,
                         what: item.message,
                         ordinalSeverity: item.level === 'recommendation' ? 0 : 2,
-                        count: 1
+                        outcome: ['violation', 'recommendation'].includes(item.level) ? 'failed' : 'cantTell'
                     };
                     // Get the XPath from the added attribute, because path.dom is wrong.
                     const xPath = (0, xPath_1.getAttributeXPath)(item.snippet);
@@ -177,7 +175,7 @@ const reporter = async (page, report, actIndex) => {
                         standardItem.catalogIndex = (0, xPath_1.getXPathCatalogIndex)(report, xPath);
                     }
                     // Add the standard instance to the standard result.
-                    standardResult.instances.push(standardItem);
+                    (0, standard_1.pushInstance)(standardResult, standardItem);
                 });
             }
             return {

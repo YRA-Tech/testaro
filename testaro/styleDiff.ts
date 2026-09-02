@@ -75,18 +75,14 @@ const linksByType = async (page: Page) => await page.evaluateHandle(() => {
   lists.forEach(list => {
     // If it is a list of links:
     if (isLinkList(list)) {
-      // Choose the first link as the representative, assuming the links have uniform styles.
-      // A deterministic choice makes results reproducible on pages that violate the
-      // assumption, where a random choice made totals vary run to run (issue #113).
-      const links = Array.from(list.querySelectorAll('a'));
-      const firstLink = links[0];
-      // Add it to the array.
-      listLinks.push(firstLink);
+      // Add all its links to the array. Formerly one link per list was sampled as a representative, which made totals vary run to run (issue #113) and let the unsampled list links be counted as inline links, so a uniformly styled link list was reported as an inline-link style difference. Using every list link is deterministic and also detects style differences within a list.
+      const links = Array.from(list.querySelectorAll(':scope > li > a'));
+      listLinks.push(...(links as HTMLAnchorElement[]));
     }
   });
-  // Identify the inline links in the page.
+  // Identify the inline links in the page, i.e. the links that are not list links.
   const allLinks = Array.from(document.body.querySelectorAll('a'));
-  const inlineLinks = allLinks.filter(link => ! listLinks.includes(link));
+  const inlineLinks = allLinks.filter(link => ! listLinks.includes(link as HTMLAnchorElement));
   // Return the data.
   return {
     adjacent: inlineLinks,

@@ -33,7 +33,7 @@
         [
           "standardResult.instances.0.what",
           "i",
-          "Element instead"
+          "hr element is used for vertical segmentation"
         ],
         [
           "standardResult.instances.0.ordinalSeverity",
@@ -64,6 +64,11 @@
           "standardResult.instances.0.excerpt",
           "i",
           "hr"
+        ],
+        [
+          "standardResult.instances.0.outcome",
+          "=",
+          "failed"
         ]
       ],
       "rules": [
@@ -100,7 +105,7 @@
         [
           "standardResult.instances.0.what",
           "i",
-          "Elements instead"
+          "HR elements are used for vertical segmentation"
         ],
         [
           "standardResult.instances.0.ordinalSeverity",
@@ -110,7 +115,12 @@
         [
           "standardResult.instances.0.tagName",
           "=",
-          "HR"
+          ""
+        ],
+        [
+          "standardResult.instances.0.count",
+          "=",
+          1
         ]
       ],
       "rules": [

@@ -45,8 +45,8 @@ const callRun = async jobIDStart => {
   const jobDirFileNames = await fs.readdir(todoDir);
   const jobFileNames = jobDirFileNames.filter(fileName => fileName.endsWith('.json'));
   const specifiedJobFileNames = jobIDStart
-  ? jobFileNames.filter(fileName => fileName.startsWith(jobIDStart))
-  : jobFileNames;
+    ? jobFileNames.filter(fileName => fileName.startsWith(jobIDStart))
+    : jobFileNames;
   const jobFileName = specifiedJobFileNames[0];
   // If it exists:
   if (jobFileName) {

@@ -1,0 +1,45 @@
+{
+  "id": "260901T1000-surea11y-validation",
+  "what": "Validate surea11y tool on webaim.org",
+  "strict": true,
+  "timeLimit": 60,
+  "acts": [
+    {
+      "type": "launch",
+      "which": "chromium",
+      "url": "https://webaim.org/",
+      "what": "Chromium browser"
+    },
+    {
+      "type": "test",
+      "which": "surea11y",
+      "what": "SureA11y",
+      "expect": [
+        [
+          "standardResult.outcomeTotals.failed",
+          ">",
+          0
+        ],
+        [
+          "standardResult.instances.0.outcome",
+          "!",
+          ""
+        ]
+      ]
+    }
+  ],
+  "sources": {},
+  "standard": "also",
+  "target": {
+    "url": "https://webaim.org/",
+    "what": "WebAIM home page"
+  },
+  "device": {
+    "id": "default",
+    "windowOptions": {}
+  },
+  "browserID": "chromium",
+  "timeStamp": "260901T1000",
+  "creationTimeStamp": "260901T1000",
+  "executionTimeStamp": "260901T1000"
+}

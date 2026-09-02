@@ -12,6 +12,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.reporter = void 0;
 const xPath_1 = require("../procs/xPath");
+const standard_1 = require("../procs/standard");
 /*
   The @qualweb packages declare their types only in package-exports maps, which
   this project's node10 module resolution cannot read, so the imports stay
@@ -71,11 +72,7 @@ const reporter = async (page, report, actIndex, timeLimit) => {
     // If standard results are to be reported:
     if (standard) {
         // Initialize the standard result.
-        result.standardResult = {
-            prevented: false,
-            totals: [0, 0, 0, 0],
-            instances: []
-        };
+        result.standardResult = (0, standard_1.getStandardResult)();
     }
     try {
         // Start the QualWeb core engine, which launches a Playwright browser.
@@ -225,21 +222,16 @@ const reporter = async (page, report, actIndex, timeLimit) => {
                                                     }
                                                     // If standard results are to be reported:
                                                     if (standard) {
-                                                        const ordinalSeverity = ordinalSeverities[section][verdict];
-                                                        // Increment the applicable total.
-                                                        standardResult.totals[ordinalSeverity]++;
-                                                        // Initialize a standard instance.
                                                         const what = `[${verdict}] ${raResult.description}`;
                                                         const xPath = (0, xPath_1.getAttributeXPath)(element.htmlCode);
-                                                        const instance = {
+                                                        // Add an instance to the standard result.
+                                                        (0, standard_1.addInstance)(standardResult, {
                                                             ruleID,
                                                             what,
                                                             ordinalSeverity: ordinalSeverities[section][verdict],
-                                                            count: 1,
+                                                            outcome: verdict === 'warning' ? 'cantTell' : 'failed',
                                                             catalogIndex: (0, xPath_1.getXPathCatalogIndex)(report, xPath)
-                                                        };
-                                                        // Add the instance to the standard result.
-                                                        standardResult.instances.push(instance);
+                                                        });
                                                     }
                                                 }
                                                 ;

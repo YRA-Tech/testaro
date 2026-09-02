@@ -1,10 +1,15 @@
-export type ToolID = 'alfa' | 'aslint' | 'axe' | 'ed11y' | 'htmlcs' | 'ibm' | 'nuVal' | 'nuVnu' | 'qualWeb' | 'testaro' | 'wave';
+export type ToolID = 'alfa' | 'aslint' | 'axe' | 'ed11y' | 'htmlcs' | 'ibm' | 'nuVal' | 'nuVnu' | 'pour' | 'qualWeb' | 'surea11y' | 'testaro' | 'wave';
+export type Outcome = 'failed' | 'cantTell';
+export type UncertaintyCode = 'not-computable' | 'judgement-required' | 'runtime-dependent' | 'spec-only' | 'equivalence-unknown' | 'out-of-scope';
 export type BrowserID = 'chromium' | 'firefox' | 'webkit';
 export type SeverityTotals = [number, number, number, number];
 export interface StandardInstance {
     ruleID: string;
     what: string;
     ordinalSeverity: 0 | 1 | 2 | 3;
+    outcome?: Outcome;
+    uncertainty?: UncertaintyCode;
+    needed?: string;
     count?: number;
     catalogIndex?: string | number;
     tagName?: string;
@@ -27,6 +32,7 @@ export interface BoundingBox {
 export interface StandardResult {
     prevented?: boolean;
     totals?: SeverityTotals;
+    outcomeTotals?: Record<Outcome, number>;
     instances?: StandardInstance[];
 }
 export interface CatalogEntry {

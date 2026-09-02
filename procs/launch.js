@@ -220,8 +220,8 @@ const goTo = exports.goTo = async (report, page, url, timeout, waitUntil) => {
       let waitSeconds = 5;
       if (retryHeader) {
         waitSeconds = Number.isNaN(Number(retryHeader))
-        ? Math.ceil((new Date(retryHeader) - new Date()) / 1000)
-        : Number(retryHeader);
+          ? Math.ceil((new Date(retryHeader) - new Date()) / 1000)
+          : Number(retryHeader);
       }
       // Return this.
       console.log(
@@ -514,7 +514,7 @@ const launchOnce = async opts => {
           };
           // Add a window method to return a standard proto-instance.
           window.getProtoInstance = (
-            element, ruleID, what, count = 1, ordinalSeverity, summaryTagName = ''
+            element, ruleID, what, count = 1, ordinalSeverity, summaryTagName = '', outcome = 'failed'
           ) => {
             // If an element has been specified:
             if (element) {
@@ -524,6 +524,7 @@ const launchOnce = async opts => {
                 what,
                 count,
                 ordinalSeverity,
+                outcome,
                 pathID: window.getXPath(element)
               };
             }
@@ -532,7 +533,8 @@ const launchOnce = async opts => {
               ruleID,
               what,
               count,
-              ordinalSeverity
+              ordinalSeverity,
+              outcome
             };
           };
         });
@@ -576,8 +578,8 @@ const launchOnce = async opts => {
       else {
         const {rejectionData} = navResult;
         const addendum = rejectionData
-        ? ` (rejection data: ${JSON.stringify(rejectionData, null, 2)})`
-        : '';
+          ? ` (rejection data: ${JSON.stringify(rejectionData, null, 2)})`
+          : '';
         // Throw an error.
         throw new Error(`Navigation failed: ${navResult.error}${addendum}`);
       }
@@ -711,7 +713,7 @@ exports.launch = async (opts = {}) => {
           actIndex === null ? true : abortAssertively,
           report,
           actIndex,
-          `Launch or navigation failed; retries and browser types exhausted`
+          'Launch or navigation failed; retries and browser types exhausted'
         );
       }
       // Return a failure.

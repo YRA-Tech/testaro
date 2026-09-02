@@ -12,6 +12,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.reporter = void 0;
 const xPath_1 = require("../procs/xPath");
+const standard_1 = require("../procs/standard");
 // CONSTANTS
 const https = require('https');
 /*
@@ -54,11 +55,7 @@ const reporter = async (page, report, actIndex) => {
     // If standard results are to be reported:
     if (standard) {
         // Initialize the standard result.
-        result.standardResult = {
-            prevented: false,
-            totals: [0, 0, 0, 0],
-            instances: []
-        };
+        result.standardResult = (0, standard_1.getStandardResult)();
     }
     // Get and process a WAVE API report and return the results.
     return await new Promise(resolve => https.get({
@@ -115,7 +112,7 @@ const reporter = async (page, report, actIndex) => {
                             // If standard results are to be reported:
                             if (standard) {
                                 const { standardResult } = result;
-                                const { totals, instances } = standardResult;
+                                const { totals } = standardResult;
                                 // Add the category violation count to the standard-result totals.
                                 totals[ordinalSeverity] += category.count;
                                 const annotatedItems = await page.evaluate(items => {
@@ -148,18 +145,15 @@ const reporter = async (page, report, actIndex) => {
                                     const { description, selectors } = annotatedItems[ruleID];
                                     // For each violation of the rule:
                                     for (const violation of selectors) {
-                                        // Initialize a standard instance.
-                                        const instance = {
+                                        const xPath = violation[1];
+                                        // Add an instance to the standard result. Alerts are uncertainty.
+                                        (0, standard_1.pushInstance)(standardResult, {
                                             ruleID,
                                             what: description,
                                             ordinalSeverity,
-                                            count: 1
-                                        };
-                                        const xPath = violation[1];
-                                        // Add the catalog index to the instance.
-                                        instance.catalogIndex = (0, xPath_1.getXPathCatalogIndex)(report, xPath);
-                                        // Add the instance to the standard result.
-                                        instances.push(instance);
+                                            outcome: categoryName === 'alert' ? 'cantTell' : 'failed',
+                                            catalogIndex: (0, xPath_1.getXPathCatalogIndex)(report, xPath)
+                                        });
                                     }
                                 }
                             }

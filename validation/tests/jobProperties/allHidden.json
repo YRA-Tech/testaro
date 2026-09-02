@@ -57,6 +57,11 @@
       "stopOnFail": true,
       "expect": [
         [
+          "standardResult.totals.0",
+          "=",
+          0
+        ],
+        [
           "standardResult.totals.1",
           "=",
           0
@@ -110,6 +115,11 @@
           0
         ],
         [
+          "standardResult.totals.3",
+          "=",
+          0
+        ],
+        [
           "standardResult.instances.length",
           "=",
           0
@@ -140,12 +150,17 @@
         [
           "standardResult.totals.1",
           "=",
-          1
+          0
         ],
         [
           "standardResult.totals.2",
           "=",
           0
+        ],
+        [
+          "standardResult.totals.3",
+          "=",
+          1
         ],
         [
           "standardResult.instances.length",
@@ -155,7 +170,22 @@
         [
           "standardResult.instances.0.what",
           "=",
-          "Main region is hidden"
+          "The entire page body is hidden or empty"
+        ],
+        [
+          "standardResult.instances.0.ordinalSeverity",
+          "=",
+          3
+        ],
+        [
+          "standardResult.instances.0.count",
+          "=",
+          1
+        ],
+        [
+          "standardResult.instances.0.outcome",
+          "=",
+          "failed"
         ]
       ],
       "withItems": true,
@@ -176,14 +206,24 @@
       "stopOnFail": true,
       "expect": [
         [
+          "standardResult.totals.0",
+          "=",
+          0
+        ],
+        [
           "standardResult.totals.1",
           "=",
-          1
+          0
         ],
         [
           "standardResult.totals.2",
           "=",
           0
+        ],
+        [
+          "standardResult.totals.3",
+          "=",
+          1
         ],
         [
           "standardResult.instances.length",
@@ -193,7 +233,22 @@
         [
           "standardResult.instances.0.what",
           "=",
-          "Main region is hidden"
+          "The entire page body is hidden or empty"
+        ],
+        [
+          "standardResult.instances.0.ordinalSeverity",
+          "=",
+          3
+        ],
+        [
+          "standardResult.instances.0.count",
+          "=",
+          1
+        ],
+        [
+          "standardResult.instances.0.outcome",
+          "=",
+          "failed"
         ]
       ],
       "withItems": true,
@@ -210,23 +265,33 @@
     {
       "type": "test",
       "which": "testaro",
-      "what": "entirely or mainly hidden page",
+      "what": "ARIA-hidden body is not visually hidden, so out of scope for this rule (see axe aria-hidden-body)",
       "stopOnFail": true,
       "expect": [
         [
+          "standardResult.totals.0",
+          "=",
+          0
+        ],
+        [
+          "standardResult.totals.1",
+          "=",
+          0
+        ],
+        [
           "standardResult.totals.2",
           "=",
-          1
+          0
+        ],
+        [
+          "standardResult.totals.3",
+          "=",
+          0
         ],
         [
           "standardResult.instances.length",
           "=",
-          1
-        ],
-        [
-          "standardResult.instances.0.what",
-          "=",
-          "Body is hidden"
+          0
         ]
       ],
       "withItems": true,
@@ -247,6 +312,21 @@
       "stopOnFail": true,
       "expect": [
         [
+          "standardResult.totals.0",
+          "=",
+          0
+        ],
+        [
+          "standardResult.totals.1",
+          "=",
+          0
+        ],
+        [
+          "standardResult.totals.2",
+          "=",
+          0
+        ],
+        [
           "standardResult.totals.3",
           "=",
           1
@@ -254,12 +334,27 @@
         [
           "standardResult.instances.length",
           "=",
-          3
+          1
         ],
         [
           "standardResult.instances.0.what",
           "=",
-          "Document is hidden"
+          "The entire page body is hidden or empty"
+        ],
+        [
+          "standardResult.instances.0.ordinalSeverity",
+          "=",
+          3
+        ],
+        [
+          "standardResult.instances.0.count",
+          "=",
+          1
+        ],
+        [
+          "standardResult.instances.0.outcome",
+          "=",
+          "failed"
         ]
       ],
       "withItems": true,
@@ -280,6 +375,16 @@
       "stopOnFail": true,
       "expect": [
         [
+          "standardResult.totals.0",
+          "=",
+          0
+        ],
+        [
+          "standardResult.totals.1",
+          "=",
+          0
+        ],
+        [
           "standardResult.totals.2",
           "=",
           0
@@ -297,7 +402,22 @@
         [
           "standardResult.instances.0.what",
           "=",
-          "Document is hidden"
+          "The entire page body is hidden or empty"
+        ],
+        [
+          "standardResult.instances.0.ordinalSeverity",
+          "=",
+          3
+        ],
+        [
+          "standardResult.instances.0.count",
+          "=",
+          1
+        ],
+        [
+          "standardResult.instances.0.outcome",
+          "=",
+          "failed"
         ]
       ],
       "withItems": true,

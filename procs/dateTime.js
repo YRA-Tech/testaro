@@ -28,7 +28,8 @@ exports.dateOf = timeStamp => {
     const dateString = punctuate(timeStamp.slice(0, 6), '-', 2);
     const timeString = punctuate(timeStamp.slice(7, 11), ':', 2);
     return new Date(`20${dateString}T${timeString}Z`);
-  } else {
+  }
+  else {
     return null;
   }
 };

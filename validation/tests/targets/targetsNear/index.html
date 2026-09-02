@@ -46,6 +46,16 @@
         background-color: #ccc;
         margin: 0.5rem 0;
       }
+      ul.tight > li {
+        margin: 0;
+        height: 16px;
+      }
+      a.stacked {
+        display: block;
+        padding: 0;
+        height: 16px;
+        line-height: 16px;
+      }
     </style>
   </head>
   <body>
@@ -75,7 +85,11 @@
         <li style="min-height: 3rem">W3C: <a class="deep" href="https://w3c.org">World Wide Web Consortium (big)</a></li>
         <li>WF: <a href="https://wikimedia.org">Wikimedia Foundation (small but inline)</a></li>
         <li>WF: <a href="https://wikimedia.org">Wikimedia Foundation (tiny but inline)</a></li>
-        <p>Violations to be determined after refactoring and redefinition</p>
+      </ul>
+      <p>Here are two links stacked with no space between them:</p>
+      <ul class="tight">
+        <li><a class="stacked" href="https://w3c.org">World Wide Web Consortium (stacked)</a></li>
+        <li><a class="stacked" href="https://wikimedia.org">Wikimedia Foundation (stacked)</a></li>
       </ul>
     </main>
   </body>

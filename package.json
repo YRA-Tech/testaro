@@ -1,7 +1,7 @@
 {
   "name": "testaro",
-  "version": "78.1.0",
-  "description": "Run 1300 web accessibility tests from 10 tools and get a standardized report",
+  "version": "78.2.0",
+  "description": "Run 1300 web accessibility tests from 12 tools and get a standardized report",
   "main": "run.js",
   "scripts": {
     "build:nameComputation": "esbuild src/nameComputation.js --bundle --format=iife --global-name=computeAccessibleName --outfile=dist/nameComputation.js",
@@ -15,7 +15,8 @@
     "typecheck": "tsc --noEmit",
     "build:ts": "tsc",
     "prepublishOnly": "npm run build:registry && npm run build:ts",
-    "build:registry": "node procs/generateRuleRegistry.js"
+    "build:registry": "node procs/generateRuleRegistry.js",
+    "lint": "eslint ."
   },
   "repository": {
     "type": "git",
@@ -59,7 +60,9 @@
   "devDependencies": {
     "dom-accessibility-api": "^0.7.1",
     "esbuild": "^0.28.2",
+    "@eslint/js": "^10.0.1",
     "eslint": "^10.8.1",
+    "globals": "^17.12.0",
     "typescript": "^5.6.0",
     "@types/node": "^20.0.0"
   },

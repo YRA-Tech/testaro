@@ -16,6 +16,7 @@ import type {Page} from 'playwright';
 // Shared configuration for timeout multiplier.
 import {applyMultiplier} from '../procs/config';
 import {getNormalizedXPath, getXPathCatalogIndex} from '../procs/xPath';
+import {getStandardResult, addInstance} from '../procs/standard';
 import type {Act, Report, StandardResult} from '../types';
 
 // TYPES
@@ -160,11 +161,7 @@ export const reporter = async (page: Page, report: Report, actIndex: number) => 
   // If standard results are to be reported:
   if (standard) {
     // Initialize the standard result.
-    result.standardResult = {
-      prevented: false,
-      totals: [0, 0, 0, 0],
-      instances: []
-    };
+    result.standardResult = getStandardResult();
   }
   const {standardResult} = result;
   // Get the ASLint runner and bundle scripts.
@@ -276,15 +273,13 @@ export const reporter = async (page: Page, report: Report, actIndex: number) => 
               // Use it to get the index of the element in the catalog.
               const catalogIndex = getXPathCatalogIndex(report, pathID);
               // Add an instance to the standard result.
-              standardResult.instances!.push({
+              addInstance(standardResult, {
                 ruleID,
                 what,
                 ordinalSeverity,
-                count: 1,
+                outcome: issueType === 'warning' ? 'cantTell' : 'failed',
                 catalogIndex
               });
-              // Increment the standard total.
-              standardResult.totals![ordinalSeverity]++;
             }
           }
         }

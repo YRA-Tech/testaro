@@ -47,6 +47,7 @@ exports.reporter = void 0;
 // IMPORTS
 const fs = __importStar(require("fs/promises"));
 const xPath_1 = require("../procs/xPath");
+const standard_1 = require("../procs/standard");
 /*
   htmlcs
   Implements the HTML CodeSniffer ruleset.
@@ -74,11 +75,7 @@ const reporter = async (page, report, actIndex) => {
     // If standard results are to be reported:
     if (standard) {
         // Initialize the standard result.
-        result.standardResult = {
-            prevented: false,
-            totals: [0, 0, 0, 0],
-            instances: []
-        };
+        result.standardResult = (0, standard_1.getStandardResult)();
     }
     const { nativeResult, standardResult } = result;
     // Get the HTMLCS script.
@@ -174,14 +171,13 @@ const reporter = async (page, report, actIndex) => {
             // If standard results are to be reported and the message reports an error or warning:
             if (standard && ['Error', 'Warning'].includes(parts[0])) {
                 const xPath = (0, xPath_1.getAttributeXPath)(parts[5]);
-                const instance = {
+                (0, standard_1.pushInstance)(standardResult, {
                     ruleID: `${parts[0][0]}-${parts[1]}`,
                     what: parts[4],
                     ordinalSeverity: parts[0] === 'Warning' ? 0 : 2,
-                    count: 1,
+                    outcome: parts[0] === 'Warning' ? 'cantTell' : 'failed',
                     catalogIndex: (0, xPath_1.getXPathCatalogIndex)(report, xPath)
-                };
-                standardResult.instances.push(instance);
+                });
             }
         }
         // If standard results are to be reported:

@@ -16,9 +16,14 @@
       "stopOnFail": true,
       "expect": [
         [
+          "standardResult.totals.0",
+          "=",
+          3
+        ],
+        [
           "standardResult.totals.2",
           "=",
-          2
+          0
         ],
         [
           "standardResult.totals.3",
@@ -28,7 +33,7 @@
         [
           "standardResult.instances.length",
           "=",
-          2
+          3
         ],
         [
           "standardResult.instances.0.ruleID",
@@ -38,12 +43,17 @@
         [
           "standardResult.instances.0.what",
           "i",
-          "Ineligible element has"
+          "Likely ineffective title attribute is used on the p element"
         ],
         [
           "standardResult.instances.0.ordinalSeverity",
           "=",
-          2
+          0
+        ],
+        [
+          "standardResult.instances.0.outcome",
+          "=",
+          "failed"
         ],
         [
           "standardResult.instances.0.tagName",
@@ -79,6 +89,21 @@
           "standardResult.instances.1.excerpt",
           "i",
           "still violates"
+        ],
+        [
+          "standardResult.instances.2.what",
+          "i",
+          "on the button element"
+        ],
+        [
+          "standardResult.instances.2.tagName",
+          "=",
+          "BUTTON"
+        ],
+        [
+          "standardResult.instances.2.excerpt",
+          "i",
+          "Click me"
         ]
       ],
       "rules": [
@@ -93,12 +118,17 @@
       "stopOnFail": true,
       "expect": [
         [
-          "standardResult.totals.2",
+          "standardResult.totals.0",
           "=",
-          2
+          3
         ],
         [
           "standardResult.totals.1",
+          "=",
+          0
+        ],
+        [
+          "standardResult.totals.2",
           "=",
           0
         ],
@@ -115,17 +145,17 @@
         [
           "standardResult.instances.0.what",
           "i",
-          "elements have"
+          "title attributes are used on elements they are likely ineffective on"
         ],
         [
           "standardResult.instances.0.ordinalSeverity",
           "=",
-          2
+          0
         ],
         [
           "standardResult.instances.0.count",
           "=",
-          2
+          3
         ],
         [
           "standardResult.instances.0.tagName",

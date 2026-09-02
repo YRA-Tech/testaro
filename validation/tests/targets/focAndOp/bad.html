@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<!--
+  © 2021–2023 CVS Health and/or one of its affiliates. All rights reserved.
+  © 2026 Jeff Witt.
+
+  Licensed under the MIT License. See LICENSE file at the project root or
+  https://opensource.org/license/mit/ for details.
+
+  SPDX-License-Identifier: MIT
+-->
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <title>Page with deviant focusability and operability</title>
+    <meta name="description" content="tester">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+  </head>
+  <body>
+    <main>
+      <h1>Page with deviant focusability and operability</h1>
+      <p>This paragraph contains a link to <a href="https://en.wikipedia.org">information</a>, a <button id="badButton" type="button" tabindex="-1">button</button>, and a <label>text input <input type="text"></label>. Defect 1: The button is operable but not focusable.</p>
+      <p>Defect 2: This <span id="badSpan" tabindex="0">focusable span</span> is not operable.</p>
+      <p>But this <span tabindex="0" onclick="window.alert('Clicked')">second focusable span</span> is deemed operable, since it has a click handler, and this <span tabindex="0" role="button">third focusable span</span> is deemed operable, since it has a button role.</p>
+      <p>Defect 3: This paragraph contains a <span style="font-weight: bold" tabindex="0">focusable part</span> that is not operable.</p>
+      <p>Defect 4: If you click <span id="clickable" style="color: red" onclick="document.getElementById('clickable').style.color = 'black'">this text</span>, it will turn black, but it is not focusable.</p>
+      <p>Defect 5: This <span id="pointer" style="cursor: pointer">word</span> is not focusable, but its cursor makes you think it is operable.</p>
+    </main>
+  </body>
+</html>

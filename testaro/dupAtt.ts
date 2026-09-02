@@ -23,6 +23,19 @@ import type {Report, StandardInstance} from '../types';
 
 // ########## FUNCTIONS
 
+// Returns the catalog index of the element with an ID and tag name, or of the body if none does. Duplicate attributes are found in the source, not the DOM, so the ID is the only handle on the element.
+const getIDCatalogIndex = (report: Report, tagName: string, id: string): string => {
+  const {catalog} = report;
+  if (id && catalog) {
+    const index = Object.keys(catalog).find(
+      key => catalog[key].id === id && catalog[key].tagName === tagName
+    );
+    if (index !== undefined) {
+      return index;
+    }
+  }
+  return getXPathCatalogIndex(report, '/html/body');
+};
 // Runs the test and returns the result.
 export const reporter = async (page: Page, report: Report, _: unknown, withItems: boolean) => {
   // Initialize the data and standard result.
@@ -106,7 +119,7 @@ export const reporter = async (page: Page, report: Report, _: unknown, withItems
           what: `${item.tagName} element has 2 attributes named ${item.duplicatedAttribute}`,
           ordinalSeverity: 2,
           count: 1,
-          catalogIndex: getXPathCatalogIndex(report, '/html/body')
+          catalogIndex: getIDCatalogIndex(report, item.tagName, item.id)
         });
       });
     }

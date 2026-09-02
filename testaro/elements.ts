@@ -54,6 +54,7 @@ export const reporter = async (
   page: Page,
   _0: unknown,
   _1: unknown,
+  _2: unknown,
   detailLevel = 0,
   tagName: string | null = null,
   onlyVisible = false,

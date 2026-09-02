@@ -53,11 +53,13 @@ Testaro can perform tests of these _rule engines_:
 - [Editoria11y](https://github.com/itmaybejj/editoria11y) (Princeton University)
 - [HTML CodeSniffer](https://www.npmjs.com/package/html_codesniffer) (Squiz Labs)
 - [Nu Html Checker](https://github.com/validator/validator) (World Wide Web Consortium)
+- [Pour Engine](https://github.com/pourdev/pour-engine) (David Yarham and Geoffrey Crofte)
 - [QualWeb](https://www.npmjs.com/package/@qualweb/core) (University of Lisbon)
+- [SureA11y](https://github.com/SureA11y/core) (Jorge Rumoroso)
 - [Testaro](https://www.npmjs.com/package/testaro) (CVS Health)
 - [WAVE](https://wave.webaim.org/api/) (WebAIM)
 
-For the rule engines that are open-source, the identified organizations are their principal or original sponsors.
+For the rule engines that are open-source, the identified organizations or persons are their principal or original sponsors or authors.
 
 As shown, Testaro is not only an integrator but also one of the integrated rule engines. That is because it provides about 50 tests of its own, mostly to complement tests provided by the other rule engines. Some of those Testaro tests are designed to act as approximate alternatives to tests of vulnerable, restricted, or no longer available rule engines. In all such cases the Testaro tests are independently designed and implemented, without reference to the code of the tests that inspired them.
 
@@ -363,6 +365,7 @@ Testaro uses the following techniques to make the rule engines calculate XPaths:
 
 - `alfa` and `aslint`: They report XPaths, so Testaro needs only to normalize them.
 - `ed11y`: Testaro adds it and a `window.getXPath` method to the page. When the rule engine reports an element, Testaro computes its XPath.
+- `pour` and `surea11y`: Testaro adds the vendored engine bundle and a `window.getXPath` method to the page. Each engine reports a CSS selector for each element; Testaro finds the element in the page via its selector and executes `window.getXPath` on it.
 - `wave`: It reports a selector for each element; Testaro finds each element in the page via its selector and executes `window.getXPath` on the element.
 - `htmlcs`, `ibm`, `nuVal`, `nuVnu`, `qualWeb`: Testaro adds `data-xpath` attributes to all elements. The rule engines include code excerpts, with the `data-xpath` attributes, in the reported violations.
 - `axe`: It reports a selector for each element, and Testaro adds `data-xpath` attributes to all elements. Testaro finds each element in the page via its selector and uses the `data-xpath` attribute. When this fails, Testaro uses the `data-xpath` attribute if its complete value is included in the reported `node.html` value.
@@ -407,23 +410,32 @@ Details about these expectation properties are documened in the `VALIDATION.md` 
 
 #### Standard results
 
-If the job instructs Testaro to include standard results, then the `result.standardResult` property of each act of type `test` will have three properties:
+If the job instructs Testaro to include standard results, then the `result.standardResult` property of each act of type `test` will have four properties:
 
 - `prevented`: Whether the rule engine was prevented from performing the act
 - `totals`: An array of 4 integers, counting the rule violations at 4 severity levels
+- `outcomeTotals`: An object counting the rule violations by outcome: `{failed, cantTell}`
 - `instances`: An array of data about the violations reported by the rule engine
 
 More specifically:
 
 - The `totals` value is an array like this: `[3, 0, 87, 4]`. This example would mean that the rule engine reported 3 failures at severity 0 (the least severe level), none at severity 1, 87 at severity 2, and 4 at severity 3. These four severities are conceptually ordinal, not metric.
+- The `outcomeTotals` value is an object like this: `{failed: 87, cantTell: 7}`. It counts the violations (weighted by `count`) that the rule engine asserted versus those it flagged as uncertain.
 - The `instances` value is an array of objects, each having these properties:
-  - `ruleId`: The ID of the rule that was violated
+  - `ruleID`: The ID of the rule that was violated
   - `what`: A description of the rule or of the violation
   - `ordinalSeverity`: The severity of the violation
+  - `outcome`: `failed` if the rule engine asserted the violation, or `cantTell` if the rule engine reported that it could not determine whether the rule was violated (the vocabulary of the ACT Rules Format). Every instance has an outcome.
+  - `uncertainty` (only with `cantTell`, and only if the rule engine gave a reason): One of `not-computable`, `judgement-required`, `runtime-dependent`, `spec-only`, `equivalence-unknown`, `out-of-scope`
+  - `needed` (only with `cantTell`, and only if the rule engine said): What a reviewer must determine to resolve the uncertainty
   - `count`: How many violations of the rule this instance reports
   - `catalogIndex`: Key of the HTML element in the catalog
 
 If no catalog entry was found for the instance, then instead of a `catalogIndex` property Testaro tries to insert a `pathID` property, whose value is a normalized XPath of the offending HTML element.
+
+The `outcome` property is the authoritative certainty signal. In version 78, each tool's `ordinalSeverity` conventions are unchanged from earlier versions: most tools encode uncertainty as a low severity (for example, axe `incomplete` results have severities 0 and 1, and `violations` have severities 2 and 3), so `ordinalSeverity` still mixes certainty with impact, and it mixes them differently per tool. Consumers should read `outcome` for certainty and should not infer it from `ordinalSeverity`. A later major version will redefine `ordinalSeverity` as impact only (0 minor, 1 moderate, 2 serious, 3 critical). Design record: `docs/standard-result-outcome.md`.
+
+Testaro's own rules report `failed` unless the rule's entry in `allRules` (in `tests/testaro.ts`) specifies `outcome: 'cantTell'` (for example, `allCaps`, whose violations are AI estimates) or a violation description carries a prefix: `2:` sets severity 2, `2?:` sets severity 2 and outcome `cantTell`, and `?:` sets outcome `cantTell` at the rule's default severity.
 
 ## Rule-engine details
 
@@ -496,6 +508,10 @@ The `nuVal` and `nuVnu` rule engines perform the tests of the Nu Html Checker. T
 
 Its `rules` argument is **not** an array of rule IDs, but instead is an array of rule _specifications_. A rule specification for `nuVal` or `nuVnu` is a string with the format `=ruleID` or `~ruleID`. The `=` prefix indicates that the rule ID is invariable. The `~` prefix indicates that the rule ID is variable, in which case the `ruleID` part of the specification is a matching regular expression, rather than the exact text of a message. This `rules` format arises from the fact that `nuVal` and `nuVnu` generate customized messages and do not accompany them with rule identifiers.
 
+### Pour Engine
+
+The `pour` rule engine makes use of the `pour/pour.min.js` file, a bundle that Testaro builds from the upstream [pour-engine](https://github.com/pourdev/pour-engine) repository (MIT), because upstream publishes no distributable bundle. The `pour/README.md` file documents the build command and the pinned upstream version. Testaro injects the bundle into the page and runs every rule. Findings in the engine's `violations` bucket become standard instances with outcome `failed`; findings in its `incomplete` bucket become instances with outcome `cantTell`. The engine's `passes`, `inapplicable`, and `manualReview` buckets are tallied in the act's `data` property and never become instances. If the bundle is missing or fails to define its global, the act is reported as prevented.
+
 ### QualWeb
 
 The `qualWeb` rule engine performs the ACT rules, WCAG Techniques, and best-practices tests of QualWeb. Only failures and warnings are included in the report. The EARL report of QualWeb is not generated, because it is equivalent to the report of the ACT rules tests.
@@ -523,11 +539,15 @@ The target can be provided to QualWeb either as HTML or as a URL. Experience ind
 
 QualWeb creates sandboxed Playwright pages to perform its tests on. Therefore, the host must permit sandboxed browsers to be launched. See the discussion above about browser security.
 
+### SureA11y
+
+The `surea11y` rule engine makes use of the `surea11y/surea11y.browser.js` file, the standalone browser bundle that [`@surea11y/core`](https://github.com/SureA11y/core) publishes, vendored verbatim. That package is licensed under the Mozilla Public License 2.0, unlike the MIT-licensed or Apache-licensed rule engines; the vendored file must not be modified. The `surea11y/README.md` file documents the pinned upstream version and the result shape. Testaro injects the bundle into the page and runs every automatic rule. The engine reports an outcome per rule (`pass`, `fail`, `cantTell`, or `notApplicable`) and may grade individual occurrences of a `fail` rule as `cantTell`. Occurrences graded `fail` become standard instances with outcome `failed`; occurrences graded `cantTell` become instances with outcome `cantTell`, carrying the engine's `uncertainty` code and `needed` guidance when it supplies them. Rules of type `manual` and rules with outcome `pass` or `notApplicable` are tallied in the act's `data` property and never become instances.
+
 ### Testaro
 
 The rules that Testaro can test for are implemented in files within the `testaro` directory.
 
-The Testaro rules are classified by an `allRules` array defined in the `tests/testaro.js` file. Each item in that array is an object with these properties:
+The Testaro rules are classified by an `allRules` array defined in the `tests/testaro.ts` file. Each item in that array is an object with these properties:
 
 - `id`: the rule ID.
 - `what`: a description of the rule.

@@ -14,6 +14,7 @@
 import type {Page} from 'playwright';
 import type {AxeResults, NodeResult, RunOptions} from 'axe-core';
 import {getAttributeXPath, getXPathCatalogIndex} from '../procs/xPath';
+import {getStandardResult, addInstance} from '../procs/standard';
 import type {Act, Report, StandardInstance, StandardResult} from '../types';
 const axePlaywright = require('axe-playwright') as typeof import('axe-playwright');
 
@@ -92,11 +93,7 @@ export const reporter = async (page: Page, report: Report, actIndex: number) => 
   // If standard results are to be reported:
   if (standard) {
     // Initialize the standard result.
-    result.standardResult = {
-      prevented: false,
-      totals: [0, 0, 0, 0],
-      instances: []
-    };
+    result.standardResult = getStandardResult();
   }
   const {nativeResult, standardResult} = result;
   // Inject axe-core into the page.
@@ -224,22 +221,19 @@ export const reporter = async (page: Page, report: Report, actIndex: number) => 
                 // Get the ordinal severity of the suspicion.
                 const ordinalSeverity = severityWeights[node.impact as AxeImpact]
                 + (certainty === 'violations' ? 2 : 0);
-                // Increment the standard total.
-                standardResult.totals![ordinalSeverity]++;
                 // Get the XPath of the suspected element from its data-xpath
                 // attribute. Prefer the full value resolved from the live DOM
                 // (above); fall back to parsing it out of axe's node.html,
                 // which axe truncates and can corrupt the XPath.
                 const xPath = fullXPathByTargetKey[JSON.stringify(node.target)]
                 || getAttributeXPath(node.html);
-                const instance: StandardInstance = {
+                addInstance(standardResult, {
                   ruleID: rule.id,
                   what: Array.from(whatSet.values()).join('; '),
-                  ordinalSeverity: ordinalSeverity as StandardInstance['ordinalSeverity'],
-                  count: 1,
+                  ordinalSeverity,
+                  outcome: certainty === 'violations' ? 'failed' : 'cantTell',
                   catalogIndex: getXPathCatalogIndex(report, xPath)
-                };
-                standardResult.instances!.push(instance);
+                });
               });
             });
           }

@@ -5,36 +5,9 @@
     {
       "type": "launch",
       "target": {
-        "url": "file://validation/tests/targets/embAc/good.html",
-        "what": "page without embedding in links or buttons"
+        "url": "file://validation/tests/targets/embAc/bad.html",
+        "what": "page with embeddings in links and buttons"
       }
-    },
-    {
-      "type": "test",
-      "which": "testaro",
-      "withItems": true,
-      "stopOnFail": true,
-      "expect": [
-        [
-          "standardResult.totals.2",
-          "=",
-          0
-        ],
-        [
-          "standardResult.instances.length",
-          "=",
-          0
-        ]
-      ],
-      "rules": [
-        "y",
-        "embAc"
-      ]
-    },
-    {
-      "type": "url",
-      "which": "file://validation/tests/targets/embAc/bad.html",
-      "what": "page with embeddings in links and buttons"
     },
     {
       "type": "test",
@@ -88,9 +61,14 @@
           "buttons"
         ],
         [
+          "standardResult.instances.1.tagName",
+          "=",
+          "INPUT"
+        ],
+        [
           "standardResult.instances.1.excerpt",
           "i",
-          "yes"
+          "checkboxes"
         ],
         [
           "standardResult.instances.6.ordinalSeverity",
@@ -122,7 +100,7 @@
         [
           "standardResult.instances.0.what",
           "i",
-          "are contained"
+          "are embedded in"
         ],
         [
           "standardResult.instances.0.count",
@@ -133,6 +111,33 @@
           "standardResult.instances.0.ordinalSeverity",
           "=",
           2
+        ]
+      ],
+      "rules": [
+        "y",
+        "embAc"
+      ]
+    },
+    {
+      "type": "url",
+      "which": "file://validation/tests/targets/embAc/good.html",
+      "what": "page without embedding in links or buttons"
+    },
+    {
+      "type": "test",
+      "which": "testaro",
+      "withItems": true,
+      "stopOnFail": true,
+      "expect": [
+        [
+          "standardResult.totals.2",
+          "=",
+          0
+        ],
+        [
+          "standardResult.instances.length",
+          "=",
+          0
         ]
       ],
       "rules": [

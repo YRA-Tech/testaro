@@ -16,7 +16,7 @@
       "stopOnFail": true,
       "expect": [
         [
-          "standardResult.totals.1",
+          "standardResult.totals.0",
           "=",
           5
         ],
@@ -63,12 +63,32 @@
         [
           "standardResult.instances.3.ordinalSeverity",
           "=",
-          1
+          0
         ],
         [
           "standardResult.instances.4.tagName",
           "=",
           "SPAN"
+        ],
+        [
+          "standardResult.totals.1",
+          "=",
+          0
+        ],
+        [
+          "standardResult.instances.0.what",
+          "i",
+          "rotation transformation"
+        ],
+        [
+          "standardResult.instances.2.what",
+          "i",
+          "perspective transformation"
+        ],
+        [
+          "standardResult.instances.3.what",
+          "i",
+          "scale transformation"
         ]
       ],
       "rules": [
@@ -83,7 +103,7 @@
       "stopOnFail": true,
       "expect": [
         [
-          "standardResult.totals.1",
+          "standardResult.totals.0",
           "=",
           5
         ],
@@ -96,6 +116,11 @@
           "standardResult.instances.0.count",
           "=",
           5
+        ],
+        [
+          "standardResult.instances.0.ordinalSeverity",
+          "=",
+          0
         ]
       ],
       "rules": [

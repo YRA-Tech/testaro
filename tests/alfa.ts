@@ -13,6 +13,7 @@
 
 import type {Page} from 'playwright';
 import {getNormalizedXPath, getXPathCatalogIndex} from '../procs/xPath';
+import {getStandardResult, addInstance} from '../procs/standard';
 import {applyMultiplier} from '../procs/config';
 import type {Act, Report, StandardInstance, StandardResult} from '../types';
 /*
@@ -105,11 +106,7 @@ export const reporter = async (page: Page, report: Report, actIndex: number) => 
   // If standard results are to be reported:
   if (standard) {
     // Initialize the standard result.
-    result.standardResult = {
-      prevented: false,
-      totals: [0, 0, 0, 0],
-      instances: []
-    };
+    result.standardResult = getStandardResult();
   }
   try {
     try {
@@ -169,7 +166,7 @@ export const reporter = async (page: Page, report: Report, actIndex: number) => 
           if (standard) {
             const {requirements, uri} = rule;
             // Get the rule ID of the item.
-            let ruleID = uri.replace(/^.+-/, '');
+            const ruleID = uri.replace(/^.+-/, '');
             // Get the rule description of the item.
             let what = (expectations?.[0]?.[1]?.error?.message || '').trim().replace(/\s+/g, ' ');
             if (! what) {
@@ -177,24 +174,19 @@ export const reporter = async (page: Page, report: Report, actIndex: number) => 
                 what = requirements[0].title;
               }
             }
-            // Get the ordinal severity of the item.
-            let ordinalSeverity: StandardInstance['ordinalSeverity'] = 2;
-            // If the outcome is untestability:
-            if (outcome === 'cantTell') {
-              // Revise the rule-specific properties.
-              ruleID = ['r66', 'r69'].includes(ruleID) ? 'cantTell' : 'cantTellTextContrast';
-              what = `cannot test for rule ${ruleID}: ${what}`;
-              ordinalSeverity = 0;
-            }
-            // Increment the standard total.
-            standardResult.totals![ordinalSeverity]++;
+            // An untestable item keeps its rule ID; its outcome records the uncertainty. The
+            // contrast rules (r66, r69) cannot tell when a background needs human judgement.
+            const isCantTell = outcome === 'cantTell';
             const xPath = getNormalizedXPath(item.path?.replace(/\/text\(\).*$/, '') || '/html');
             // Add an instance to the standard instances.
-            standardResult.instances!.push({
+            addInstance(standardResult, {
               ruleID,
               what,
-              ordinalSeverity,
-              count: 1,
+              ordinalSeverity: isCantTell ? 0 : 2,
+              outcome: isCantTell ? 'cantTell' : 'failed',
+              uncertainty: isCantTell && ['r66', 'r69'].includes(ruleID)
+                ? 'judgement-required'
+                : undefined,
               catalogIndex: getXPathCatalogIndex(report, xPath)
             });
           }

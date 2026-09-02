@@ -12,6 +12,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.reporter = void 0;
 const xPath_1 = require("../procs/xPath");
+const standard_1 = require("../procs/standard");
 const config_1 = require("../procs/config");
 /*
   The alfa packages are pure ESM that Node loads via require(esm); their own
@@ -52,11 +53,7 @@ const reporter = async (page, report, actIndex) => {
     // If standard results are to be reported:
     if (standard) {
         // Initialize the standard result.
-        result.standardResult = {
-            prevented: false,
-            totals: [0, 0, 0, 0],
-            instances: []
-        };
+        result.standardResult = (0, standard_1.getStandardResult)();
     }
     try {
         try {
@@ -116,7 +113,7 @@ const reporter = async (page, report, actIndex) => {
                     if (standard) {
                         const { requirements, uri } = rule;
                         // Get the rule ID of the item.
-                        let ruleID = uri.replace(/^.+-/, '');
+                        const ruleID = uri.replace(/^.+-/, '');
                         // Get the rule description of the item.
                         let what = (expectations?.[0]?.[1]?.error?.message || '').trim().replace(/\s+/g, ' ');
                         if (!what) {
@@ -124,24 +121,19 @@ const reporter = async (page, report, actIndex) => {
                                 what = requirements[0].title;
                             }
                         }
-                        // Get the ordinal severity of the item.
-                        let ordinalSeverity = 2;
-                        // If the outcome is untestability:
-                        if (outcome === 'cantTell') {
-                            // Revise the rule-specific properties.
-                            ruleID = ['r66', 'r69'].includes(ruleID) ? 'cantTell' : 'cantTellTextContrast';
-                            what = `cannot test for rule ${ruleID}: ${what}`;
-                            ordinalSeverity = 0;
-                        }
-                        // Increment the standard total.
-                        standardResult.totals[ordinalSeverity]++;
+                        // An untestable item keeps its rule ID; its outcome records the uncertainty. The
+                        // contrast rules (r66, r69) cannot tell when a background needs human judgement.
+                        const isCantTell = outcome === 'cantTell';
                         const xPath = (0, xPath_1.getNormalizedXPath)(item.path?.replace(/\/text\(\).*$/, '') || '/html');
                         // Add an instance to the standard instances.
-                        standardResult.instances.push({
+                        (0, standard_1.addInstance)(standardResult, {
                             ruleID,
                             what,
-                            ordinalSeverity,
-                            count: 1,
+                            ordinalSeverity: isCantTell ? 0 : 2,
+                            outcome: isCantTell ? 'cantTell' : 'failed',
+                            uncertainty: isCantTell && ['r66', 'r69'].includes(ruleID)
+                                ? 'judgement-required'
+                                : undefined,
                             catalogIndex: (0, xPath_1.getXPathCatalogIndex)(report, xPath)
                         });
                     }

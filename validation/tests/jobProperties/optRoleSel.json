@@ -26,6 +26,11 @@
           0
         ],
         [
+          "standardResult.instances.length",
+          "=",
+          1
+        ],
+        [
           "standardResult.instances.0.ruleID",
           "=",
           "optRoleSel"
@@ -33,7 +38,7 @@
         [
           "standardResult.instances.0.what",
           "=",
-          "Element has an explicit option role but no aria-selected attribute"
+          "Element has role=option but no aria-selected attribute"
         ],
         [
           "standardResult.instances.0.ordinalSeverity",
@@ -64,6 +69,11 @@
           "standardResult.instances.0.excerpt",
           "=",
           "Vegan"
+        ],
+        [
+          "standardResult.instances.0.outcome",
+          "=",
+          "failed"
         ]
       ],
       "rules": [
@@ -100,7 +110,7 @@
         [
           "standardResult.instances.0.what",
           "=",
-          "Elements with explicit option roles have no aria-selected attributes"
+          "Elements with role=option have no aria-selected attributes"
         ],
         [
           "standardResult.instances.0.ordinalSeverity",
