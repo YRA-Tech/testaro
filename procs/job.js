@@ -17,6 +17,8 @@
 
 // Requirements for acts.
 const {actSpecs} = require('../actSpecs');
+// Load states a navigation can wait for.
+const {waitStates} = require('./config');
 // Data on devices.
 const {devices} = require('playwright');
 // Module to get dates from time stamps.
@@ -367,6 +369,27 @@ exports.isValidJob = job => {
       return {
         isValid: false,
         error: 'Bad job jobData'
+      };
+    }
+    // Deployment options, if present, must be well formed.
+    const {navigation, browserChannel} = job;
+    if (
+      navigation !== undefined && (
+        ! navigation || typeof navigation !== 'object'
+        || (navigation.waitUntil !== undefined && ! waitStates.includes(navigation.waitUntil))
+        || (navigation.timeout !== undefined && ! (Number.isInteger(navigation.timeout) && navigation.timeout > 0))
+        || (navigation.failFast4xx !== undefined && typeof navigation.failFast4xx !== 'boolean')
+      )
+    ) {
+      return {
+        isValid: false,
+        error: 'Bad job navigation (waitUntil networkidle, load, or domcontentloaded; timeout a positive integer; failFast4xx a boolean)'
+      };
+    }
+    if (browserChannel !== undefined && ! ['bundled', 'chrome', 'msedge'].includes(browserChannel)) {
+      return {
+        isValid: false,
+        error: 'Bad job browserChannel (must be bundled, chrome, or msedge if present)'
       };
     }
     return {

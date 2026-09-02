@@ -18,7 +18,7 @@
 
 // Shared configuration for timeout multiplier.
 import type {Page} from 'playwright';
-import {applyMultiplier} from '../procs/config';
+import {applyMultiplier, ruleLaunchRetries} from '../procs/config';
 import {browserClose, launch} from '../procs/launch';
 // Function to get an empty standard result.
 import {getStandardResult} from '../procs/standard';
@@ -59,6 +59,8 @@ interface TestaroAct extends Act {
   rules?: string[];
   launch?: {browserID?: BrowserID};
   scope?: 'page' | 'changed';
+  // Launch retries per rule (default TESTARO_RULE_RETRIES, else 2).
+  retries?: number;
 }
 // The result of one rule test.
 interface RuleTestResult {
@@ -670,7 +672,9 @@ export const reporter = async (page: Page | undefined, report: Report, actIndex:
           headEmulation,
           xPathNeed: 'script',
           needsAccessibleName: jobRules[ruleIndex].needsAccessibleName,
-          retries: 2
+          retries: Number.isInteger(act.retries) && (act.retries as number) >= 0
+            ? act.retries as number
+            : ruleLaunchRetries
         });
       }
       // If no page exists, the launch (or the replay of a checkpoint's acts) failed: the

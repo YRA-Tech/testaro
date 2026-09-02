@@ -55,9 +55,13 @@ The validity criterion named in item 2 may be any of these:
 - `'isWaitable'`: is `'url'`, `'title'`, or `'body'`
 - `'areStrings'`: is an array of strings
 
+## qualWeb tool
+
+A `qualWeb` test act may have `stealth` and `adBlock` boolean properties, which set whether the tool's browser runs stealth evasions and blocks ads and trackers (defaults `QUALWEB_STEALTH` and `QUALWEB_ADBLOCK`, else true).
+
 ## testaro tool
 
-The `tools.testaro` object has an `args` property specifying that a `testaro` test act may include an `args` property with an object value.
+The `tools.testaro` object has a `retries` property (launch retries per rule; default `TESTARO_RULE_RETRIES`, else 2) and an `args` property specifying that a `testaro` test act may include an `args` property with an object value.
 
 If it does, the property names of the object value must be `testaro` rule IDs. Any property value must be an array of the positional arguments to be concatenated to the four default arguments (`page`, `report`, `actIndex`, and `withItems`) in the signature of the `reporter` function of each `testaro` rule.
 

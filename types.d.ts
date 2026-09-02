@@ -178,6 +178,15 @@ export interface Report {
     acts: Act[];
     imageColor?: number;
     imageScale?: number;
+    stealth?: boolean;
+    browserChannel?: 'bundled' | 'chrome' | 'msedge';
+    scannerId?: string;
+    scroll?: boolean;
+    navigation?: {
+        waitUntil?: 'networkidle' | 'load' | 'domcontentloaded';
+        timeout?: number;
+        failFast4xx?: boolean;
+    };
     images?: string[];
     catalog?: Catalog;
     checkpoints?: Checkpoint[];

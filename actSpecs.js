@@ -212,12 +212,20 @@ exports.actSpecs = {
         withSource: [false, 'boolean', '', 'whether to use the page source and not the browser page']
       }
     ],
+    qualWeb: [
+      'Perform QualWeb tests',
+      {
+        stealth: [false, 'boolean', '', 'whether the browser runs stealth evasions (default QUALWEB_STEALTH, else true)'],
+        adBlock: [false, 'boolean', '', 'whether the browser blocks ads and trackers (default QUALWEB_ADBLOCK, else true)']
+      }
+    ],
     testaro: [
       'Perform Testaro tests',
       {
         withItems: [true, 'boolean', '', 'itemize'],
         stopOnFail: [true, 'boolean', '', 'whether testing is to stop after first failure'],
-        args: [false, 'object', 'areArrays', 'extra arguments of rules taking any']
+        args: [false, 'object', 'areArrays', 'extra arguments of rules taking any'],
+        retries: [false, 'number', '', 'launch retries per rule (default TESTARO_RULE_RETRIES, else 2)']
       }
     ],
     wave: [

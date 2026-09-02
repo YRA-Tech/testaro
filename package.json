@@ -1,6 +1,6 @@
 {
   "name": "testaro",
-  "version": "78.3.0",
+  "version": "78.4.0",
   "description": "Run 1300 web accessibility tests from 12 tools and get a standardized report",
   "main": "run.js",
   "scripts": {
@@ -35,6 +35,7 @@
   },
   "homepage": "https://github.com/YRA-Tech/testaro#readme",
   "dependencies": {
+    "@ghostery/adblocker-playwright": "^2.18.2",
     "@qualweb/act-rules": "^0.8.5",
     "@qualweb/best-practices": "^0.7.13",
     "@qualweb/core": "^0.9.5",

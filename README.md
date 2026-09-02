@@ -131,6 +131,8 @@ git pull
 
 The `.env` file stores your decisions about the environment in which Testaro runs. The variables that can be defined there are documented in the `env.example` file.
 
+Deployment options let an operator set a fleet-wide policy that a job can override: the load state and time limit a navigation waits for and whether a 4xx response ends launch retries at once (`NAV_WAIT_UNTIL`, `NAV_TIMEOUT`, `NAV_FAIL_FAST_4XX`, or a job's `navigation` property); a scanner identity sent as the `X-YRA-Scanner` request header (`SCANNER_ID` or a job's `scannerId`); a full-page scroll after navigation so lazily loaded content is present (`PRESCAN_SCROLL` or a job's `scroll`); a branded Chromium channel (a job's `browserChannel`); launch retries per rule of the `testaro` tool (`TESTARO_RULE_RETRIES` or a `testaro` test act's `retries`); and whether the `qualWeb` tool's browser runs stealth evasions and blocks ads and trackers (`QUALWEB_STEALTH`, `QUALWEB_ADBLOCK`, or a `qualWeb` test act's `stealth` and `adBlock`). The defaults keep the behavior of earlier versions.
+
 ## Jobs
 
 Jobs tell Testaro what to do.
@@ -166,6 +168,20 @@ Here is a sample job, showing properties that you can set:
                  // Chromium-specific). Defaults to true. Set false to opt
                  // out — useful for sites whose anti-bot heuristics react
                  // badly to stealth's patches.
+  browserChannel: 'chrome', // Optional. Run an installed branded Chromium (chrome or msedge)
+                            // instead of the bundled build; bundled or absent keeps the default.
+  scannerId: 'MyScanner/1.0; +https://example.com/scanner', // Optional. Sent as the
+                            // X-YRA-Scanner request header (default SCANNER_ID, else no header).
+  scroll: false, // Optional. Scroll the full page after navigation so lazily loaded content
+                 // is present before tools run (default PRESCAN_SCROLL, else false).
+  navigation: { // Optional. Load state to wait for (networkidle, load, or domcontentloaded),
+                // time limit in ms, and whether a 4xx response ends launch retries at once
+                // (defaults NAV_WAIT_UNTIL, NAV_TIMEOUT, NAV_FAIL_FAST_4XX, else networkidle,
+                // 10000, false).
+    waitUntil: 'load',
+    timeout: 30000,
+    failFast4xx: true
+  },
   creationTimeStamp: '241229T0537', // When job was created
   executionTimeStamp: '250110T1200', // When job will be ready to be performed
   target: {

@@ -34,6 +34,8 @@ const playwrightExtra = require('playwright-extra');
 const {isBrowserID, isDeviceID, isURL, isValidJob} = require('./job');
 // The in-page script defining window.getXPath.
 const {getXPathSource} = require('./xPathScript');
+// Deployment options (navigation, scanner identity, pre-scan scroll).
+const {getNavigation, getScannerId, getScroll, waitStates} = require('./config');
 
 // CONSTANTS
 
@@ -463,6 +465,12 @@ const launchOnce = async opts => {
       // Disable the sandbox.
       browserOptions.chromiumSandbox = false;
     }
+    // If the job specifies a branded Chromium channel (chrome or msedge), run that installed
+    // browser instead of the bundled Chromium build; bundled or absent keeps the default.
+    const {browserChannel} = report;
+    if (browserID === 'chromium' && browserChannel && browserChannel !== 'bundled') {
+      browserOptions.channel = browserChannel;
+    }
     let browser, browserContext;
     try {
       // Use the job's shared browser if it exists and is of the specified type; otherwise
@@ -493,7 +501,9 @@ const launchOnce = async opts => {
           'Accept-Language': 'en-US,en;q=0.9',
           'Accept-Encoding': 'gzip, deflate, br',
           'DNT': '1',
-          'Upgrade-Insecure-Requests': '1'
+          'Upgrade-Insecure-Requests': '1',
+          // A stable scanner identity for firewalls, if configured (job scannerId or SCANNER_ID).
+          ...(getScannerId(report) ? {'X-YRA-Scanner': getScannerId(report)} : {})
         },
         // Caller-specified context options (see contextOverrides above).
         ...contextOverrides
@@ -571,18 +581,45 @@ const launchOnce = async opts => {
         // Add the script defining the accessible-name window methods.
         await page.addInitScript({content: accessibleNameSource});
       }
-      // Base the wait on the need of the tool and the retry history.
-      let waitUntil = xPathNeed === 'none' ? 'domcontentloaded' : 'networkidle';
-      if (relaxWait === 'partly' && waitUntil === 'networkidle') {
-        waitUntil = 'load';
+      // Base the wait on the need of the tool, the configured load state (job navigation
+      // property or NAV_WAIT_UNTIL; networkidle by default), and the retry history: a partial
+      // relaxation steps one load state looser, a full one waits only for domcontentloaded.
+      const navigation = getNavigation(report);
+      let waitUntil = xPathNeed === 'none' ? 'domcontentloaded' : navigation.waitUntil;
+      if (relaxWait === 'partly') {
+        waitUntil = waitStates[Math.min(waitStates.indexOf(waitUntil) + 1, waitStates.length - 1)];
       }
       if (relaxWait === 'fully') {
         waitUntil = 'domcontentloaded';
       }
       // Navigate to the specified URL and wait for the stability required by the next action.
-      const navResult = await goTo(report, page, url, 10000, waitUntil);
+      const navResult = await goTo(report, page, url, navigation.timeout, waitUntil);
       // If the navigation succeeded:
       if (navResult.success) {
+        // If the job asks for a full-height scroll (job scroll property or PRESCAN_SCROLL), scroll
+        // the page in viewport steps so lazily loaded content is present before cataloguing,
+        // imaging, and each tool, then return to the top. Bounded in steps so an infinite scroll
+        // cannot hang the launch; never throws.
+        if (getScroll(report)) {
+          try {
+            const viewportHeight = (await page.evaluate(() => window.innerHeight)) || 800;
+            for (let step = 0, y = 0; step < 25; step++, y += viewportHeight) {
+              const atBottom = await page.evaluate(dy => {
+                window.scrollTo(0, dy);
+                return dy + window.innerHeight >= document.body.scrollHeight;
+              }, y);
+              await page.waitForTimeout(120);
+              if (atBottom) {
+                break;
+              }
+            }
+            await page.evaluate(() => window.scrollTo(0, 0));
+            await page.waitForTimeout(250);
+          }
+          catch(error) {
+            console.log(`ERROR: Pre-scan scroll failed (${error.message})`);
+          }
+        }
         // If the launch is for a test act at a checkpoint reached by interaction:
         const checkpoint = report.checkpoints?.[report.activeCheckpoint];
         if (checkpoint && checkpoint.kind === 'interaction' && replay) {
@@ -714,6 +751,18 @@ exports.launch = async (opts = {}) => {
       let {error} = launchResult;
       // A checkpoint replay failure is deterministic: do not retry it.
       let retriesLeft = error.includes('checkpoint replay failed') ? 0 : retries;
+      // If configured (job navigation.failFast4xx or NAV_FAIL_FAST_4XX), a 4xx response other
+      // than 408 (request timeout) and 429 (rate limited) is a definitive refusal (firewall
+      // block, authentication wall): retrying and switching browsers cannot change it and, under
+      // the testaro tool's per-rule relaunch, compounds into long hangs. Stop at once.
+      const navStatus = Number((/status(\d{3})/.exec(error) || [])[1]);
+      if (
+        getNavigation(report).failFast4xx
+        && navStatus >= 400 && navStatus < 500 && navStatus !== 408 && navStatus !== 429
+      ) {
+        retriesLeft = 0;
+        unusedBrowserIDs = [];
+      }
       // As long as retries remain, decrement the allowed retry count and:
       while (retriesLeft) {
         // Prepare to wait 1 second before a retry.

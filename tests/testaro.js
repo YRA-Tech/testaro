@@ -589,7 +589,9 @@ const reporter = async (page, report, actIndex) => {
                     headEmulation,
                     xPathNeed: 'script',
                     needsAccessibleName: jobRules[ruleIndex].needsAccessibleName,
-                    retries: 2
+                    retries: Number.isInteger(act.retries) && act.retries >= 0
+                        ? act.retries
+                        : config_1.ruleLaunchRetries
                 });
             }
             // If no page exists, the launch (or the replay of a checkpoint's acts) failed: the
