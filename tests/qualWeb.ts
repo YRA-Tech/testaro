@@ -25,12 +25,17 @@ const {ACTRules} = require('@qualweb/act-rules');
 const {WCAGTechniques} = require('@qualweb/wcag-techniques');
 const {BestPractices} = require('@qualweb/best-practices');
 const {PlaywrightDriver} = require('@qualweb/playwright-driver');
+import {qualWebDefaults} from '../procs/config';
 
 // TYPES
 
 // The qualWeb-act properties this reporter consumes.
 interface QualWebAct extends Act {
   rules?: string[];
+  // Whether the tool's browser runs stealth evasions and blocks ads and trackers (both default
+  // to true, or to QUALWEB_STEALTH and QUALWEB_ADBLOCK when set).
+  stealth?: boolean;
+  adBlock?: boolean;
 }
 // The section names of a QualWeb report.
 type QwSection = 'act-rules' | 'wcag-techniques' | 'best-practices';
@@ -85,11 +90,55 @@ interface QualWebOptions {
 
 // CONSTANTS
 
-// QualWeb core engine with Playwright as driver.
-const qualWeb = new QualWeb(undefined, new PlaywrightDriver({
-  adBlock: true,
-  stealth: true
-}));
+/*
+  QualWeb core engine with Playwright as driver, one instance per combination of options,
+  created on first use. The driver's constructor options are {launcher, launchOptions,
+  browser}, so its former {adBlock, stealth} options were ignored; stealth is provided by
+  launching through playwright-extra with the stealth plugin, and ad and tracker blocking by
+  the Ghostery blocker enabled on each page before it loads (QualWeb's beforePageLoad hook).
+  The blocker's filter lists are cached in the temporary directory.
+*/
+interface QualWebEngine {
+  start: (options: unknown) => Promise<void>;
+  evaluate: (options: unknown) => Promise<{customHtml: QwNativeResult}>;
+  stop: () => Promise<void>;
+  use: (plugin: unknown) => void;
+}
+const qualWebInstances: Record<string, QualWebEngine> = {};
+const getQualWeb = (options: {stealth: boolean; adBlock: boolean}): QualWebEngine => {
+  const key = `${options.stealth}:${options.adBlock}`;
+  if (! qualWebInstances[key]) {
+    let launcher;
+    if (options.stealth) {
+      const {chromium} = require('playwright-extra');
+      chromium.use(require('puppeteer-extra-plugin-stealth')());
+      launcher = chromium;
+    }
+    const qualWeb: QualWebEngine = new QualWeb(undefined, new PlaywrightDriver(launcher ? {launcher} : {}));
+    if (options.adBlock) {
+      const {PlaywrightBlocker} = require('@ghostery/adblocker-playwright');
+      let blockerPromise: Promise<unknown> | null = null;
+      qualWeb.use({
+        async beforePageLoad(page: {nativePage: unknown}) {
+          blockerPromise ??= PlaywrightBlocker.fromPrebuiltAdsAndTracking(fetch, {
+            path: require('path').join(require('os').tmpdir(), 'qualweb-adblocker-engine.bin'),
+            read: require('fs').promises.readFile,
+            write: require('fs').promises.writeFile
+          }).catch((error: Error) => {
+            console.log(`qualWeb: ad blocker unavailable, continuing without it (${error.message})`);
+            return null;
+          });
+          const blocker = await blockerPromise as {enableBlockingInPage: (page: unknown) => Promise<void>} | null;
+          if (blocker) {
+            await blocker.enableBlockingInPage(page.nativePage);
+          }
+        }
+      });
+    }
+    qualWebInstances[key] = qualWeb;
+  }
+  return qualWebInstances[key];
+};
 const actRulesModule = new ACTRules({});
 const wcagModule = new WCAGTechniques({});
 const bpModule = new BestPractices({});
@@ -119,6 +168,11 @@ const ordinalSeverities: Record<QwSection, Record<string, StandardInstance['ordi
 
 // Conducts and reports the QualWeb tests.
 export const reporter = async (page: Page, report: Report, actIndex: number, timeLimit: number) => {
+  const qualWebAct = report.acts[actIndex] as QualWebAct;
+  const qualWeb = getQualWeb({
+    stealth: qualWebAct.stealth ?? qualWebDefaults.stealth,
+    adBlock: qualWebAct.adBlock ?? qualWebDefaults.adBlock
+  });
   const act = report.acts[actIndex] as QualWebAct;
   const {rules} = act;
   const clusterOptions = {

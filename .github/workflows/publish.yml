@@ -1,0 +1,48 @@
+# © 2026 Jeff Witt.
+#
+# Licensed under the MIT License. See LICENSE file at the project root or
+# https://opensource.org/license/mit/ for details.
+#
+# SPDX-License-Identifier: MIT
+
+# Publishes the package to npm when a GitHub release is published (the release tag must equal
+# v<package.json version>). Requires the NPM_TOKEN repository secret: an npm automation token
+# of an account with write access to the testaro package. prepublishOnly regenerates the rule
+# registry and the emitted TypeScript, and the version check refuses a tag that does not match.
+
+name: Publish
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          registry-url: https://registry.npmjs.org
+      - name: Check that the release tag matches the package version
+        if: github.event_name == 'release'
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if [ "${{ github.event.release.tag_name }}" != "v$version" ]; then
+            echo "Release tag ${{ github.event.release.tag_name }} does not match package version v$version" >&2
+            exit 1
+          fi
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

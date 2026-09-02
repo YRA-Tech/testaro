@@ -286,6 +286,22 @@ export interface Report {
   imageColor?: number;
   // Page-image scale factor; values greater than 1 add a device-scale image (images[1]).
   imageScale?: number;
+  // Whether Chromium runs stealth evasions (default true; Chromium only).
+  stealth?: boolean;
+  // Branded Chromium channel to run instead of the bundled build (chrome or msedge).
+  browserChannel?: 'bundled' | 'chrome' | 'msedge';
+  // Scanner identity sent as the X-YRA-Scanner request header (default SCANNER_ID, else none).
+  scannerId?: string;
+  // Whether to scroll the full page after navigation so lazily loaded content is present
+  // (default PRESCAN_SCROLL, else false).
+  scroll?: boolean;
+  // Navigation options (defaults NAV_WAIT_UNTIL, NAV_TIMEOUT, NAV_FAIL_FAST_4XX, else
+  // networkidle, 10000, false).
+  navigation?: {
+    waitUntil?: 'networkidle' | 'load' | 'domcontentloaded';
+    timeout?: number;
+    failFast4xx?: boolean;
+  };
   // Base64-encoded page images added by shoot with the report action.
   images?: string[];
   // The element catalog, added by getCatalog and pruned before the report ships.

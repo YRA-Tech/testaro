@@ -23,12 +23,42 @@ const { ACTRules } = require('@qualweb/act-rules');
 const { WCAGTechniques } = require('@qualweb/wcag-techniques');
 const { BestPractices } = require('@qualweb/best-practices');
 const { PlaywrightDriver } = require('@qualweb/playwright-driver');
-// CONSTANTS
-// QualWeb core engine with Playwright as driver.
-const qualWeb = new QualWeb(undefined, new PlaywrightDriver({
-    adBlock: true,
-    stealth: true
-}));
+const config_1 = require("../procs/config");
+const qualWebInstances = {};
+const getQualWeb = (options) => {
+    const key = `${options.stealth}:${options.adBlock}`;
+    if (!qualWebInstances[key]) {
+        let launcher;
+        if (options.stealth) {
+            const { chromium } = require('playwright-extra');
+            chromium.use(require('puppeteer-extra-plugin-stealth')());
+            launcher = chromium;
+        }
+        const qualWeb = new QualWeb(undefined, new PlaywrightDriver(launcher ? { launcher } : {}));
+        if (options.adBlock) {
+            const { PlaywrightBlocker } = require('@ghostery/adblocker-playwright');
+            let blockerPromise = null;
+            qualWeb.use({
+                async beforePageLoad(page) {
+                    blockerPromise ??= PlaywrightBlocker.fromPrebuiltAdsAndTracking(fetch, {
+                        path: require('path').join(require('os').tmpdir(), 'qualweb-adblocker-engine.bin'),
+                        read: require('fs').promises.readFile,
+                        write: require('fs').promises.writeFile
+                    }).catch((error) => {
+                        console.log(`qualWeb: ad blocker unavailable, continuing without it (${error.message})`);
+                        return null;
+                    });
+                    const blocker = await blockerPromise;
+                    if (blocker) {
+                        await blocker.enableBlockingInPage(page.nativePage);
+                    }
+                }
+            });
+        }
+        qualWebInstances[key] = qualWeb;
+    }
+    return qualWebInstances[key];
+};
 const actRulesModule = new ACTRules({});
 const wcagModule = new WCAGTechniques({});
 const bpModule = new BestPractices({});
@@ -55,6 +85,11 @@ const ordinalSeverities = {
 // FUNCTIONS
 // Conducts and reports the QualWeb tests.
 const reporter = async (page, report, actIndex, timeLimit) => {
+    const qualWebAct = report.acts[actIndex];
+    const qualWeb = getQualWeb({
+        stealth: qualWebAct.stealth ?? config_1.qualWebDefaults.stealth,
+        adBlock: qualWebAct.adBlock ?? config_1.qualWebDefaults.adBlock
+    });
     const act = report.acts[actIndex];
     const { rules } = act;
     const clusterOptions = {

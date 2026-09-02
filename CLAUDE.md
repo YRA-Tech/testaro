@@ -83,6 +83,7 @@ Key variables:
 - `JOBDIR` / `REPORTDIR` — root directories for job files and report output
 - `NETWATCH_URL_JOB`/`NETWATCH_URL_REPORT`/`NETWATCH_AUTH_TYPE`/`NETWATCH_WORKER_ID`/`NETWATCH_WORKER_SECRET` — server polling configuration
 - `TIMEOUT_MULTIPLIER` — scales all per-tool time limits (default 1)
+- `NAV_WAIT_UNTIL`/`NAV_TIMEOUT`/`NAV_FAIL_FAST_4XX`, `SCANNER_ID`, `PRESCAN_SCROLL`, `TESTARO_RULE_RETRIES`, `QUALWEB_STEALTH`/`QUALWEB_ADBLOCK` — deployment defaults that job properties (`navigation`, `scannerId`, `scroll`, `browserChannel`; `retries`, `stealth`, `adBlock` on test acts) override (`procs/config.js`)
 
 ## Code style
 
