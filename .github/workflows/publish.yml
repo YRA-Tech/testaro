@@ -6,9 +6,11 @@
 # SPDX-License-Identifier: MIT
 
 # Publishes the package to npm when a GitHub release is published (the release tag must equal
-# v<package.json version>). Requires the NPM_TOKEN repository secret: an npm automation token
-# of an account with write access to the testaro package. prepublishOnly regenerates the rule
-# registry and the emitted TypeScript, and the version check refuses a tag that does not match.
+# v<package.json version>), or on manual dispatch. Authenticates by npm trusted publishing
+# (OIDC): the testaro package on npmjs.com names this repository and workflow file as a trusted
+# publisher, so no token is needed; the job must not configure any registry token, or the CLI
+# skips the OIDC exchange. prepublishOnly regenerates the rule registry and the emitted
+# TypeScript, and the version check refuses a release tag that does not match.
 
 name: Publish
 
@@ -31,7 +33,8 @@ jobs:
         with:
           node-version: 24
           cache: npm
-          registry-url: https://registry.npmjs.org
+      # Trusted publishing needs npm 11.5.1 or later.
+      - run: npm install -g npm@latest && npm --version
       - name: Check that the release tag matches the package version
         if: github.event_name == 'release'
         run: |
@@ -44,5 +47,3 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
