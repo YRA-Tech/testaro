@@ -73,22 +73,29 @@ exports.getAttributeXPath = getAttributeXPath;
 const getXPathTagName = (xPath) => {
     return xPath.split('/').pop().replace(/\[.+/, '').toUpperCase();
 };
-// Gets a catalog index as a string from an XPath.
-const getXPathCatalogIndex = (report, xPath) => {
+// Gets a catalog index as a string from an XPath, within a checkpoint (the active one by
+// default). An XPath the checkpoint's catalog lacks gets a stub entry, keyed from the report's
+// monotonic counter so that entries of different checkpoints never collide.
+const getXPathCatalogIndex = (report, xPath, checkpoint = report.activeCheckpoint ?? 0) => {
     // The catalog always exists by the time tests cite elements (getCatalog ran first).
     const { catalog } = report;
     report.pathIDs ??= {};
+    const pathIDs = (report.pathIDs[checkpoint] ??= {});
     // Get the index of the catalog item with the XPath.
-    const index = report.pathIDs[xPath];
+    const index = pathIDs[xPath];
     // If no such item exists (an index of '0' is a match, so test for absence, not falsity):
     if (index === undefined) {
-        // Add an item to the catalog, keyed by the count of items already in it.
-        const newIndex = `${Object.keys(catalog).length}`;
+        // Add an item to the catalog, keyed by the counter (or, in a report without one, by the
+        // count of items already in it).
+        const newIndex = report.catalogNextIndex === undefined
+            ? `${Object.keys(catalog).length}`
+            : `${report.catalogNextIndex++}`;
         catalog[newIndex] = {
             pathID: xPath,
-            tagName: getXPathTagName(xPath)
+            tagName: getXPathTagName(xPath),
+            checkpoint
         };
-        report.pathIDs[xPath] = newIndex;
+        pathIDs[xPath] = newIndex;
         return newIndex;
     }
     return index;

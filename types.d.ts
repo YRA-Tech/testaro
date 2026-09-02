@@ -12,6 +12,7 @@ export interface StandardInstance {
     needed?: string;
     count?: number;
     catalogIndex?: string | number;
+    checkpoint?: number;
     tagName?: string;
     id?: string;
     location?: {
@@ -44,8 +45,32 @@ export interface CatalogEntry {
     textLinkable?: boolean;
     boxID?: string;
     headingIndex?: string;
+    checkpoint?: number;
 }
 export type Catalog = Record<string, CatalogEntry>;
+export interface Interaction {
+    modality: 'efficient';
+}
+export interface Checkpoint {
+    index: number;
+    name: string;
+    implicit: boolean;
+    actIndex: number | null;
+    launchActIndex: number | null;
+    launchURL: string;
+    replay: number[];
+    interaction: Interaction;
+    kind: 'navigation' | 'interaction';
+    url: string;
+    title: string;
+    imageIndexes: number[];
+    catalogRange: [number, number] | null;
+    elementCount: number;
+    ariaSnapshot: string;
+    domDigest?: string;
+    elapsedMs: number;
+    testActs: number[];
+}
 export interface Act {
     type: string;
     which?: string;
@@ -61,6 +86,7 @@ export interface Act {
     };
     expectations?: unknown;
     expectationFailures?: number;
+    checkpoint?: number | null;
     [key: string]: unknown;
 }
 export interface Report {
@@ -87,7 +113,10 @@ export interface Report {
     imageScale?: number;
     images?: string[];
     catalog?: Catalog;
-    pathIDs?: Record<string, string>;
+    checkpoints?: Checkpoint[];
+    pathIDs?: Record<string, Record<string, string>>;
+    catalogNextIndex?: number;
+    activeCheckpoint?: number | null;
     jobData?: {
         aborted?: boolean;
         abortedAct?: number;

@@ -30,6 +30,8 @@ const headedBrowser = process.env.HEADED_BROWSER === 'true';
 const playwrightCore = require('playwright');
 const playwrightExtra = require('playwright-extra');
 const {isBrowserID, isDeviceID, isURL, isValidJob} = require('./job');
+// The in-page script defining window.getXPath.
+const {getXPathSource} = require('./xPathScript');
 
 // CONSTANTS
 
@@ -456,49 +458,8 @@ const launchOnce = async opts => {
       });
       // If an XPath computation script is required:
       if (xPathNeed !== 'none') {
-        // Add a script to the page to add a window method to get the XPath of an element.
-        await page.addInitScript(() => {
-          window.getXPath = element => {
-            if (! element || element.nodeType !== Node.ELEMENT_NODE) {
-              return '';
-            }
-            const segments = [];
-            // As long as the current node is an element:
-            while (element && element.nodeType === Node.ELEMENT_NODE) {
-              const tag = element.tagName.toLowerCase();
-              // If it is the html element:
-              if (element === document.documentElement) {
-                // Prepend it to the segment array
-                segments.unshift('html');
-                // Stop traversing.
-                break;
-              }
-              // Otherwise, get its parent node.
-              const parent = element.parentNode;
-              // If (abnormally) the parent node is not an element:
-              if (! parent || parent.nodeType !== Node.ELEMENT_NODE) {
-                // Prepend the element (not the parent) to the segment array.
-                segments.unshift(tag);
-                // Stop traversing, leaving the segment array partial.
-                break;
-              }
-              // Get the subscript of the element if it is not the body element.
-              const cohort = Array
-              .from(parent.childNodes)
-              .filter(
-                childNode => childNode.nodeType === Node.ELEMENT_NODE
-                && childNode.tagName === element.tagName
-              );
-              const subscript = tag === 'body' ? '' : `[${cohort.indexOf(element) + 1}]`;
-              // Prepend the element identifier to the segment array.
-              segments.unshift(`${tag}${subscript}`);
-              // Continue the traversal with the parent of the current element.
-              element = parent;
-            }
-            // Return the XPath.
-            return `/${segments.join('/')}`;
-          };
-        });
+        // Add the shared script to the page to add a window method to get the XPath of an element.
+        await page.addInitScript({content: getXPathSource});
       }
       // If an accessible-name computation script is needed:
       if (needsAccessibleName) {

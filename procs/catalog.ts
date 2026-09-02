@@ -9,17 +9,20 @@
 
 // IMPORTS
 
+import type {Page} from 'playwright';
 // Module to close and launch browsers.
 import {browserClose, launch} from './launch';
 import {shoot} from './shoot';
-import type {Catalog, CatalogEntry, Report, StandardResult} from '../types';
+// Function to define window.getXPath on a live page.
+import {defineGetXPath} from './xPathScript';
+import type {Catalog, CatalogEntry, Checkpoint, Report, StandardResult} from '../types';
 
 /*
   catalog
   Creates and returns a catalog of a target. Compiled to catalog.js by tsc
   (issue #73); edit this file, not the emitted one.
 
-  A catalog is an object with one property per element in the target. Each property has the element index as its key and has an object as its value, with 7 properties:
+  A catalog is an object with one property per element in the target. Each property has the element index as its key and has an object as its value, with 9 properties:
   - tagName
   - id
   - startTag
@@ -28,10 +31,194 @@ import type {Catalog, CatalogEntry, Report, StandardResult} from '../types';
   - boxID
   - pathID
   - headingIndex
+  - checkpoint: the index of the checkpoint (page state) whose snapshot the entry belongs to
+
+  The catalog of checkpoint 0 (the job target as launched) is made by getCatalog before any act. A checkpoint act adds the entries of a later page state with catalogPage, on the live page, keyed from report.catalogNextIndex so indexes never collide. report.pathIDs maps each checkpoint's XPaths to catalog indexes.
 */
+
+// TYPES
+
+// What catalogPage returns.
+export interface CatalogSnapshot {
+  entries: Catalog;
+  pathIDs: Record<string, string>;
+  firstIndex: number;
+  nextIndex: number;
+  elementCount: number;
+}
+
+// CONSTANTS
+
+// The ARIA snapshot of a page, for checkpoints; empty if the browser cannot make one.
+export const getAriaSnapshot = async (page: Page): Promise<string> => {
+  try {
+    return await page.locator('body').ariaSnapshot();
+  }
+  catch(error) {
+    console.log(`ERROR: ARIA snapshot failed (${(error as Error).message})`);
+    return '';
+  }
+};
 
 // FUNCTIONS
 
+// Catalogs the elements of a live page and returns the snapshot. Expands closed details
+// elements first, so box measurements agree with a page image taken in the same state; with
+// restoreDetails, closes them again afterward so a live page keeps its state.
+export const catalogPage = async (
+  page: Page, report: Report, {checkpoint, restoreDetails}: {checkpoint: number; restoreDetails: boolean}
+): Promise<CatalogSnapshot> => {
+  // Ensure the page can compute XPaths (a page launched for acts lacks the script).
+  await defineGetXPath(page);
+  // Expand closed details elements before the page image and the box measurements, so
+  // both see the same fully disclosed state. Chromium lays out the content of a closed
+  // details element (content-visibility: hidden) without painting it and without
+  // shifting the content after it, so getBoundingClientRect returns coordinates that
+  // overlap unrelated visible elements, making box IDs disagree with the page image.
+  await page.evaluate(() => {
+    document.querySelectorAll('details:not([open])').forEach(details => {
+      details.setAttribute('open', '');
+      details.setAttribute('data-testaro-opened', '');
+    });
+  }).catch(error => {
+    console.log(`ERROR: Expanding details elements failed (${error.message})`);
+  });
+  const startIndex = report.catalogNextIndex ?? 0;
+  // Get a catalog of the elements in the page and a map of path IDs to catalog indexes.
+  console.log(`Creating catalog for checkpoint ${checkpoint}`);
+  const {cat: entries, pathIDs, elementCount} = await page.evaluate(({startIndex, checkpoint}) => {
+    // HTMLElement covers the innerText reads below; SVG-only members are guarded.
+    const elements = Array.from(document.querySelectorAll<HTMLElement>('*'));
+    // Initialize a catalog.
+    const cat: Record<string, CatalogEntry> = {};
+    // Initialize a map of path IDs to catalog indexes.
+    const pathIDs: Record<string, string> = {};
+    // Initialize a directory of text fragments.
+    const texts: Record<string, string[]> = {};
+    // Initialize the index of the current heading.
+    let headingIndex = '';
+    // For each element in the page:
+    // Iterate by numeric index rather than `for...in`. `for...in` over this
+    // array also enumerates any enumerable members added to Array.prototype
+    // by the TARGET page's own scripts (e.g. legacy MooTools/Prototype-style
+    // extensions); `element` then becomes that injected value and the
+    // element.closest(...) call below throws "closest is not a function",
+    // aborting the entire catalog and the job. The indexed loop sees only
+    // real elements. `index` is kept as a string so the catalog keys
+    // (cat[index], texts[...].push(index)) are unchanged.
+    for (let i = 0; i < elements.length; i++) {
+      const index = String(startIndex + i);
+      const element = elements[i];
+      // Get its ID and tag name.
+      const {id, tagName} = element;
+      // Get its start tag.
+      const startTag = element.outerHTML?.replace(/^.*?</s, '<').replace(/>.*$/s, '>') ?? '';
+      // Get whether it is eligible for text-fragment acquisition.
+      const isTextable = element.closest('body')
+      && ! element.closest('svg')
+      && ! ['SCRIPT', 'STYLE', 'svg'].includes(element.tagName);
+      const innerText = isTextable
+      ? element.innerText.trim() || (element.parentElement?.innerText?.trim() ?? '')
+      : '';
+      let text = '';
+      // If it is eligible and has an inner text:
+      if (innerText) {
+        const segments = innerText?.split('\n') ?? [];
+        const tidySegments = segments.map(segment => segment.trim().replace(/\s+/g, ' '));
+        const neededSegments = tidySegments.filter(segment => segment.length);
+        neededSegments.splice(1, neededSegments.length - 2);
+        // Get its text fragments.
+        text = neededSegments.join('\n');
+        // Add its index to the directory of text fragments.
+        texts[text] ??= [];
+        texts[text].push(index);
+      }
+      // Get its bounding box, but only if the element is painted. Chromium reports
+      // plausible nonzero boxes for laid-out but unpainted content (visibility: hidden
+      // and content-visibility: hidden subtrees), and such a box disagrees with the
+      // page image, overlapping unrelated visible elements.
+      const isVisible = typeof element.checkVisibility === 'function'
+      ? element.checkVisibility({checkVisibilityCSS: true, visibilityProperty: true})
+      : true;
+      const domRect = isVisible ? element.getBoundingClientRect() : null;
+      // Get its box ID.
+      const boxID = domRect
+      ? (['x', 'y', 'width', 'height'] as const).map(key => Math.round(domRect[key])).join(':')
+      : '';
+      // Get its path ID.
+      const pathID = window.getXPath(element) ?? '/html';
+      // If it is a heading that nullifies an existing current heading index:
+      if (
+        headingIndex
+        && ['H1', 'H2', 'H3', 'H4', 'H5', 'H6'].includes(tagName)
+        && cat[headingIndex].tagName >= tagName
+      ) {
+        // Nullify the current heading index.
+        headingIndex = '';
+      }
+      // Add an entry for it to the catalog.
+      cat[index] = {
+        tagName,
+        id: id || '',
+        startTag,
+        text,
+        textLinkable: false,
+        boxID,
+        pathID,
+        headingIndex,
+        checkpoint
+      };
+      // If the element is a heading:
+      if (['H1', 'H2', 'H3', 'H4', 'H5', 'H6'].includes(tagName)) {
+        // Assign its index to the current heading index.
+        headingIndex = index;
+      }
+      // Add the path ID to the map of path IDs.
+      pathIDs[pathID] = index;
+    }
+    // For each text in the catalog:
+    Object.keys(texts).forEach(text => {
+      const textElementIndexes = texts[text].sort((a, b) => Number(a) - Number(b));
+      // If every element that has it is in the same subtree, so the text is page-unique:
+      if (
+        textElementIndexes.slice(0, -1).every(
+          (elementIndex, index) => cat[textElementIndexes[index + 1]]
+          .pathID
+          .startsWith(cat[elementIndex].pathID)
+        )
+      ) {
+        // For each element that has it:
+        textElementIndexes.forEach(index => {
+          // If it is not in the head, a script, a style, or a noscript element:
+          if (
+            ! ['/head[1]', '/script[', '/style[', '/noscript[']
+            .some(excluder => cat[index].pathID.includes(excluder))
+          ) {
+            // Mark it as linkable in the element data in the catalog.
+            cat[index].textLinkable = true;
+          }
+        });
+      }
+    });
+    return {cat, pathIDs, elementCount: elements.length};
+  }, {startIndex, checkpoint});
+  // If the page is to keep its state, close the details elements that were opened.
+  if (restoreDetails) {
+    await page.evaluate(() => {
+      document.querySelectorAll('details[data-testaro-opened]').forEach(details => {
+        details.removeAttribute('open');
+        details.removeAttribute('data-testaro-opened');
+      });
+    }).catch(() => {});
+  }
+  return {
+    entries,
+    pathIDs,
+    firstIndex: startIndex,
+    nextIndex: startIndex + elementCount,
+    elementCount
+  };
+};
 // Creates and returns a catalog.
 export const getCatalog = async (report: Report): Promise<Catalog> => {
   const {browserID} = report;
@@ -58,20 +245,18 @@ export const getCatalog = async (report: Report): Promise<Catalog> => {
     });
     // If the launch and navigation succeeded:
     if (page) {
-      // Expand closed details elements before the page image and the box measurements, so
-      // both see the same fully disclosed state. Chromium lays out the content of a closed
-      // details element (content-visibility: hidden) without painting it and without
-      // shifting the content after it, so getBoundingClientRect returns coordinates that
-      // overlap unrelated visible elements, making box IDs disagree with the page image.
-      await page.evaluate(() => {
-        document.querySelectorAll('details:not([open])').forEach(details => {
-          details.setAttribute('open', '');
-        });
-      }).catch(error => {
-        console.log(`ERROR: Expanding details elements failed (${error.message})`);
-      });
+      const startTime = Date.now();
       // If a page image is required:
       if ([0, 2, 4, 6].includes(report.imageColor as number)) {
+        // Expand closed details elements first, so the image and the box measurements below
+        // see the same fully disclosed state (catalogPage expands them again, idempotently).
+        await page.evaluate(() => {
+          document.querySelectorAll('details:not([open])').forEach(details => {
+            details.setAttribute('open', '');
+          });
+        }).catch(error => {
+          console.log(`ERROR: Expanding details elements failed (${error.message})`);
+        });
         // Create one at CSS-pixel scale and add it to the report as images[0]. This
         // scale is invariant to imageScale and to the context's deviceScaleFactor, so
         // the testaro motion rule, which compares its own CSS-scale screenshot with
@@ -94,125 +279,34 @@ export const getCatalog = async (report: Report): Promise<Catalog> => {
           });
         }
       }
-      // Get a catalog of the elements in the page and a map of path IDs to catalog indexes.
-      console.log('Creating catalog');
-      const {cat: catalog, pathIDs} = await page.evaluate(() => {
-        // HTMLElement covers the innerText reads below; SVG-only members are guarded.
-        const elements = Array.from(document.querySelectorAll<HTMLElement>('*'));
-        // Initialize a catalog.
-        const cat: Record<string, CatalogEntry> = {};
-        // Initialize a map of path IDs to catalog indexes.
-        const pathIDs: Record<string, string> = {};
-        // Initialize a directory of text fragments.
-        const texts: Record<string, string[]> = {};
-        // Initialize the index of the current heading.
-        let headingIndex = '';
-        // For each element in the page:
-        // Iterate by numeric index rather than `for...in`. `for...in` over this
-        // array also enumerates any enumerable members added to Array.prototype
-        // by the TARGET page's own scripts (e.g. legacy MooTools/Prototype-style
-        // extensions); `element` then becomes that injected value and the
-        // element.closest(...) call below throws "closest is not a function",
-        // aborting the entire catalog and the job. The indexed loop sees only
-        // real elements. `index` is kept as a string so the catalog keys
-        // (cat[index], texts[...].push(index)) are unchanged.
-        for (let i = 0; i < elements.length; i++) {
-          const index = String(i);
-          const element = elements[i];
-          // Get its ID and tag name.
-          const {id, tagName} = element;
-          // Get its start tag.
-          const startTag = element.outerHTML?.replace(/^.*?</s, '<').replace(/>.*$/s, '>') ?? '';
-          // Get whether it is eligible for text-fragment acquisition.
-          const isTextable = element.closest('body')
-          && ! element.closest('svg')
-          && ! ['SCRIPT', 'STYLE', 'svg'].includes(element.tagName);
-          const innerText = isTextable
-          ? element.innerText.trim() || (element.parentElement?.innerText?.trim() ?? '')
-          : '';
-          let text = '';
-          // If it is eligible and has an inner text:
-          if (innerText) {
-            const segments = innerText?.split('\n') ?? [];
-            const tidySegments = segments.map(segment => segment.trim().replace(/\s+/g, ' '));
-            const neededSegments = tidySegments.filter(segment => segment.length);
-            neededSegments.splice(1, neededSegments.length - 2);
-            // Get its text fragments.
-            text = neededSegments.join('\n');
-            // Add its index to the directory of text fragments.
-            texts[text] ??= [];
-            texts[text].push(index);
-          }
-          // Get its bounding box, but only if the element is painted. Chromium reports
-          // plausible nonzero boxes for laid-out but unpainted content (visibility: hidden
-          // and content-visibility: hidden subtrees), and such a box disagrees with the
-          // page image, overlapping unrelated visible elements.
-          const isVisible = typeof element.checkVisibility === 'function'
-          ? element.checkVisibility({checkVisibilityCSS: true, visibilityProperty: true})
-          : true;
-          const domRect = isVisible ? element.getBoundingClientRect() : null;
-          // Get its box ID.
-          const boxID = domRect
-          ? (['x', 'y', 'width', 'height'] as const).map(key => Math.round(domRect[key])).join(':')
-          : '';
-          // Get its path ID.
-          const pathID = window.getXPath(element) ?? '/html';
-          // If it is a heading that nullifies an existing current heading index:
-          if (
-            headingIndex
-            && ['H1', 'H2', 'H3', 'H4', 'H5', 'H6'].includes(tagName)
-            && cat[headingIndex].tagName >= tagName
-          ) {
-            // Nullify the current heading index.
-            headingIndex = '';
-          }
-          // Add an entry for it to the catalog.
-          cat[index] = {
-            tagName,
-            id: id || '',
-            startTag,
-            text,
-            textLinkable: false,
-            boxID,
-            pathID,
-            headingIndex
-          };
-          // If the element is a heading:
-          if (['H1', 'H2', 'H3', 'H4', 'H5', 'H6'].includes(tagName)) {
-            // Assign its index to the current heading index.
-            headingIndex = index;
-          }
-          // Add the path ID to the map of path IDs.
-          pathIDs[pathID] = index;
-        }
-        // For each text in the catalog:
-        Object.keys(texts).forEach(text => {
-          const textElementIndexes = texts[text].sort((a, b) => Number(a) - Number(b));
-          // If every element that has it is in the same subtree, so the text is page-unique:
-          if (
-            textElementIndexes.slice(0, -1).every(
-              (elementIndex, index) => cat[textElementIndexes[index + 1]]
-              .pathID
-              .startsWith(cat[elementIndex].pathID)
-            )
-          ) {
-            // For each element that has it:
-            textElementIndexes.forEach(index => {
-              // If it is not in the head, a script, a style, or a noscript element:
-              if (
-                ! ['/head[1]', '/script[', '/style[', '/noscript[']
-                .some(excluder => cat[index].pathID.includes(excluder))
-              ) {
-                // Mark it as linkable in the element data in the catalog.
-                cat[index].textLinkable = true;
-              }
-            });
-          }
-        });
-        return {cat, pathIDs};
-      });
-      // Add the map of path IDs to the report as a temporary job-time property.
-      report.pathIDs = pathIDs;
+      // Snapshot the page as checkpoint 0.
+      const snapshot = await catalogPage(page, report, {checkpoint: 0, restoreDetails: false});
+      report.catalog = snapshot.entries;
+      report.pathIDs = {0: snapshot.pathIDs};
+      report.catalogNextIndex = snapshot.nextIndex;
+      // Record the checkpoint.
+      const imageIndexes = (report.images ?? []).map((image, index) => index);
+      const checkpoint: Checkpoint = {
+        index: 0,
+        name: 'start',
+        implicit: false,
+        actIndex: null,
+        launchActIndex: null,
+        launchURL: page.url(),
+        replay: [],
+        interaction: {modality: 'efficient'},
+        kind: 'navigation',
+        url: page.url(),
+        title: await page.title().catch(() => ''),
+        imageIndexes,
+        catalogRange: [snapshot.firstIndex, snapshot.nextIndex - 1],
+        elementCount: snapshot.elementCount,
+        ariaSnapshot: await getAriaSnapshot(page),
+        elapsedMs: Date.now() - startTime,
+        testActs: []
+      };
+      report.checkpoints = [checkpoint];
+      const catalog = report.catalog;
       // Close the browser and its context.
       await browserClose(page);
       // Return the catalog.
@@ -257,8 +351,10 @@ export const pruneCatalog = (report: Report): void => {
       });
     }
   });
-  // Delete the temporary path ID map of the report.
+  // Delete the temporary job-time properties of the report.
   delete report.pathIDs;
+  delete report.catalogNextIndex;
+  delete report.activeCheckpoint;
   // For each element in the catalog:
   Object.keys(catalog).forEach(elementIndex => {
     // If it is not cited by any instance or by any cited element:

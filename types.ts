@@ -67,6 +67,8 @@ export interface StandardInstance {
   count?: number;
   // Key of the violating element in the report catalog (v70+ reports).
   catalogIndex?: string | number;
+  // Index of the checkpoint (page state) the instance was found in (v78.2+ reports).
+  checkpoint?: number;
   // Inline element identifiers of pre-catalog (v60) reports; absent on v70+.
   tagName?: string;
   id?: string;
@@ -111,10 +113,45 @@ export interface CatalogEntry {
   textLinkable?: boolean;
   boxID?: string;
   headingIndex?: string;
+  // Index of the checkpoint (page state) whose snapshot the entry belongs to.
+  checkpoint?: number;
 }
 
 // The element catalog: element index (stringified integer) to entry.
 export type Catalog = Record<string, CatalogEntry>;
+
+// The event modality of interaction acts; only 'efficient' exists today.
+export interface Interaction {
+  modality: 'efficient';
+}
+
+/*
+  A checkpoint: a page state reached by the job's serial acts, snapshotted (catalog, page
+  image, ARIA snapshot) and tested by the test acts that follow it. Checkpoint 0 is the job
+  target as launched; a checkpoint act creates each later one. A navigation checkpoint was
+  reached by navigation alone and needs no replay; an interaction checkpoint was reached by
+  acts on a page, which a test act's browser replays after navigating to launchURL.
+*/
+export interface Checkpoint {
+  index: number;
+  name: string;
+  implicit: boolean;
+  actIndex: number | null;
+  launchActIndex: number | null;
+  launchURL: string;
+  replay: number[];
+  interaction: Interaction;
+  kind: 'navigation' | 'interaction';
+  url: string;
+  title: string;
+  imageIndexes: number[];
+  catalogRange: [number, number] | null;
+  elementCount: number;
+  ariaSnapshot: string;
+  domDigest?: string;
+  elapsedMs: number;
+  testActs: number[];
+}
 
 // One act of a job. Permissive in Phase 0; see the file comment.
 export interface Act {
@@ -132,6 +169,8 @@ export interface Act {
   };
   expectations?: unknown;
   expectationFailures?: number;
+  // The checkpoint a test act belongs to, assigned by doActs.
+  checkpoint?: number | null;
   [key: string]: unknown;
 }
 
@@ -161,8 +200,13 @@ export interface Report {
   images?: string[];
   // The element catalog, added by getCatalog and pruned before the report ships.
   catalog?: Catalog;
-  // XPath-to-catalog-index map, added by getCatalog and deleted by pruneCatalog.
-  pathIDs?: Record<string, string>;
+  // The checkpoints (page states) of the job; checkpoint 0 is added by getCatalog.
+  checkpoints?: Checkpoint[];
+  // Job-time properties, deleted by pruneCatalog: per-checkpoint XPath-to-catalog-index maps,
+  // the next unused catalog index, and the checkpoint the current test act belongs to.
+  pathIDs?: Record<string, Record<string, string>>;
+  catalogNextIndex?: number;
+  activeCheckpoint?: number | null;
   jobData?: {
     aborted?: boolean;
     abortedAct?: number;
