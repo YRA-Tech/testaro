@@ -331,7 +331,7 @@ const getXPathScript = () => {
           jobData: scriptNonce ? {lastScriptNonce: scriptNonce} : {},
           catalog: {},
           target: {url: testcase.url},
-          acts: [{type: 'test', which: engine}]
+          acts: [{type: 'test', which: engine, withItems: true}]
         };
         const actReport = await Promise.race([
           require(`../../tests/${engine}`).reporter(page, report, 0, 40),
