@@ -605,6 +605,22 @@ export const reporter = async (page: Page | undefined, report: Report, actIndex:
           retries: 2
         });
       }
+      // If no page exists, the launch (or the replay of a checkpoint's acts) failed: the
+      // target is unreachable, so prevent the act and stop testing rules.
+      if (! page) {
+        const message = String(
+          report.jobData?.abortMessage
+          || `Launch or checkpoint replay failed before rule ${ruleResult.id}`
+        );
+        ruleResult.prevented = true;
+        ruleResult.error = message;
+        data.rulePreventions[ruleResult.id] = message;
+        data.prevented = true;
+        data.error = message;
+        standardResult.prevented = true;
+        console.log(`ERROR: ${message}`);
+        break;
+      }
       // Report crashes and disconnections during this test.
       let crashHandler: (() => void) | null | undefined;
       let disconnectHandler: (() => void) | null | undefined;

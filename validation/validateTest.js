@@ -18,6 +18,8 @@
 
 // Module to run Testaro jobs.
 const {doJob} = require('../run');
+// Function to evaluate an expectation against an object.
+const {isTrue} = require('../procs/doActs');
 
 // CONSTANTS
 const jobTemplate = {
@@ -95,6 +97,21 @@ exports.validateTest = async testID => {
     console.log('Failure: End time empty or invalid');
     failures.push('End time empty or invalid');
   }
+  // If the validator has report-level expectations, evaluate them against the report.
+  const reportExpectations = jobProperties.expectReport;
+  if (Array.isArray(reportExpectations)) {
+    reportExpectations.forEach(spec => {
+      const truth = isTrue(report, spec, report.catalog);
+      if (! truth[1]) {
+        const message = `Report expectation ${JSON.stringify(spec)} not met (actual ${JSON.stringify(truth[0])})`;
+        console.log(`Failure: ${message}`);
+        failures.push(message);
+      }
+    });
+    if (! failures.length) {
+      console.log('Success: Report expectations met');
+    }
+  }
   // If the test acts were correctly reported:
   const testActs = acts.filter(act => act.type && act.type === 'test');
   if (
@@ -105,8 +122,8 @@ exports.validateTest = async testID => {
   ) {
     // Report this.
     console.log('Success: Reports have been correctly populated');
-    // If all expectations were satisfied:
-    if (testActs.every(testAct => testAct.expectationFailures === 0)) {
+    // If all expectations, including any report-level ones, were satisfied:
+    if (testActs.every(testAct => testAct.expectationFailures === 0) && ! failures.length) {
       // Report this.
       console.log('######## Success: No failures\n');
     }

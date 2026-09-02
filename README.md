@@ -437,6 +437,12 @@ The `outcome` property is the authoritative certainty signal. In version 78, eac
 
 Testaro's own rules report `failed` unless the rule's entry in `allRules` (in `tests/testaro.ts`) specifies `outcome: 'cantTell'` (for example, `allCaps`, whose violations are AI estimates) or a violation description carries a prefix: `2:` sets severity 2, `2?:` sets severity 2 and outcome `cantTell`, and `?:` sets outcome `cantTell` at the rule's default severity.
 
+### Checkpoints
+
+A job's acts run in order: a `launch` act opens a page, interaction acts (`button`, `link`, `text`, `press`, `url`, and so on) act on it, and `test` acts run rule engines. A **checkpoint** is a named page state reached by that flow, snapshotted and tested. Checkpoint 0 is the job target as launched; a `checkpoint` act (`{type: 'checkpoint', which: 'name'}`) creates the next one from the live page. A `test` act tests the most recent checkpoint, and each of its standard instances carries the `checkpoint` index. `report.checkpoints[k]` describes each checkpoint: its name, URL, title, the page images (`imageIndexes` into `report.images`), the catalog entries it added (`catalogRange`; every catalog entry also carries `checkpoint`), an ARIA snapshot, and, for a state reached by interaction, the acts (`replay`) that a test act's browser re-enacts after navigating to `launchURL` before the rule engine runs. Each such test act records `data.replay` with the count of replayed acts and a `fidelity` of `exact` or `divergent`, comparing the replayed page's DOM with the snapshot.
+
+Checkpoint acts are optional. A job without one behaves as before: every test act tests checkpoint 0, and interaction acts before a test act only produce a warning in `jobData.warnings`. In a job with checkpoint acts, interaction acts followed by a test act without a checkpoint act produce an implicit checkpoint and a warning. A rule engine that tests a URL rather than a page (WAVE, and the Nu checkers with `withSource`) cannot test a state reached by interaction; such a test act is prevented with the reason. Details: `docs/checkpoint-scanning.md`.
+
 ## Rule-engine details
 
 The rule engines whose tests Testaro performs have particularities described below.

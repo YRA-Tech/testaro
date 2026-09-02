@@ -118,8 +118,13 @@ const doTestAct = async (reportPath, actIndex) => {
     try {
       // Make the act reporter perform the specified tests of the tool.
       const actReport = await require(`../tests/${which}`).reporter(page, report, actIndex, 65);
-      // Add the data and result to the act.
-      act.data = actReport.data;
+      // Add the data and result to the act, keeping any checkpoint replay record the launch
+      // added to the act's data.
+      const {replay} = act.data ?? {};
+      act.data = actReport.data ?? {};
+      if (replay) {
+        act.data.replay = replay;
+      }
       act.result = actReport.result;
       // If the tool reported that the page prevented testing:
       if (act.data && act.data.prevented) {

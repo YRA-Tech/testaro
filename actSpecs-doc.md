@@ -84,3 +84,7 @@ Licensed under the [MIT License](https://opensource.org/license/mit/). See [LICE
 at the project root for details.
 
 SPDX-License-Identifier: MIT
+
+## Checkpoint acts
+
+A `checkpoint` act snapshots the current page state as a checkpoint that subsequent `test` acts observe. Its `which` property names the checkpoint (unique within the job, and not `start`, the name of checkpoint 0). A checkpoint act must follow a `launch` act. See `docs/checkpoint-scanning.md`.

@@ -17,6 +17,8 @@
 // IMPORTS
 
 const {addError} = require('./error');
+const fs = require('fs');
+const path = require('path');
 const {posix: posixPath} = require('path');
 const headedBrowser = process.env.HEADED_BROWSER === 'true';
 // Two flavors of Playwright:
@@ -143,10 +145,18 @@ const normalizeURL = url => {
 };
 // Visits a URL and returns the response of the server.
 const goTo = exports.goTo = async (report, page, url, timeout, waitUntil) => {
-  // If the URL is a file path relative to the project root:
+  // If the URL is that of a local file:
   if (url.startsWith('file://')) {
-    // Make it the absolute path to the specified file.
-    url = url.replace('file://', `file://${__dirname}/../`);
+    const filePath = url.replace(/^file:\/+/, '/');
+    const projectRoot = path.resolve(__dirname, '..');
+    // If the path is not absolute (inside the project or existing on disk), it is relative to
+    // the project root (file://validation/…), as job files write it: make it absolute.
+    if (! filePath.startsWith(`${projectRoot}/`) && ! fs.existsSync(filePath)) {
+      url = `file://${projectRoot}/${filePath.replace(/^\/+/, '')}`;
+    }
+    else {
+      url = `file://${filePath}`;
+    }
   }
   // Visit the URL.
   const startTime = Date.now();
@@ -299,7 +309,9 @@ const launchOnce = async opts => {
     needsAccessibleName = false,
     // Extra Playwright context options (e.g. deviceScaleFactor for device-pixel page
     // images), spread last so they win over the defaults.
-    contextOverrides = {}
+    contextOverrides = {},
+    // Whether to replay the active checkpoint's acts after navigating (test-act launches).
+    replay = true
   } = opts;
   const act = report.acts[actIndex] ?? {};
   const {device} = report;
@@ -512,6 +524,27 @@ const launchOnce = async opts => {
       const navResult = await goTo(report, page, url, 10000, waitUntil);
       // If the navigation succeeded:
       if (navResult.success) {
+        // If the launch is for a test act at a checkpoint reached by interaction:
+        const checkpoint = report.checkpoints?.[report.activeCheckpoint];
+        if (checkpoint && checkpoint.kind === 'interaction' && replay) {
+          // Re-enact the acts that reached the checkpoint, before any XPath stamping, so that
+          // elements the acts reveal or create are stamped like the rest. A failure closes
+          // the page and reports the act, so launch() can retry or give up.
+          const {replayActs} = require('./actDo');
+          const {getDomDigest} = require('./checkpoint');
+          const replayResult = await replayActs(page, report, checkpoint);
+          page = replayResult.page;
+          const digest = await getDomDigest(page);
+          act.data ??= {};
+          act.data.replay = {
+            checkpoint: checkpoint.index,
+            acts: replayResult.actCount,
+            elapsedMs: replayResult.elapsedMs,
+            fidelity: checkpoint.domDigest
+              ? (digest === checkpoint.domDigest ? 'exact' : 'divergent')
+              : 'unknown'
+          };
+        }
         // If XPath attributes are needed:
         if (xPathNeed === 'attribute') {
           // Use the added script to add them.
@@ -572,18 +605,26 @@ const launchOnce = async opts => {
 };
 // Manages browser launching and navigating and returns a page.
 exports.launch = async (opts = {}) => {
-  let {tempBrowserID = ''} = opts;
+  let {tempBrowserID = '', tempURL = ''} = opts;
   const {
     report = {},
     actIndex = 0,
-    tempURL = '',
     headEmulation = 'high',
     xPathNeed = 'script',
     needsAccessibleName = false,
     retries = 2,
     // Extra Playwright context options, passed through to launchOnce.
-    contextOverrides = {}
+    contextOverrides = {},
+    // Whether a test-act launch replays the active checkpoint's acts (launches for
+    // interaction acts and for the catalog pass do not).
+    replay = actIndex !== null
   } = opts;
+  // If the launch is for a test act at a later checkpoint, navigate to that checkpoint's
+  // origin: its URL if navigation reached it, else the URL its replayed acts start from.
+  const checkpoint = report.checkpoints?.[report.activeCheckpoint];
+  if (replay && checkpoint && report.activeCheckpoint > 0) {
+    tempURL = checkpoint.kind === 'navigation' ? checkpoint.url : checkpoint.launchURL;
+  }
   // If the report is valid:
   const jobValidation = isValidJob(report);
   if (jobValidation.isValid) {
@@ -599,7 +640,8 @@ exports.launch = async (opts = {}) => {
         headEmulation,
         xPathNeed,
         needsAccessibleName,
-        contextOverrides
+        contextOverrides,
+        replay
       }
     );
     // If the launch and navigation succeeded:
@@ -610,8 +652,9 @@ exports.launch = async (opts = {}) => {
     // Otherwise, i.e. if the launch or navigation failed:
     else {
       let unusedBrowserIDs = ['chromium', 'webkit', 'firefox'].filter(id => id !== tempBrowserID);
-      let retriesLeft = retries;
       let {error} = launchResult;
+      // A checkpoint replay failure is deterministic: do not retry it.
+      let retriesLeft = error.includes('checkpoint replay failed') ? 0 : retries;
       // As long as retries remain, decrement the allowed retry count and:
       while (retriesLeft) {
         // Prepare to wait 1 second before a retry.
@@ -642,7 +685,8 @@ exports.launch = async (opts = {}) => {
             headEmulation,
             xPathNeed,
             needsAccessibleName,
-            contextOverrides
+            contextOverrides,
+            replay
           }
         );
         // If the launch and navigation succeeded:
@@ -655,6 +699,11 @@ exports.launch = async (opts = {}) => {
           error = launchResult.error;
           // Report this.
           console.log(`WARNING: Retry failed (${error})`);
+          // A checkpoint replay failure is deterministic: stop retrying.
+          if (error.includes('checkpoint replay failed')) {
+            retriesLeft = 0;
+            break;
+          }
           // If a browser type was specified, retries are exhausted, and browser types are not:
           if (tempBrowserID && unusedBrowserIDs.length && ! retriesLeft) {
             // Change the browser type.
@@ -674,7 +723,7 @@ exports.launch = async (opts = {}) => {
           actIndex === null ? true : abortAssertively,
           report,
           actIndex,
-          'Launch or navigation failed; retries and browser types exhausted'
+          `Launch or navigation failed; retries and browser types exhausted (${error})`
         );
       }
       // Return a failure.

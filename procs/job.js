@@ -40,6 +40,27 @@ const tools = exports.tools = {
   testaro: 'Testaro',
   wave: 'WAVE',
 };
+/*
+  What each tool tests: a live page (page), the live page's HTML (html), or only a URL (url).
+  Tools that test a page or its HTML observe a checkpoint reached by interaction acts, because
+  the test act's browser replays those acts; a tool that tests a URL can observe only a
+  checkpoint reached by navigation.
+*/
+exports.toolInputs = {
+  alfa: 'page',
+  aslint: 'page',
+  axe: 'page',
+  ed11y: 'page',
+  htmlcs: 'page',
+  ibm: 'page',
+  nuVal: 'html',
+  nuVnu: 'html',
+  pour: 'page',
+  qualWeb: 'html',
+  surea11y: 'page',
+  testaro: 'page',
+  wave: 'url'
+};
 
 // FUNCTIONS
 
@@ -272,6 +293,22 @@ exports.isValidJob = job => {
       return {
         isValid: false,
         error: `Invalid act:\n${JSON.stringify(invalidAct, null, 2)}`
+      };
+    }
+    // Checkpoint acts must be uniquely named and must follow a launch act.
+    const checkpointNames = acts.filter(act => act.type === 'checkpoint').map(act => act.which);
+    if (new Set(checkpointNames).size !== checkpointNames.length || checkpointNames.includes('start')) {
+      return {
+        isValid: false,
+        error: 'Bad job checkpoint names (must be unique and not "start")'
+      };
+    }
+    const firstCheckpointIndex = acts.findIndex(act => act.type === 'checkpoint');
+    const firstLaunchIndex = acts.findIndex(act => act.type === 'launch');
+    if (firstCheckpointIndex > -1 && (firstLaunchIndex === -1 || firstLaunchIndex > firstCheckpointIndex)) {
+      return {
+        isValid: false,
+        error: 'Bad job acts (a checkpoint act precedes any launch act)'
       };
     }
     if (jobData && typeof jobData !== 'object') {

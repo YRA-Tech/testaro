@@ -17,11 +17,15 @@
 
 const {addError} = require('./error');
 const {launch} = require('./launch');
-const {tools} = require('./job');
+const {tools, toolInputs} = require('./job');
 const {fork} = require('child_process');
 const {pruneCatalog} = require('./catalog');
 // Function to perform an act on a live page.
-const {doInteractionAct} = require('./actDo');
+const {doInteractionAct, defaultInteraction} = require('./actDo');
+// Function to snapshot a page state as a checkpoint.
+const {makeCheckpoint} = require('./checkpoint');
+// Function to get an empty standard result.
+const {getStandardResult} = require('./standard');
 // Module to handle file system operations.
 const {applyMultiplier} = require('./config');
 const fs = require('fs/promises');
@@ -90,7 +94,7 @@ const getLegacyInstanceView = (instance, catalog) => {
   return view;
 };
 // Returns a property value and whether it satisfies an expectation.
-const isTrue = (object, specs, catalog) => {
+const isTrue = exports.isTrue = (object, specs, catalog) => {
   const property = specs[0];
   const propertyTree = property.split('.');
   // Test-act expectations reference results by property path. Most fixtures use the
@@ -197,6 +201,57 @@ exports.doActs = async (report, opts = {}) => {
   reportPath = path.join(tmpDir, `${tempReport.id}.json`);
   // Initialize the count of completed acts.
   let actCount = 0;
+  /*
+    Checkpoint bookkeeping. Checkpoint mode is on when the job has a checkpoint act; then a
+    test act observes the latest checkpoint, and interaction acts since the last checkpoint
+    make an implicit one before a test act. In legacy mode (no checkpoint act) every test act
+    observes checkpoint 0, as before, and such interaction acts only draw a warning.
+  */
+  const checkpointMode = acts.some(act => act.type === 'checkpoint');
+  const interaction = defaultInteraction;
+  // The URL the page most recently navigated to (by a launch or url act) and that act's index.
+  let lastNavURL = '';
+  let lastLaunchActIndex = null;
+  // Indexes of interaction acts since the last navigation (a checkpoint's replay) and since the
+  // last checkpoint (what makes a checkpoint necessary).
+  let sinceNav = [];
+  let dirtySince = [];
+  // Adds a warning to the job data.
+  const addWarning = message => {
+    tempReport.jobData.warnings ??= [];
+    tempReport.jobData.warnings.push(message);
+    console.log(`WARNING: ${message}`);
+  };
+  // Creates a checkpoint from the live page and returns it, or null on failure.
+  const checkpointNow = async (name, checkpointActIndex, implicit) => {
+    emitProgress({event: 'checkpointStart', index: tempReport.checkpoints.length, name});
+    try {
+      const checkpoint = await makeCheckpoint({
+        page,
+        report: tempReport,
+        name,
+        actIndex: checkpointActIndex,
+        implicit,
+        launchActIndex: lastLaunchActIndex,
+        launchURL: lastNavURL,
+        replay: [... sinceNav],
+        interaction
+      });
+      dirtySince = [];
+      emitProgress({
+        event: 'checkpointEnd',
+        index: checkpoint.index,
+        name,
+        kind: checkpoint.kind,
+        elapsedMs: checkpoint.elapsedMs
+      });
+      return checkpoint;
+    }
+    catch(error) {
+      console.log(`ERROR: Checkpoint ${name} failed (${error.message})`);
+      return null;
+    }
+  };
   // For each act in the temporary report (a numeric index, which a next act may change):
   for (let actIndex = 0; actIndex < acts.length; actIndex++) {
     // If the job has not been aborted:
@@ -255,18 +310,59 @@ exports.doActs = async (report, opts = {}) => {
       // Otherwise, if the act is a launch:
       else if (type === 'launch') {
         // Launch a browser, navigate, optionally make a screenshot, and add the result to the act.
+        const imageScale = Number.isFinite(tempReport.imageScale) && tempReport.imageScale > 1
+          ? tempReport.imageScale
+          : 1;
         page = await launch({
           report: tempReport,
           actIndex,
           tempBrowserID: getActBrowserID(tempReport, actIndex),
           tempURL: getActTargetURL(tempReport, actIndex),
           xPathNeed: 'none',
-          shoot: act.shoot
+          contextOverrides: imageScale > 1 ? {deviceScaleFactor: imageScale} : {},
+          replay: false
         });
         // If this failed (launch has already logged and, if so configured, aborted):
         if (! page) {
           // Report this.
           addError(false, false, tempReport, actIndex, 'ERROR: Launch failed');
+        }
+        // Otherwise, record the navigation for checkpoints: a launch of a page other than the
+        // latest checkpoint's calls for a new checkpoint.
+        else {
+          lastNavURL = page.url();
+          lastLaunchActIndex = actIndex;
+          sinceNav = [];
+          const latest = tempReport.checkpoints?.at(-1);
+          if (latest && page.url() !== latest.url) {
+            dirtySince.push(actIndex);
+          }
+        }
+      }
+      // Otherwise, if the act is a checkpoint:
+      else if (type === 'checkpoint') {
+        // If a page exists:
+        if (page && tempReport.checkpoints) {
+          // Snapshot it as the checkpoint.
+          const startTime = Date.now();
+          const checkpoint = await checkpointNow(act.which, actIndex, false);
+          act.result = checkpoint
+            ? {
+              success: true,
+              index: checkpoint.index,
+              kind: checkpoint.kind,
+              url: checkpoint.url,
+              title: checkpoint.title,
+              elementCount: checkpoint.elementCount,
+              imageIndexes: checkpoint.imageIndexes,
+              elapsedMs: Date.now() - startTime
+            }
+            : {success: false, error: 'Checkpoint failed'};
+        }
+        // Otherwise, i.e. if no page exists:
+        else {
+          // Report this.
+          addError(true, false, tempReport, actIndex, 'ERROR: No page to checkpoint');
         }
       }
       // Otherwise, if the act is a test act:
@@ -280,9 +376,48 @@ exports.doActs = async (report, opts = {}) => {
         // Assign the act to the current checkpoint (0, the launch page, unless checkpoint acts
         // have created later ones), which the child reads as report.activeCheckpoint.
         if (tempReport.checkpoints) {
-          act.checkpoint = tempReport.checkpoints.length - 1;
+          const ownTarget = Boolean(act.launch?.target?.url || act.target?.url);
+          // If interaction acts have run since the last checkpoint:
+          if (dirtySince.length) {
+            // In checkpoint mode, make an implicit checkpoint so the act tests the current state.
+            if (checkpointMode && page && ! ownTarget) {
+              addWarning(
+                `Implicit checkpoint before act ${actIndex}; add an explicit checkpoint act`
+              );
+              await checkpointNow(`act${actIndex}`, actIndex, true);
+            }
+            // Otherwise, warn that the act tests the launch page, not the current state.
+            else if (! ownTarget) {
+              addWarning(
+                `Test act ${actIndex} follows interaction acts but tests checkpoint 0; add a checkpoint act to test the current page state`
+              );
+            }
+          }
+          // A test act with its own target tests that target, outside the checkpoints.
+          act.checkpoint = ownTarget ? null : tempReport.checkpoints.length - 1;
           tempReport.activeCheckpoint = act.checkpoint;
-          tempReport.checkpoints[act.checkpoint].testActs.push(actIndex);
+          if (act.checkpoint !== null) {
+            tempReport.checkpoints[act.checkpoint].testActs.push(actIndex);
+          }
+        }
+        // If the tool tests a URL and the checkpoint was reached by interaction, it cannot
+        // observe the checkpoint: prevent the act with the reason.
+        const activeCheckpoint = tempReport.checkpoints?.[act.checkpoint];
+        if (activeCheckpoint && activeCheckpoint.kind === 'interaction') {
+          const testsURL = toolInputs[act.which] === 'url'
+          || (['nuVal', 'nuVnu'].includes(act.which) && act.withSource);
+          if (testsURL) {
+            const reason = `Tool ${act.which} tests a URL, not a page state reached by interaction (checkpoint ${act.checkpoint})`;
+            act.data = {prevented: true, error: reason};
+            act.result = standard !== 'no'
+              ? {standardResult: {... getStandardResult(), prevented: true}}
+              : {};
+            tempReport.jobData.preventions[act.which] = reason;
+            addError(true, false, tempReport, actIndex, `ERROR: ${reason}`);
+            act.endTime = Date.now();
+            actCount++;
+            continue;
+          }
         }
         let tempReportJSON = JSON.stringify(tempReport);
         // Save a copy of the temporary report, which the child process will read.
@@ -473,7 +608,24 @@ exports.doActs = async (report, opts = {}) => {
       // Otherwise, if a current page exists:
       else if (page) {
         // Perform the act on it (a page act replaces the page).
-        page = await doInteractionAct({page, report: tempReport, act, actIndex, actCount});
+        page = await doInteractionAct({page, report: tempReport, act, actIndex, actCount, interaction});
+        // Record the act for checkpoints: a successful url act is a navigation; a move, key
+        // press, revelation, or tab switch is an interaction the next checkpoint must replay.
+        if (type === 'url' && act.result?.success) {
+          lastNavURL = page.url();
+          sinceNav = [];
+          const latest = tempReport.checkpoints?.at(-1);
+          if (latest && page.url() !== latest.url) {
+            dirtySince.push(actIndex);
+          }
+        }
+        else if (['wait', 'state', 'shoot'].includes(type)) {
+          // These observe or record; they change nothing that a replay must repeat.
+        }
+        else if (act.result && act.result.success !== false) {
+          sinceNav.push(actIndex);
+          dirtySince.push(actIndex);
+        }
       }
       // Otherwise, i.e. if no page exists:
       else {

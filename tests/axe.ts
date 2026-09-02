@@ -110,7 +110,8 @@ export const reporter = async (page: Page, report: Report, actIndex: number) => 
       resultTypes: ['violations', 'incomplete']
     };
     if (rules && rules.length) {
-      axeOptions.runOnly = rules;
+      // A bare array would be read as tag names; rule IDs need the object form.
+      axeOptions.runOnly = {type: 'rule', values: rules};
     }
     else {
       axeOptions.runOnly = ['experimental', 'best-practice', 'wcag2a', 'wcag2aa', 'wcag2aaa', 'wcag21a', 'wcag21aa', 'wcag21aaa'];
@@ -156,12 +157,6 @@ export const reporter = async (page: Page, report: Report, actIndex: number) => 
         rule.nodes.forEach(node => {
           totals.violations[node.impact as AxeImpact]++;
         });
-      });
-      // Delete irrelevant properties from the report details.
-      const irrelevants = ['inapplicable', 'passes', 'incomplete', 'violations']
-      .slice(0, 4 - (detailLevel as number));
-      irrelevants.forEach(irrelevant => {
-        delete (axeReport as unknown as Record<string, unknown>)[irrelevant];
       });
       // If standard results are to be reported and there are any suspicions:
       if (standard && (totals.rulesViolated || totals.rulesWarned)) {
@@ -239,6 +234,14 @@ export const reporter = async (page: Page, report: Report, actIndex: number) => 
           }
         });
       }
+      // Delete the properties of the report details that the detail level excludes, after the
+      // standard result has been made from them, so the standard result does not depend on
+      // the detail level.
+      const irrelevants = ['inapplicable', 'passes', 'incomplete', 'violations']
+      .slice(0, 4 - (detailLevel as number));
+      irrelevants.forEach(irrelevant => {
+        delete (axeReport as unknown as Record<string, unknown>)[irrelevant];
+      });
     }
     // Otherwise, i.e. if the test failed:
     else {

@@ -25,6 +25,8 @@ const ruleDir = `${__dirname}/../../testaro`;
 const validatorDir = `${__dirname}/../tests/jobProperties`;
 // Rules that ask an AI model to classify candidate instances.
 const aiRuleIDs = ['allCaps'];
+// Validators of features other than rules, run after the rule validators.
+const featureValidatorIDs = ['checkpoint'];
 // Maximum number of seconds allowed for the validation of one rule.
 const ruleTimeLimit = 180;
 /*
@@ -77,7 +79,9 @@ Promise.all([fs.readdir(ruleDir), fs.readdir(validatorDir)])
   .map(name => name.slice(0, -5));
   // Identify the rules without validators and the validators without rules.
   const unvalidatedIDs = ruleIDs.filter(id => ! validatorIDs.includes(id));
-  const orphanIDs = validatorIDs.filter(id => ! ruleIDs.includes(id));
+  const orphanIDs = validatorIDs.filter(
+    id => ! ruleIDs.includes(id) && ! featureValidatorIDs.includes(id)
+  );
   // Identify the AI-dependent rules to be skipped for lack of an API key.
   const skippedIDs = process.env.ANTHROPIC_API_KEY
     ? []
@@ -87,9 +91,12 @@ Promise.all([fs.readdir(ruleDir), fs.readdir(validatorDir)])
   const knownFailedIDs = [];
   const recoveredIDs = [];
   let validatedCount = 0;
-  // For each rule with a validator:
+  // For each rule with a validator, and then each feature validator:
+  const featureIDs = featureValidatorIDs.filter(id => validatorIDs.includes(id));
   for (
-    const testID of ruleIDs.filter(id => validatorIDs.includes(id) && ! skippedIDs.includes(id))
+    const testID of ruleIDs
+    .filter(id => validatorIDs.includes(id) && ! skippedIDs.includes(id))
+    .concat(featureIDs)
   ) {
     // Validate the rule.
     console.log(`### Validating Testaro test ${testID}`);

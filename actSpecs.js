@@ -24,6 +24,13 @@ exports.actSpecs = {
         what: [false, 'string', 'hasLength', 'comment']
       }
     ],
+    checkpoint: [
+      'Snapshot the current page state (catalog, page image, ARIA snapshot) as a checkpoint that subsequent test acts observe',
+      {
+        which: [true, 'string', 'hasLength', 'checkpoint name, unique within the job'],
+        what: [false, 'string', 'hasLength', 'comment']
+      }
+    ],
     checkbox: [
       'Check a checkbox',
       {

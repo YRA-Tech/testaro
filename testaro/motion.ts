@@ -33,8 +33,11 @@ export const reporter = async (page: Page, report: Report) => {
   const data: {prevented?: boolean; error?: string} = {};
   const totals = [0, 0, 0, 0];
   const standardInstances: StandardInstance[] = [];
+  // Identify the image of the checkpoint being tested (images[0] for checkpoint 0).
+  const checkpointIndex = report.activeCheckpoint ?? 0;
+  const imageIndex = report.checkpoints?.[checkpointIndex]?.imageIndexes?.[0] ?? 0;
   // If the initial image exists:
-  if (report.images?.length) {
+  if (report.images?.[imageIndex] !== undefined) {
     let violationWhat = '';
     let ordinalSeverity = 0;
     // Make an image with the same color type as the initial one and get its base64 encoding.
@@ -46,7 +49,7 @@ export const reporter = async (page: Page, report: Report) => {
     // If this succeeded:
     if (png) {
       // Parse both base64 encodings into PNG objects.
-      const initialPNG = PNG.sync.read(Buffer.from(report.images[0], 'base64'));
+      const initialPNG = PNG.sync.read(Buffer.from(report.images[imageIndex], 'base64'));
       const finalPNG = PNG.sync.read(Buffer.from(png, 'base64'));
       // If their dimensions differ:
       if (finalPNG.width !== initialPNG.width || finalPNG.height !== initialPNG.height) {
