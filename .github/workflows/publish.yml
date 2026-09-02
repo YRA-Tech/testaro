@@ -34,7 +34,7 @@ jobs:
           node-version: 24
           cache: npm
       # Trusted publishing needs npm 11.5.1 or later.
-      - run: npm install -g npm@latest && npm --version
+      - run: npm install -g npm@11 && npm --version
       - name: Check that the release tag matches the package version
         if: github.event_name == 'release'
         run: |
