@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<!--
+  © 2026 Jeff Witt.
+
+  Licensed under the MIT License. See LICENSE file at the project root or
+  https://opensource.org/license/mit/ for details.
+
+  SPDX-License-Identifier: MIT
+-->
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <title>Page whose defects appear after an action</title>
+    <meta name="description" content="tester">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+  </head>
+  <body>
+    <main>
+      <h1>Page whose defects appear after an action</h1>
+      <p>At first the page has no defects. Activating the button below inserts a section containing a link without a destination and an image whose alternative text is a URL (defects the testaro linkTo and altScheme rules report), and an image without alternative text and a link without text (defects axe reports), so a test act at a checkpoint after the activation reports defects that a test act before it does not.</p>
+      <p><button id="more" type="button">Show more</button></p>
+      <div id="extra"></div>
+    </main>
+    <script>
+      document.getElementById('more').addEventListener('click', () => {
+        const extra = document.getElementById('extra');
+        if (! extra.firstElementChild) {
+          extra.innerHTML = '<section id="revealed"><h2>More</h2>'
+          + '<p>A link with no destination: <a id="noHref">Nowhere</a></p>'
+          + '<p>An image whose alternative text is a URL: <img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" alt="https://example.com/photo.png" width="20" height="20"></p>'
+          + '<p>An image with no alternative text: <img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" width="20" height="20"></p>'
+          + '<p>A link with no text: <a id="emptyLink" href="#more"></a></p>'
+          + '</section>';
+        }
+      });
+    </script>
+  </body>
+</html>

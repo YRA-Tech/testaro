@@ -71,16 +71,33 @@ export const doTest = async (
   severity: number,
   getBadWhatString: string
 ): Promise<RuleResult> => {
+  // The subtree roots the rule is restricted to, if the test act has scope changed and the
+  // testaro tool judged the rule element-local (set per rule by tests/testaro.ts).
+  const scopeRoots = report.ruleScopeRoots ?? null;
   const ruleData = await page.evaluate(async args => {
     // Get the arguments.
     const [
       withItems,
       candidateSelector,
       severity,
-      getBadWhatString
+      getBadWhatString,
+      scopeRoots
     ] = args;
-    // Get all violator candidates.
-    const candidates = document.querySelectorAll(candidateSelector);
+    // Get all violator candidates, within the scope roots if any.
+    let candidates = Array.from(document.querySelectorAll(candidateSelector));
+    if (scopeRoots && scopeRoots.length) {
+      const roots = scopeRoots
+      .map(selector => {
+        try {
+          return document.querySelector(selector);
+        }
+        catch {
+          return null;
+        }
+      })
+      .filter((root): root is Element => Boolean(root));
+      candidates = candidates.filter(candidate => roots.some(root => root.contains(candidate)));
+    }
     let violationCount = 0;
     // Initialize proto-instances.
     const protoInstances: ProtoInstance[] = [];
@@ -164,7 +181,8 @@ export const doTest = async (
       withItems,
       candidateSelector,
       severity,
-      getBadWhatString
+      getBadWhatString,
+      scopeRoots
     ] as const
   );
   // Initialize the standard instances. Any instance without an outcome gets the rule's default

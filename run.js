@@ -18,7 +18,7 @@
 
 const {doActs} = require('./procs/doActs');
 require('dotenv').config({quiet: true});
-const {isValidJob} = require('./procs/job');
+const {getIsolation, isValidJob} = require('./procs/job');
 const {getCatalog} = require('./procs/catalog');
 const {nowString} = require('./procs/dateTime');
 const {chromium} = require('playwright-extra');
@@ -131,7 +131,8 @@ exports.doJob = async (job, opts = {}) => {
       presses: 0,
       amountRead: 0,
       toolTimes: {},
-      preventions: {}
+      preventions: {},
+      isolation: getIsolation(job)
     };
     process.on('message', message => {
       if (message === 'interrupt') {

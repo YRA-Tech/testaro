@@ -1,0 +1,317 @@
+{
+  "rule": "userPath",
+  "timeLimit": 120,
+  "what": "acts produced by procs/userPath.js getUserPathActs from a recorded user path (fill, select, checkpoint, click, wait, checkpoint, navigate, checkpoint) with a testaro test act per checkpoint",
+  "acts": [
+    {
+      "type": "launch",
+      "target": {
+        "url": "file://validation/tests/targets/userPath/index.html",
+        "what": "form whose completion reveals defects"
+      }
+    },
+    {
+      "type": "text",
+      "selector": "#name",
+      "what": "Ada",
+      "clear": true
+    },
+    {
+      "type": "select",
+      "selector": "#color",
+      "what": "green"
+    },
+    {
+      "type": "checkpoint",
+      "which": "filled",
+      "what": "filled"
+    },
+    {
+      "type": "test",
+      "which": "testaro",
+      "withItems": true,
+      "rules": [
+        "y",
+        "altScheme",
+        "linkTo",
+        "phOnly"
+      ],
+      "stopOnFail": false,
+      "scope": "page",
+      "expect": [
+        [
+          "checkpoint",
+          "=",
+          1
+        ],
+        [
+          "scope",
+          "=",
+          "page"
+        ],
+        [
+          "standardResult.instances.length",
+          "=",
+          1
+        ],
+        [
+          "standardResult.instances.0.ruleID",
+          "=",
+          "phOnly"
+        ],
+        [
+          "standardResult.instances.0.id",
+          "=",
+          "name"
+        ],
+        [
+          "data.scope"
+        ]
+      ]
+    },
+    {
+      "type": "button",
+      "selector": "role=button[name=\"Continue\"]",
+      "what": "continue"
+    },
+    {
+      "type": "state",
+      "which": "idle",
+      "what": "pause 200 ms"
+    },
+    {
+      "type": "checkpoint",
+      "which": "continued",
+      "what": "continued"
+    },
+    {
+      "type": "test",
+      "which": "testaro",
+      "withItems": true,
+      "rules": [
+        "y",
+        "altScheme",
+        "linkTo",
+        "phOnly"
+      ],
+      "stopOnFail": false,
+      "scope": "changed",
+      "expect": [
+        [
+          "checkpoint",
+          "=",
+          2
+        ],
+        [
+          "data.scope.applied",
+          "=",
+          true
+        ],
+        [
+          "data.scope.pathIDs",
+          "e",
+          [
+            "/html/body/main[1]/div[1]/section[1]"
+          ]
+        ],
+        [
+          "data.scope.localRules",
+          "e",
+          [
+            "altScheme",
+            "linkTo",
+            "phOnly"
+          ]
+        ],
+        [
+          "standardResult.instances.length",
+          "=",
+          2
+        ],
+        [
+          "standardResult.instances.0.ruleID",
+          "=",
+          "altScheme"
+        ],
+        [
+          "standardResult.instances.1.ruleID",
+          "=",
+          "linkTo"
+        ],
+        [
+          "data.replay.acts",
+          "=",
+          3
+        ]
+      ]
+    },
+    {
+      "type": "url",
+      "which": "file://validation/tests/targets/checkpoint/index.html",
+      "what": "go to another page"
+    },
+    {
+      "type": "checkpoint",
+      "which": "checkpoint3"
+    },
+    {
+      "type": "test",
+      "which": "testaro",
+      "withItems": true,
+      "rules": [
+        "y",
+        "altScheme",
+        "linkTo",
+        "phOnly"
+      ],
+      "stopOnFail": false,
+      "scope": "changed",
+      "expect": [
+        [
+          "checkpoint",
+          "=",
+          3
+        ],
+        [
+          "data.scope.requested",
+          "=",
+          "changed"
+        ],
+        [
+          "standardResult.instances.length",
+          "=",
+          0
+        ],
+        [
+          "data.replay"
+        ]
+      ]
+    }
+  ],
+  "expectReport": [
+    [
+      "checkpoints.length",
+      "=",
+      4
+    ],
+    [
+      "checkpoints.1.name",
+      "=",
+      "filled"
+    ],
+    [
+      "checkpoints.1.kind",
+      "=",
+      "interaction"
+    ],
+    [
+      "checkpoints.1.replay",
+      "e",
+      [
+        1,
+        2
+      ]
+    ],
+    [
+      "checkpoints.2.name",
+      "=",
+      "continued"
+    ],
+    [
+      "checkpoints.2.kind",
+      "=",
+      "interaction"
+    ],
+    [
+      "checkpoints.2.replay",
+      "e",
+      [
+        1,
+        2,
+        5
+      ]
+    ],
+    [
+      "checkpoints.3.name",
+      "=",
+      "checkpoint3"
+    ],
+    [
+      "checkpoints.3.kind",
+      "=",
+      "navigation"
+    ],
+    [
+      "checkpoints.3.replay",
+      "e",
+      []
+    ],
+    [
+      "checkpoints.1.structure"
+    ],
+    [
+      "flow.deltas.length",
+      "=",
+      3
+    ],
+    [
+      "flow.deltas.0.notObserved",
+      "e",
+      [
+        "testaro"
+      ]
+    ],
+    [
+      "flow.deltas.1.tools",
+      "e",
+      [
+        "testaro"
+      ]
+    ],
+    [
+      "flow.deltas.1.added.length",
+      "=",
+      2
+    ],
+    [
+      "flow.deltas.1.removed.length",
+      "=",
+      0
+    ],
+    [
+      "flow.deltas.1.notRetested.length",
+      "=",
+      1
+    ],
+    [
+      "flow.deltas.1.notRetested.0.ruleID",
+      "=",
+      "phOnly"
+    ],
+    [
+      "flow.deltas.1.structure.roots",
+      "e",
+      [
+        "/html/body/main[1]/div[1]/section[1]"
+      ]
+    ],
+    [
+      "flow.deltas.2.tools",
+      "e",
+      [
+        "testaro"
+      ]
+    ],
+    [
+      "jobData.catalogData.checkpoints.0.entryCount",
+      "=",
+      0
+    ],
+    [
+      "pathIDs"
+    ],
+    [
+      "catalogNextIndex"
+    ]
+  ]
+}

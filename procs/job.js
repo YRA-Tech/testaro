@@ -40,9 +40,62 @@ const tools = exports.tools = {
   testaro: 'Testaro',
   wave: 'WAVE',
 };
+/*
+  What each tool tests: a live page (page), the live page's HTML (html), or only a URL (url).
+  Tools that test a page or its HTML observe a checkpoint reached by interaction acts, because
+  the test act's browser replays those acts; a tool that tests a URL can observe only a
+  checkpoint reached by navigation.
+*/
+exports.toolInputs = {
+  alfa: 'page',
+  aslint: 'page',
+  axe: 'page',
+  ed11y: 'page',
+  htmlcs: 'page',
+  ibm: 'page',
+  nuVal: 'html',
+  nuVnu: 'html',
+  pour: 'page',
+  qualWeb: 'html',
+  surea11y: 'page',
+  testaro: 'page',
+  wave: 'url'
+};
+
+/*
+  Scopes of a test act: page (the default) tests the whole page of its checkpoint; changed tests
+  only the subtrees that changed since the previous checkpoint, for rules and tools that can be
+  so restricted (toolScopes), and the whole page for the rest.
+*/
+const testScopes = exports.testScopes = ['page', 'changed'];
+/*
+  Tools that can restrict their tests to subtree roots (scope: 'changed'): axe by its include
+  context, surea11y by its context selector, and testaro by filtering the candidates of its
+  element-local rules. Other tools test the whole page whatever the scope.
+*/
+exports.toolScopes = {
+  axe: true,
+  surea11y: true,
+  testaro: true
+};
+
+/*
+  Isolation levels for test acts:
+    process: each test act runs in a child process with its own browser (the default).
+    browser: test acts run in the job's process, each in a fresh context of one shared browser.
+    page: test acts run in the job's process on the live page of the current checkpoint.
+*/
+const isolationLevels = exports.isolationLevels = ['process', 'browser', 'page'];
 
 // FUNCTIONS
 
+// Returns the isolation level of a job: its own, else the ISOLATION environment variable, else process.
+exports.getIsolation = job => {
+  if (job && isolationLevels.includes(job.isolation)) {
+    return job.isolation;
+  }
+  return isolationLevels.includes(process.env.ISOLATION) ? process.env.ISOLATION : 'process';
+};
 // Validates a browser type.
 const isBrowserID = exports.isBrowserID = type => ['chromium', 'firefox', 'webkit'].includes(type);
 // Returns whether a variable has a specified type.
@@ -99,6 +152,9 @@ const hasSubtype = (variable, subtype) => {
     else if (subtype === 'isState') {
       return isState(variable);
     }
+    else if (subtype === 'isScope') {
+      return testScopes.includes(variable);
+    }
     else {
       console.log(`ERROR: ${subtype} not a known subtype`);
       return false;
@@ -147,6 +203,10 @@ const isValidAct = exports.isValidAct = act => {
         // Return invalidity.
         return false;
       }
+    }
+    // A checkbox or radio act needs a text substring or a selector to identify its element.
+    if (['checkbox', 'radio'].includes(type) && ! act.which && ! act.selector) {
+      return false;
     }
     // Return whether the act is valid.
     return Object.keys(validator).every(property => {
@@ -222,6 +282,12 @@ exports.isValidJob = job => {
     // `stealth` is optional. When omitted, Testaro defaults to enabling the
     // puppeteer-extra-plugin-stealth evasions on Chromium (historical
     // behavior). When present, it must be a boolean.
+    if (job.isolation !== undefined && ! isolationLevels.includes(job.isolation)) {
+      return {
+        isValid: false,
+        error: 'Bad job isolation (must be process, browser, or page if present)'
+      };
+    }
     if (stealth !== undefined && typeof stealth !== 'boolean') {
       return {
         isValid: false,
@@ -272,6 +338,29 @@ exports.isValidJob = job => {
       return {
         isValid: false,
         error: `Invalid act:\n${JSON.stringify(invalidAct, null, 2)}`
+      };
+    }
+    // Checkpoint acts must be uniquely named and must follow a launch act.
+    const checkpointNames = acts.filter(act => act.type === 'checkpoint').map(act => act.which);
+    if (new Set(checkpointNames).size !== checkpointNames.length || checkpointNames.includes('start')) {
+      return {
+        isValid: false,
+        error: 'Bad job checkpoint names (must be unique and not "start")'
+      };
+    }
+    const firstCheckpointIndex = acts.findIndex(act => act.type === 'checkpoint');
+    const firstLaunchIndex = acts.findIndex(act => act.type === 'launch');
+    if (firstCheckpointIndex > -1 && (firstLaunchIndex === -1 || firstLaunchIndex > firstCheckpointIndex)) {
+      return {
+        isValid: false,
+        error: 'Bad job acts (a checkpoint act precedes any launch act)'
+      };
+    }
+    // A changed-scope test act needs checkpoints to compare.
+    if (firstCheckpointIndex === -1 && acts.some(act => act.type === 'test' && act.scope === 'changed')) {
+      return {
+        isValid: false,
+        error: 'Bad job acts (a test act has scope changed but the job has no checkpoint act)'
       };
     }
     if (jobData && typeof jobData !== 'object') {

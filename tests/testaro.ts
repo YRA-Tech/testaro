@@ -19,7 +19,7 @@
 // Shared configuration for timeout multiplier.
 import type {Page} from 'playwright';
 import {applyMultiplier} from '../procs/config';
-import {launch} from '../procs/launch';
+import {browserClose, launch} from '../procs/launch';
 // Function to get an empty standard result.
 import {getStandardResult} from '../procs/standard';
 import {ruleModules} from '../testaro/registry';
@@ -39,6 +39,11 @@ interface RuleMeta {
   outcome?: Outcome;
   // Default uncertainty code of the rule's cantTell violations.
   uncertainty?: UncertaintyCode;
+  // Whether the rule's verdict on an element depends only on that element's subtree and
+  // what it references, so a changed-scope test act may restrict the rule to changed subtrees.
+  // Page-level rules (heading order, landmarks, duplicate IDs, focus order, hover, motion, …)
+  // are not local: any change can alter their verdicts, so they always test the whole page.
+  local: boolean;
   timeOut: number;
   defaultOn: boolean;
   // Read below but defined by no rule, so the temporary-directory branch never runs;
@@ -53,6 +58,7 @@ interface TestaroAct extends Act {
   withItems?: boolean;
   rules?: string[];
   launch?: {browserID?: BrowserID};
+  scope?: 'page' | 'changed';
 }
 // The result of one rule test.
 interface RuleTestResult {
@@ -74,6 +80,7 @@ const allRules: RuleMeta[] = [
     what: 'elements with ambiguous or missing referenced descriptions',
     contaminates: false,
     needsAccessibleName: false,
+    local: true,
     timeOut: 5,
     defaultOn: true
   },
@@ -82,6 +89,7 @@ const allRules: RuleMeta[] = [
     what: 'elements with all-capital text transformation styles',
     contaminates: false,
     needsAccessibleName: false,
+    local: true,
     timeOut: 5,
     defaultOn: false
   },
@@ -90,6 +98,7 @@ const allRules: RuleMeta[] = [
     what: 'elements with unnecessarily all-capital text substrings',
     contaminates: false,
     needsAccessibleName: false,
+    local: true,
     outcome: 'cantTell',
     uncertainty: 'judgement-required',
     timeOut: 30,
@@ -100,6 +109,7 @@ const allRules: RuleMeta[] = [
     what: 'page that is entirely or mostly hidden',
     contaminates: false,
     needsAccessibleName: false,
+    local: false,
     timeOut: 5,
     defaultOn: true
   },
@@ -108,6 +118,7 @@ const allRules: RuleMeta[] = [
     what: 'leaf elements with entirely italic or oblique text longer than 39 characters',
     contaminates: false,
     needsAccessibleName: false,
+    local: true,
     timeOut: 5,
     defaultOn: true
   },
@@ -116,6 +127,7 @@ const allRules: RuleMeta[] = [
     what: 'img elements with alt attributes having URLs as their entire values',
     contaminates: false,
     needsAccessibleName: false,
+    local: true,
     timeOut: 5,
     defaultOn: true
   },
@@ -124,6 +136,7 @@ const allRules: RuleMeta[] = [
     what: 'elements with attributes having illicit values',
     contaminates: false,
     needsAccessibleName: false,
+    local: true,
     timeOut: 5,
     defaultOn: false
   },
@@ -132,6 +145,7 @@ const allRules: RuleMeta[] = [
     what: 'large count of visible elements',
     contaminates: false,
     needsAccessibleName: false,
+    local: false,
     timeOut: 5,
     defaultOn: true
   },
@@ -140,6 +154,7 @@ const allRules: RuleMeta[] = [
     what: 'caption elements that are not first children of table elements',
     contaminates: false,
     needsAccessibleName: false,
+    local: true,
     timeOut: 5,
     defaultOn: true
   },
@@ -148,6 +163,7 @@ const allRules: RuleMeta[] = [
     what: 'elements with ambiguous or missing referenced datalist elements',
     contaminates: false,
     needsAccessibleName: false,
+    local: true,
     timeOut: 5,
     defaultOn: true
   },
@@ -156,6 +172,7 @@ const allRules: RuleMeta[] = [
     what: 'distorted text',
     contaminates: false,
     needsAccessibleName: false,
+    local: true,
     timeOut: 5,
     defaultOn: true
   },
@@ -164,6 +181,7 @@ const allRules: RuleMeta[] = [
     what: 'document without a doctype property',
     contaminates: false,
     needsAccessibleName: false,
+    local: false,
     timeOut: 5,
     defaultOn: true
   },
@@ -172,6 +190,7 @@ const allRules: RuleMeta[] = [
     what: 'active elements embedded in links or buttons',
     contaminates: false,
     needsAccessibleName: false,
+    local: true,
     timeOut: 5,
     defaultOn: true
   },
@@ -180,6 +199,7 @@ const allRules: RuleMeta[] = [
     what: 'invalid elements within the head',
     contaminates: false,
     needsAccessibleName: false,
+    local: false,
     timeOut: 5,
     defaultOn: true
   },
@@ -188,6 +208,7 @@ const allRules: RuleMeta[] = [
     what: 'same-level sibling headings with identical texts',
     contaminates: false,
     needsAccessibleName: false,
+    local: false,
     timeOut: 5,
     defaultOn: true
   },
@@ -196,6 +217,7 @@ const allRules: RuleMeta[] = [
     what: 'hr element instead of styles used for vertical segmentation',
     contaminates: false,
     needsAccessibleName: false,
+    local: true,
     timeOut: 5,
     defaultOn: true
   },
@@ -204,6 +226,7 @@ const allRules: RuleMeta[] = [
     what: 'links with image files as their destinations',
     contaminates: false,
     needsAccessibleName: false,
+    local: true,
     timeOut: 5,
     defaultOn: true
   },
@@ -212,6 +235,7 @@ const allRules: RuleMeta[] = [
     what: 'labeling inconsistencies',
     contaminates: false,
     needsAccessibleName: false,
+    local: false,
     timeOut: 5,
     defaultOn: true
   },
@@ -220,6 +244,7 @@ const allRules: RuleMeta[] = [
     what: 'legend elements that are not first children of fieldset elements',
     contaminates: false,
     needsAccessibleName: false,
+    local: true,
     timeOut: 5,
     defaultOn: true
   },
@@ -228,6 +253,7 @@ const allRules: RuleMeta[] = [
     what: 'text with a line height less than 1.5 times its font size',
     contaminates: false,
     needsAccessibleName: false,
+    local: true,
     timeOut: 5,
     defaultOn: true
   },
@@ -236,6 +262,7 @@ const allRules: RuleMeta[] = [
     what: 'links with identical texts but different destinations',
     contaminates: false,
     needsAccessibleName: false,
+    local: false,
     timeOut: 20,
     defaultOn: true
   },
@@ -244,6 +271,7 @@ const allRules: RuleMeta[] = [
     what: 'links that automatically open new windows',
     contaminates: false,
     needsAccessibleName: false,
+    local: true,
     timeOut: 5,
     defaultOn: true
   },
@@ -252,6 +280,7 @@ const allRules: RuleMeta[] = [
     what: 'links with deprecated attributes',
     contaminates: false,
     needsAccessibleName: false,
+    local: true,
     timeOut: 5,
     defaultOn: true
   },
@@ -260,6 +289,7 @@ const allRules: RuleMeta[] = [
     what: 'links without destinations',
     contaminates: false,
     needsAccessibleName: false,
+    local: true,
     timeOut: 5,
     defaultOn: true
   },
@@ -268,6 +298,7 @@ const allRules: RuleMeta[] = [
     what: 'missing underlines on inline links',
     contaminates: false,
     needsAccessibleName: false,
+    local: true,
     timeOut: 5,
     defaultOn: true
   },
@@ -276,6 +307,7 @@ const allRules: RuleMeta[] = [
     what: 'text smaller than 11 pixels',
     contaminates: false,
     needsAccessibleName: false,
+    local: true,
     timeOut: 5,
     defaultOn: true
   },
@@ -284,6 +316,7 @@ const allRules: RuleMeta[] = [
     what: 'table elements used for layout',
     contaminates: false,
     needsAccessibleName: false,
+    local: true,
     timeOut: 5,
     defaultOn: true
   },
@@ -292,6 +325,7 @@ const allRules: RuleMeta[] = [
     what: 'Non-option elements with option roles that have no aria-selected attributes',
     contaminates: false,
     needsAccessibleName: false,
+    local: true,
     timeOut: 5,
     defaultOn: true
   },
@@ -300,6 +334,7 @@ const allRules: RuleMeta[] = [
     what: 'adjacent br elements suspected of nonsemantically simulating p elements',
     contaminates: false,
     needsAccessibleName: false,
+    local: true,
     timeOut: 5,
     defaultOn: true
   },
@@ -308,6 +343,7 @@ const allRules: RuleMeta[] = [
     what: 'radio buttons not grouped into standard field sets',
     contaminates: false,
     needsAccessibleName: false,
+    local: false,
     timeOut: 5,
     defaultOn: true
   },
@@ -316,6 +352,7 @@ const allRules: RuleMeta[] = [
     what: 'native-replacing explicit roles',
     contaminates: false,
     needsAccessibleName: false,
+    local: false,
     timeOut: 20,
     defaultOn: true
   },
@@ -324,6 +361,7 @@ const allRules: RuleMeta[] = [
     what: 'headings that violate the logical level order in their sectioning containers',
     contaminates: false,
     needsAccessibleName: false,
+    local: false,
     timeOut: 5,
     defaultOn: true
   },
@@ -332,6 +370,7 @@ const allRules: RuleMeta[] = [
     what: 'style inconsistencies',
     contaminates: false,
     needsAccessibleName: false,
+    local: false,
     timeOut: 5,
     defaultOn: true
   },
@@ -340,6 +379,7 @@ const allRules: RuleMeta[] = [
     what: 'labels, buttons, inputs, and links too near each other',
     contaminates: false,
     needsAccessibleName: false,
+    local: false,
     timeOut: 5,
     defaultOn: true
   },
@@ -348,6 +388,7 @@ const allRules: RuleMeta[] = [
     what: 'semantically vague elements i, b, and/or small',
     contaminates: false,
     needsAccessibleName: false,
+    local: true,
     timeOut: 5,
     defaultOn: true
   },
@@ -356,6 +397,7 @@ const allRules: RuleMeta[] = [
     what: 'page title',
     contaminates: false,
     needsAccessibleName: false,
+    local: false,
     timeOut: 5,
     defaultOn: false
   },
@@ -364,6 +406,7 @@ const allRules: RuleMeta[] = [
     what: 'title attributes on inappropriate elements',
     contaminates: false,
     needsAccessibleName: false,
+    local: true,
     timeOut: 5,
     defaultOn: true
   },
@@ -372,6 +415,7 @@ const allRules: RuleMeta[] = [
     what: 'non-default Z indexes',
     contaminates: false,
     needsAccessibleName: false,
+    local: true,
     timeOut: 5,
     defaultOn: true
   },
@@ -380,6 +424,7 @@ const allRules: RuleMeta[] = [
     what: 'motion without user request',
     contaminates: false,
     needsAccessibleName: false,
+    local: false,
     // The budget must cover a full-page screenshot (itself allowed 4 seconds in
     // procs/shoot.js), decoding two full-page PNGs, and a pixel comparison; 5
     // seconds made the rule time out whenever an initial image existed.
@@ -391,6 +436,7 @@ const allRules: RuleMeta[] = [
     what: 'duplicate attribute values',
     contaminates: false,
     needsAccessibleName: false,
+    local: false,
     timeOut: 5,
     defaultOn: true
   },
@@ -399,6 +445,7 @@ const allRules: RuleMeta[] = [
     what: 'name and email inputs without autocomplete attributes',
     contaminates: false,
     needsAccessibleName: true,
+    local: true,
     timeOut: 5,
     defaultOn: true
   },
@@ -407,6 +454,7 @@ const allRules: RuleMeta[] = [
     what: 'input elements with placeholders but no accessible names',
     contaminates: false,
     needsAccessibleName: true,
+    local: true,
     timeOut: 5,
     defaultOn: true
   },
@@ -415,6 +463,7 @@ const allRules: RuleMeta[] = [
     what: 'nonstandard keyboard navigation between items of button-controlled menus',
     contaminates: true,
     needsAccessibleName: false,
+    local: false,
     timeOut: 15,
     defaultOn: true
   },
@@ -423,6 +472,7 @@ const allRules: RuleMeta[] = [
     what: 'data on specified elements',
     contaminates: true,
     needsAccessibleName: false,
+    local: false,
     timeOut: 10,
     defaultOn: false
   },
@@ -431,6 +481,7 @@ const allRules: RuleMeta[] = [
     what: 'discrepancies between focusable and Tab-focused elements',
     contaminates: true,
     needsAccessibleName: false,
+    local: false,
     timeOut: 10,
     defaultOn: true
   },
@@ -439,6 +490,7 @@ const allRules: RuleMeta[] = [
     what: 'Tab-focusable elements that are not operable or vice versa',
     contaminates: true,
     needsAccessibleName: false,
+    local: false,
     timeOut: 5,
     defaultOn: true
   },
@@ -447,6 +499,7 @@ const allRules: RuleMeta[] = [
     what: 'missing and nonstandard focus indicators',
     contaminates: true,
     needsAccessibleName: false,
+    local: false,
     timeOut: 10,
     defaultOn: true
   },
@@ -455,6 +508,7 @@ const allRules: RuleMeta[] = [
     what: 'links that are not entirely visible when focused',
     contaminates: true,
     needsAccessibleName: false,
+    local: false,
     timeOut: 10,
     defaultOn: true
   },
@@ -463,6 +517,7 @@ const allRules: RuleMeta[] = [
     what: 'hover-caused content changes',
     contaminates: true,
     needsAccessibleName: false,
+    local: false,
     timeOut: 20,
     defaultOn: true
   },
@@ -471,6 +526,7 @@ const allRules: RuleMeta[] = [
     what: 'hover indication nonstandard',
     contaminates: true,
     needsAccessibleName: false,
+    local: false,
     timeOut: 10,
     defaultOn: true
   },
@@ -479,6 +535,7 @@ const allRules: RuleMeta[] = [
     what: 'nonstandard keyboard navigation between elements with the tab role',
     contaminates: true,
     needsAccessibleName: false,
+    local: false,
     timeOut: 10,
     defaultOn: true
   },
@@ -487,6 +544,7 @@ const allRules: RuleMeta[] = [
     what: 'data on specified text nodes',
     contaminates: true,
     needsAccessibleName: false,
+    local: false,
     timeOut: 10,
     defaultOn: false
   }
@@ -502,6 +560,7 @@ process.on('unhandledRejection', reason => {
 // Conducts and reports Testaro tests.
 export const reporter = async (page: Page | undefined, report: Report, actIndex: number) => {
   const act = report.acts[actIndex] as TestaroAct;
+  const givenPage = page;
   const {args, stopOnFail, withItems} = act;
   // A testaro act always has a target on itself or the report; verbatim from the original.
   const target = (act.target || report.target)!;
@@ -519,6 +578,7 @@ export const reporter = async (page: Page | undefined, report: Report, actIndex:
     rulesInvalid: string[];
     ruleTestTimes: [string, number][];
     ruleData: Record<string, unknown>;
+    scope?: {localRules: string[]; pageRules: string[]};
   } = {
     prevented: false,
     error: '',
@@ -527,6 +587,11 @@ export const reporter = async (page: Page | undefined, report: Report, actIndex:
     ruleTestTimes: [],
     ruleData: {}
   };
+  // The changed subtree roots the act is scoped to, if any (report.scope, set by the acts loop).
+  const scopeRoots = report.scope?.roots ?? null;
+  if (scopeRoots) {
+    data.scope = {localRules: [], pageRules: []};
+  }
   // Initialize the act result.
   const result: {
     nativeResult: Record<string, unknown>;
@@ -580,11 +645,14 @@ export const reporter = async (page: Page | undefined, report: Report, actIndex:
       console.log(`Starting rule ${ruleResult.id}`);
       // Make the browser emulate headedness in all cases, because performance does not suffer.
       const headEmulation = ruleResult.id.startsWith('shoot') ? 'high' : 'high';
-      // Get whether the rule needs a new browser launched.
-      const needsLaunch = ruleIndex === 0
+      // Get whether the rule needs a new browser launched. Under page isolation the first rules
+      // run on the live page provided; a contaminating rule still gets a fresh page.
+      const previousRule = ruleIndex > 0 ? jobRules[ruleIndex - 1] : null;
+      const needsLaunch = (ruleIndex === 0 && ! (page && report.jobData?.isolation === 'page'))
       || justPrevented
-      || jobRules[ruleIndex - 1].contaminates
-      || jobRules[ruleIndex].needsAccessibleName && ! jobRules[ruleIndex - 1].needsAccessibleName;
+      || Boolean(previousRule?.contaminates)
+      || jobRules[ruleIndex].needsAccessibleName && ! previousRule?.needsAccessibleName
+      && ! (ruleIndex === 0 && page);
       const pageClosed = page && page.isClosed();
       // If it does, or if the page has closed:
       if (needsLaunch || pageClosed) {
@@ -605,6 +673,22 @@ export const reporter = async (page: Page | undefined, report: Report, actIndex:
           retries: 2
         });
       }
+      // If no page exists, the launch (or the replay of a checkpoint's acts) failed: the
+      // target is unreachable, so prevent the act and stop testing rules.
+      if (! page) {
+        const message = String(
+          report.jobData?.abortMessage
+          || `Launch or checkpoint replay failed before rule ${ruleResult.id}`
+        );
+        ruleResult.prevented = true;
+        ruleResult.error = message;
+        data.rulePreventions[ruleResult.id] = message;
+        data.prevented = true;
+        data.error = message;
+        standardResult.prevented = true;
+        console.log(`ERROR: ${message}`);
+        break;
+      }
       // Report crashes and disconnections during this test.
       let crashHandler: (() => void) | null | undefined;
       let disconnectHandler: (() => void) | null | undefined;
@@ -621,6 +705,11 @@ export const reporter = async (page: Page | undefined, report: Report, actIndex:
           console.log(`ERROR: Browser disconnected during ${rule} test`);
         };
         browser.on('disconnected', disconnectHandler);
+      }
+      // Restrict an element-local rule to the scope roots; a page-level rule tests the page.
+      if (scopeRoots) {
+        report.ruleScopeRoots = rule.local ? scopeRoots : null;
+        (rule.local ? data.scope!.localRules : data.scope!.pageRules).push(rule.id);
       }
       // Initialize an argument array for the reporter.
       const ruleArgs: unknown[] = [page, report, actIndex, withItems];
@@ -757,6 +846,11 @@ export const reporter = async (page: Page | undefined, report: Report, actIndex:
     data.error = message;
     console.log(message);
   }
+  // Close the last page the tool launched, unless it is the live page it was given.
+  if (page && page !== givenPage) {
+    await browserClose(page);
+  }
+  delete report.ruleScopeRoots;
   return {
     data,
     result

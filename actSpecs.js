@@ -19,15 +19,24 @@ exports.actSpecs = {
     button: [
       'Click a button or submit input',
       {
+        selector: [false, 'string', 'hasLength', 'Playwright selector of the element, instead of an element type and text substring'],
         which: [false, 'string', 'hasLength', 'substring of button text'],
         index: [false, 'number', '', 'index among matches if not 0'],
+        what: [false, 'string', 'hasLength', 'comment']
+      }
+    ],
+    checkpoint: [
+      'Snapshot the current page state (catalog, page image, ARIA snapshot) as a checkpoint that subsequent test acts observe',
+      {
+        which: [true, 'string', 'hasLength', 'checkpoint name, unique within the job'],
         what: [false, 'string', 'hasLength', 'comment']
       }
     ],
     checkbox: [
       'Check a checkbox',
       {
-        which: [true, 'string', 'hasLength', 'substring of checkbox text'],
+        selector: [false, 'string', 'hasLength', 'Playwright selector of the element, instead of an element type and text substring'],
+        which: [false, 'string', 'hasLength', 'substring of checkbox text (required unless selector is given)'],
         index: [false, 'number', '', 'index among matches if not 0'],
         what: [false, 'string', 'hasLength', 'comment']
       }
@@ -52,6 +61,7 @@ exports.actSpecs = {
     link: [
       'Click a link and wait for the page to be idle or loaded',
       {
+        selector: [false, 'string', 'hasLength', 'Playwright selector of the element, instead of an element type and text substring'],
         which: [false, 'string', 'hasLength', 'substring of link text'],
         index: [false, 'number', '', 'index among matches if not 0'],
         what: [false, 'string', 'hasLength', 'comment']
@@ -96,7 +106,8 @@ exports.actSpecs = {
     radio: [
       'Check a radio button',
       {
-        which: [true, 'string', 'hasLength', 'substring of radio-button text'],
+        selector: [false, 'string', 'hasLength', 'Playwright selector of the element, instead of an element type and text substring'],
+        which: [false, 'string', 'hasLength', 'substring of radio-button text (required unless selector is given)'],
         index: [false, 'number', '', 'index among matches if not 0'],
         what: [false, 'string', 'hasLength', 'comment']
       }
@@ -110,6 +121,7 @@ exports.actSpecs = {
     search: [
       'Enter text into a search input, optionally with 1 placeholder for an all-caps literal environment variable',
       {
+        selector: [false, 'string', 'hasLength', 'Playwright selector of the element, instead of an element type and text substring'],
         which: [false, 'string', 'hasLength', 'substring of input text'],
         index: [false, 'number', '', 'index among matches if not 0'],
         what: [true, 'string', 'hasLength', 'text to enter, with optional __PLACEHOLDER__']
@@ -118,6 +130,7 @@ exports.actSpecs = {
     select: [
       'Select a select option',
       {
+        selector: [false, 'string', 'hasLength', 'Playwright selector of the element, instead of an element type and text substring'],
         which: [false, 'string', 'hasLength', 'substring of select-list text'],
         index: [false, 'number', '', 'index among matches if not 0'],
         what: [true, 'string', 'hasLength', 'substring of option text content']
@@ -144,15 +157,18 @@ exports.actSpecs = {
       {
         which: [true, 'string', 'isTest', 'tool name'],
         launch: [false, 'object', '', 'new target, browserID, and/or what, if any'],
-        rules: [false, 'array', 'areStrings', 'rule IDs or (for testaro, nuVal, or nuVnu) specifications, if not all']
+        rules: [false, 'array', 'areStrings', 'rule IDs or (for testaro, nuVal, or nuVnu) specifications, if not all'],
+        scope: [false, 'string', 'isScope', 'page (default) or changed (only the subtrees changed since the previous checkpoint, for rules and tools that can be so restricted)']
       }
     ],
     text: [
       'Enter text into a text input, optionally with 1 placeholder for an all-caps literal environment variable',
       {
+        selector: [false, 'string', 'hasLength', 'Playwright selector of the element, instead of an element type and text substring'],
         which: [false, 'string', 'hasLength', 'substring of input text'],
         index: [false, 'number', '', 'index among matches if not 0'],
-        what: [true, 'string', 'hasLength', 'text to enter, with optional __PLACEHOLDER__']
+        what: [true, 'string', 'hasLength', 'text to enter, with optional __PLACEHOLDER__'],
+        clear: [false, 'boolean', '', 'whether to replace any existing value instead of appending']
       }
     ],
     url: [

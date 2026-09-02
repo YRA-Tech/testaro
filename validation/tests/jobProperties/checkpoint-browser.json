@@ -1,0 +1,401 @@
+{
+  "rule": "checkpoint-browser",
+  "timeLimit": 120,
+  "acts": [
+    {
+      "type": "launch",
+      "target": {
+        "url": "file://validation/tests/targets/checkpoint/index.html",
+        "what": "page whose defects appear after an action"
+      }
+    },
+    {
+      "type": "test",
+      "which": "testaro",
+      "withItems": true,
+      "rules": [
+        "y",
+        "altScheme",
+        "linkTo"
+      ],
+      "what": "before the action, at checkpoint 0",
+      "expect": [
+        [
+          "standardResult.instances.length",
+          "=",
+          0
+        ],
+        [
+          "checkpoint",
+          "=",
+          0
+        ]
+      ],
+      "stopOnFail": false
+    },
+    {
+      "type": "button",
+      "which": "Show more",
+      "what": "reveal the defective section"
+    },
+    {
+      "type": "checkpoint",
+      "which": "revealed",
+      "what": "the page after the section is revealed"
+    },
+    {
+      "type": "test",
+      "which": "testaro",
+      "withItems": true,
+      "rules": [
+        "y",
+        "altScheme",
+        "linkTo"
+      ],
+      "what": "after the action, at checkpoint 1",
+      "expect": [
+        [
+          "checkpoint",
+          "=",
+          1
+        ],
+        [
+          "standardResult.instances.length",
+          "=",
+          2
+        ],
+        [
+          "standardResult.instances.0.checkpoint",
+          "=",
+          1
+        ],
+        [
+          "standardResult.instances.0.ruleID",
+          "=",
+          "altScheme"
+        ],
+        [
+          "standardResult.instances.0.tagName",
+          "=",
+          "IMG"
+        ],
+        [
+          "standardResult.instances.1.ruleID",
+          "=",
+          "linkTo"
+        ],
+        [
+          "standardResult.instances.1.id",
+          "=",
+          "noHref"
+        ],
+        [
+          "standardResult.outcomeTotals.failed",
+          "=",
+          2
+        ]
+      ],
+      "stopOnFail": false
+    },
+    {
+      "type": "test",
+      "which": "axe",
+      "rules": [
+        "image-alt",
+        "link-name"
+      ],
+      "what": "after the action, at checkpoint 1, by axe",
+      "expect": [
+        [
+          "checkpoint",
+          "=",
+          1
+        ],
+        [
+          "data.replay.acts",
+          "=",
+          1
+        ],
+        [
+          "data.replay.fidelity",
+          "=",
+          "exact"
+        ],
+        [
+          "standardResult.instances.length",
+          "=",
+          2
+        ],
+        [
+          "standardResult.instances.0.checkpoint",
+          "=",
+          1
+        ]
+      ],
+      "detailLevel": 0
+    },
+    {
+      "type": "test",
+      "which": "testaro",
+      "withItems": true,
+      "rules": [
+        "y",
+        "altScheme",
+        "linkTo",
+        "title"
+      ],
+      "scope": "changed",
+      "what": "after the action, at checkpoint 1, scoped to the changed subtree",
+      "expect": [
+        [
+          "checkpoint",
+          "=",
+          1
+        ],
+        [
+          "data.scope.requested",
+          "=",
+          "changed"
+        ],
+        [
+          "data.scope.applied",
+          "=",
+          true
+        ],
+        [
+          "data.scope.roots.length",
+          "=",
+          1
+        ],
+        [
+          "data.scope.pathIDs",
+          "e",
+          [
+            "/html/body/main[1]/div[1]/section[1]"
+          ]
+        ],
+        [
+          "data.scope.localRules",
+          "e",
+          [
+            "altScheme",
+            "linkTo"
+          ]
+        ],
+        [
+          "data.scope.pageRules",
+          "e",
+          [
+            "title"
+          ]
+        ],
+        [
+          "standardResult.instances.length",
+          "=",
+          2
+        ],
+        [
+          "standardResult.instances.0.ruleID",
+          "=",
+          "altScheme"
+        ],
+        [
+          "standardResult.instances.1.ruleID",
+          "=",
+          "linkTo"
+        ]
+      ],
+      "stopOnFail": false
+    },
+    {
+      "type": "test",
+      "which": "axe",
+      "rules": [
+        "image-alt",
+        "link-name",
+        "page-has-heading-one"
+      ],
+      "scope": "changed",
+      "what": "after the action, at checkpoint 1, by axe, scoped to the changed subtree",
+      "expect": [
+        [
+          "checkpoint",
+          "=",
+          1
+        ],
+        [
+          "data.scope.applied",
+          "=",
+          true
+        ],
+        [
+          "standardResult.instances.length",
+          "=",
+          2
+        ],
+        [
+          "standardResult.instances.0.checkpoint",
+          "=",
+          1
+        ]
+      ],
+      "detailLevel": 0
+    }
+  ],
+  "expectReport": [
+    [
+      "checkpoints.length",
+      "=",
+      2
+    ],
+    [
+      "checkpoints.1.name",
+      "=",
+      "revealed"
+    ],
+    [
+      "checkpoints.1.kind",
+      "=",
+      "interaction"
+    ],
+    [
+      "checkpoints.1.replay",
+      "e",
+      [
+        2
+      ]
+    ],
+    [
+      "pathIDs"
+    ],
+    [
+      "catalogNextIndex"
+    ],
+    [
+      "checkpoints.1.testActs",
+      "e",
+      [
+        4,
+        5,
+        6,
+        7
+      ]
+    ],
+    [
+      "flow.checkpoints.length",
+      "=",
+      2
+    ],
+    [
+      "flow.checkpoints.0.tools",
+      "e",
+      [
+        "testaro"
+      ]
+    ],
+    [
+      "flow.checkpoints.1.tools",
+      "e",
+      [
+        "axe",
+        "testaro"
+      ]
+    ],
+    [
+      "flow.checkpoints.1.issueCount",
+      "=",
+      4
+    ],
+    [
+      "flow.deltas.length",
+      "=",
+      1
+    ],
+    [
+      "flow.deltas.0.tools",
+      "e",
+      [
+        "testaro"
+      ]
+    ],
+    [
+      "flow.deltas.0.notObserved",
+      "e",
+      [
+        "axe"
+      ]
+    ],
+    [
+      "flow.deltas.0.added.length",
+      "=",
+      2
+    ],
+    [
+      "flow.deltas.0.added.0.ruleID",
+      "=",
+      "altScheme"
+    ],
+    [
+      "flow.deltas.0.added.0.pathID",
+      "=",
+      "/html/body/main[1]/div[1]/section[1]/p[2]/img[1]"
+    ],
+    [
+      "flow.deltas.0.added.0.actIndexes",
+      "e",
+      [
+        4,
+        6
+      ]
+    ],
+    [
+      "flow.deltas.0.persisted.length",
+      "=",
+      0
+    ],
+    [
+      "flow.deltas.0.removed.length",
+      "=",
+      0
+    ],
+    [
+      "flow.deltas.0.structure.roots",
+      "e",
+      [
+        "/html/body/main[1]/div[1]/section[1]"
+      ]
+    ],
+    [
+      "flow.deltas.0.structure.counts.added",
+      "=",
+      10
+    ],
+    [
+      "flow.deltas.0.structure.counts.removed",
+      "=",
+      0
+    ],
+    [
+      "flow.deltas.0.aria.addedLineCount",
+      ">",
+      0
+    ],
+    [
+      "flow.deltas.0.aria.removedLineCount",
+      "=",
+      0
+    ],
+    [
+      "scope"
+    ],
+    [
+      "ruleScopeRoots"
+    ],
+    [
+      "jobData.isolation",
+      "=",
+      "browser"
+    ]
+  ],
+  "isolation": "browser"
+}

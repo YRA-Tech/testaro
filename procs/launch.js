@@ -17,6 +17,8 @@
 // IMPORTS
 
 const {addError} = require('./error');
+const fs = require('fs');
+const path = require('path');
 const {posix: posixPath} = require('path');
 const headedBrowser = process.env.HEADED_BROWSER === 'true';
 // Two flavors of Playwright:
@@ -30,6 +32,8 @@ const headedBrowser = process.env.HEADED_BROWSER === 'true';
 const playwrightCore = require('playwright');
 const playwrightExtra = require('playwright-extra');
 const {isBrowserID, isDeviceID, isURL, isValidJob} = require('./job');
+// The in-page script defining window.getXPath.
+const {getXPathSource} = require('./xPathScript');
 
 // CONSTANTS
 
@@ -98,6 +102,26 @@ const settleWithin = promise => Promise.race([
     }
   })
 ]);
+/*
+  The browser shared by the launches of a job under browser or page isolation, if any. When set,
+  launchOnce creates contexts in it instead of launching browsers, and browserClose closes only
+  the context of a page it owns. The job closes it with closeSharedBrowser at its end.
+*/
+let sharedBrowser = null;
+let sharedBrowserID = '';
+exports.setSharedBrowser = (browser, browserID) => {
+  sharedBrowser = browser;
+  sharedBrowserID = browserID;
+};
+exports.getSharedBrowser = () => sharedBrowser;
+exports.closeSharedBrowser = async () => {
+  if (sharedBrowser) {
+    const browser = sharedBrowser;
+    sharedBrowser = null;
+    sharedBrowserID = '';
+    await settleWithin(browser.close());
+  }
+};
 const browserClose = exports.browserClose = async page => {
   if (page) {
     // Get the context (i.e. window) of the page and the browser of the context. These are methods, not properties; referencing them as properties made this function silently fail to close anything, because a function object has no close method and the resulting TypeError was caught and discarded.
@@ -106,7 +130,8 @@ const browserClose = exports.browserClose = async page => {
       // The browser is null for a context not owned by a browser, such as a persistent context.
       const browser = browserContext.browser();
       await settleWithin(browserContext.close());
-      if (browser) {
+      // Close the browser too, unless the job shares it.
+      if (browser && browser !== sharedBrowser) {
         await settleWithin(browser.close());
       }
     }
@@ -141,10 +166,18 @@ const normalizeURL = url => {
 };
 // Visits a URL and returns the response of the server.
 const goTo = exports.goTo = async (report, page, url, timeout, waitUntil) => {
-  // If the URL is a file path relative to the project root:
+  // If the URL is that of a local file:
   if (url.startsWith('file://')) {
-    // Make it the absolute path to the specified file.
-    url = url.replace('file://', `file://${__dirname}/../`);
+    const filePath = url.replace(/^file:\/+/, '/');
+    const projectRoot = path.resolve(__dirname, '..');
+    // If the path is not absolute (inside the project or existing on disk), it is relative to
+    // the project root (file://validation/…), as job files write it: make it absolute.
+    if (! filePath.startsWith(`${projectRoot}/`) && ! fs.existsSync(filePath)) {
+      url = `file://${projectRoot}/${filePath.replace(/^\/+/, '')}`;
+    }
+    else {
+      url = `file://${filePath}`;
+    }
   }
   // Visit the URL.
   const startTime = Date.now();
@@ -283,6 +316,63 @@ const getNonce = exports.getNonce = async response => {
   // Return the nonce, if any.
   return nonce;
 };
+// Path of the dom-accessibility-api bundle.
+const nameComputationPath = require.resolve('../dist/nameComputation.js');
+// Defines the accessible-name window methods in the page. Runs inside the page: closure-free.
+const installAccessibleName = () => {
+  // Add a window method to compute the accessible name of an element.
+  window.getAccessibleName = element => {
+    const nameIsComputable = element?.nodeType === Node.ELEMENT_NODE
+    && typeof window.computeAccessibleName === 'function';
+    return nameIsComputable ? window.computeAccessibleName(element) : '';
+  };
+  // Add a window method to return a standard proto-instance.
+  window.getProtoInstance = (
+    element, ruleID, what, count = 1, ordinalSeverity, summaryTagName = '', outcome = 'failed'
+  ) => {
+    // If an element has been specified:
+    if (element) {
+      // Get its properties.
+      return {
+        ruleID,
+        what,
+        count,
+        ordinalSeverity,
+        outcome,
+        pathID: window.getXPath(element)
+      };
+    }
+    // Otherwise, i.e. if no element has been specified, return a summary instance.
+    return {
+      ruleID,
+      what,
+      count,
+      ordinalSeverity,
+      outcome
+    };
+  };
+};
+const accessibleNameSource = `(${installAccessibleName.toString()})();`;
+// Prepares an already loaded page (the live page of a checkpoint, under page isolation) for a
+// tool, as launchOnce prepares a page it creates: XPath script or attributes, and accessible
+// names. Evaluates scripts rather than adding script elements, so the DOM is unchanged.
+exports.preparePage = async (page, {xPathNeed = 'script', needsAccessibleName = false} = {}) => {
+  if (xPathNeed !== 'none') {
+    await page.evaluate(getXPathSource);
+  }
+  if (xPathNeed === 'attribute') {
+    await page.evaluate(() => {
+      document.querySelectorAll('*').forEach(element => {
+        element.setAttribute('data-xpath', window.getXPath(element));
+      });
+    });
+  }
+  if (needsAccessibleName) {
+    const nameComputationSource = await fs.promises.readFile(nameComputationPath, 'utf8');
+    await page.evaluate(nameComputationSource);
+    await page.evaluate(accessibleNameSource);
+  }
+};
 // Creates a browser, context, and page; navigates to a URL; and returns the page.
 const launchOnce = async opts => {
   // Get the arguments.
@@ -297,7 +387,9 @@ const launchOnce = async opts => {
     needsAccessibleName = false,
     // Extra Playwright context options (e.g. deviceScaleFactor for device-pixel page
     // images), spread last so they win over the defaults.
-    contextOverrides = {}
+    contextOverrides = {},
+    // Whether to replay the active checkpoint's acts after navigating (test-act launches).
+    replay = true
   } = opts;
   const act = report.acts[actIndex] ?? {};
   const {device} = report;
@@ -373,8 +465,21 @@ const launchOnce = async opts => {
     }
     let browser, browserContext;
     try {
-      // Create a browser of the specified type.
-      browser = await browserType.launch(browserOptions);
+      // Use the job's shared browser if it exists and is of the specified type; otherwise
+      // create a browser of the specified type, and share it if the job shares browsers.
+      if (sharedBrowser && sharedBrowserID === browserID && sharedBrowser.isConnected()) {
+        browser = sharedBrowser;
+      }
+      else {
+        browser = await browserType.launch(browserOptions);
+        if (report.jobData?.isolation && report.jobData.isolation !== 'process') {
+          if (sharedBrowser) {
+            await settleWithin(sharedBrowser.close());
+          }
+          sharedBrowser = browser;
+          sharedBrowserID = browserID;
+        }
+      }
       // Create a context (i.e. window) for it.
       const contextOptions = {
         ...device.windowOptions,
@@ -456,88 +561,15 @@ const launchOnce = async opts => {
       });
       // If an XPath computation script is required:
       if (xPathNeed !== 'none') {
-        // Add a script to the page to add a window method to get the XPath of an element.
-        await page.addInitScript(() => {
-          window.getXPath = element => {
-            if (! element || element.nodeType !== Node.ELEMENT_NODE) {
-              return '';
-            }
-            const segments = [];
-            // As long as the current node is an element:
-            while (element && element.nodeType === Node.ELEMENT_NODE) {
-              const tag = element.tagName.toLowerCase();
-              // If it is the html element:
-              if (element === document.documentElement) {
-                // Prepend it to the segment array
-                segments.unshift('html');
-                // Stop traversing.
-                break;
-              }
-              // Otherwise, get its parent node.
-              const parent = element.parentNode;
-              // If (abnormally) the parent node is not an element:
-              if (! parent || parent.nodeType !== Node.ELEMENT_NODE) {
-                // Prepend the element (not the parent) to the segment array.
-                segments.unshift(tag);
-                // Stop traversing, leaving the segment array partial.
-                break;
-              }
-              // Get the subscript of the element if it is not the body element.
-              const cohort = Array
-              .from(parent.childNodes)
-              .filter(
-                childNode => childNode.nodeType === Node.ELEMENT_NODE
-                && childNode.tagName === element.tagName
-              );
-              const subscript = tag === 'body' ? '' : `[${cohort.indexOf(element) + 1}]`;
-              // Prepend the element identifier to the segment array.
-              segments.unshift(`${tag}${subscript}`);
-              // Continue the traversal with the parent of the current element.
-              element = parent;
-            }
-            // Return the XPath.
-            return `/${segments.join('/')}`;
-          };
-        });
+        // Add the shared script to the page to add a window method to get the XPath of an element.
+        await page.addInitScript({content: getXPathSource});
       }
       // If an accessible-name computation script is needed:
       if (needsAccessibleName) {
         // Add the dom-accessibility-api script to the page to compute an accessible name.
-        await page.addInitScript({path: require.resolve('../dist/nameComputation.js')});
-        // Add a script to the page to:
-        await page.addInitScript(() => {
-          // Add a window method to compute the accessible name of an element.
-          window.getAccessibleName = element => {
-            const nameIsComputable = element?.nodeType === Node.ELEMENT_NODE
-            && typeof window.computeAccessibleName === 'function';
-            return nameIsComputable ? window.computeAccessibleName(element) : '';
-          };
-          // Add a window method to return a standard proto-instance.
-          window.getProtoInstance = (
-            element, ruleID, what, count = 1, ordinalSeverity, summaryTagName = '', outcome = 'failed'
-          ) => {
-            // If an element has been specified:
-            if (element) {
-              // Get its properties.
-              return {
-                ruleID,
-                what,
-                count,
-                ordinalSeverity,
-                outcome,
-                pathID: window.getXPath(element)
-              };
-            }
-            // Otherwise, i.e. if no element has been specified, return a summary instance.
-            return {
-              ruleID,
-              what,
-              count,
-              ordinalSeverity,
-              outcome
-            };
-          };
-        });
+        await page.addInitScript({path: nameComputationPath});
+        // Add the script defining the accessible-name window methods.
+        await page.addInitScript({content: accessibleNameSource});
       }
       // Base the wait on the need of the tool and the retry history.
       let waitUntil = xPathNeed === 'none' ? 'domcontentloaded' : 'networkidle';
@@ -551,6 +583,27 @@ const launchOnce = async opts => {
       const navResult = await goTo(report, page, url, 10000, waitUntil);
       // If the navigation succeeded:
       if (navResult.success) {
+        // If the launch is for a test act at a checkpoint reached by interaction:
+        const checkpoint = report.checkpoints?.[report.activeCheckpoint];
+        if (checkpoint && checkpoint.kind === 'interaction' && replay) {
+          // Re-enact the acts that reached the checkpoint, before any XPath stamping, so that
+          // elements the acts reveal or create are stamped like the rest. A failure closes
+          // the page and reports the act, so launch() can retry or give up.
+          const {replayActs} = require('./actDo');
+          const {getDomDigest} = require('./checkpoint');
+          const replayResult = await replayActs(page, report, checkpoint);
+          page = replayResult.page;
+          const digest = await getDomDigest(page);
+          act.data ??= {};
+          act.data.replay = {
+            checkpoint: checkpoint.index,
+            acts: replayResult.actCount,
+            elapsedMs: replayResult.elapsedMs,
+            fidelity: checkpoint.domDigest
+              ? (digest === checkpoint.domDigest ? 'exact' : 'divergent')
+              : 'unknown'
+          };
+        }
         // If XPath attributes are needed:
         if (xPathNeed === 'attribute') {
           // Use the added script to add them.
@@ -611,18 +664,26 @@ const launchOnce = async opts => {
 };
 // Manages browser launching and navigating and returns a page.
 exports.launch = async (opts = {}) => {
-  let {tempBrowserID = ''} = opts;
+  let {tempBrowserID = '', tempURL = ''} = opts;
   const {
     report = {},
     actIndex = 0,
-    tempURL = '',
     headEmulation = 'high',
     xPathNeed = 'script',
     needsAccessibleName = false,
     retries = 2,
     // Extra Playwright context options, passed through to launchOnce.
-    contextOverrides = {}
+    contextOverrides = {},
+    // Whether a test-act launch replays the active checkpoint's acts (launches for
+    // interaction acts and for the catalog pass do not).
+    replay = actIndex !== null
   } = opts;
+  // If the launch is for a test act at a later checkpoint, navigate to that checkpoint's
+  // origin: its URL if navigation reached it, else the URL its replayed acts start from.
+  const checkpoint = report.checkpoints?.[report.activeCheckpoint];
+  if (replay && checkpoint && report.activeCheckpoint > 0) {
+    tempURL = checkpoint.kind === 'navigation' ? checkpoint.url : checkpoint.launchURL;
+  }
   // If the report is valid:
   const jobValidation = isValidJob(report);
   if (jobValidation.isValid) {
@@ -638,7 +699,8 @@ exports.launch = async (opts = {}) => {
         headEmulation,
         xPathNeed,
         needsAccessibleName,
-        contextOverrides
+        contextOverrides,
+        replay
       }
     );
     // If the launch and navigation succeeded:
@@ -649,8 +711,9 @@ exports.launch = async (opts = {}) => {
     // Otherwise, i.e. if the launch or navigation failed:
     else {
       let unusedBrowserIDs = ['chromium', 'webkit', 'firefox'].filter(id => id !== tempBrowserID);
-      let retriesLeft = retries;
       let {error} = launchResult;
+      // A checkpoint replay failure is deterministic: do not retry it.
+      let retriesLeft = error.includes('checkpoint replay failed') ? 0 : retries;
       // As long as retries remain, decrement the allowed retry count and:
       while (retriesLeft) {
         // Prepare to wait 1 second before a retry.
@@ -681,7 +744,8 @@ exports.launch = async (opts = {}) => {
             headEmulation,
             xPathNeed,
             needsAccessibleName,
-            contextOverrides
+            contextOverrides,
+            replay
           }
         );
         // If the launch and navigation succeeded:
@@ -694,6 +758,11 @@ exports.launch = async (opts = {}) => {
           error = launchResult.error;
           // Report this.
           console.log(`WARNING: Retry failed (${error})`);
+          // A checkpoint replay failure is deterministic: stop retrying.
+          if (error.includes('checkpoint replay failed')) {
+            retriesLeft = 0;
+            break;
+          }
           // If a browser type was specified, retries are exhausted, and browser types are not:
           if (tempBrowserID && unusedBrowserIDs.length && ! retriesLeft) {
             // Change the browser type.
@@ -713,7 +782,7 @@ exports.launch = async (opts = {}) => {
           actIndex === null ? true : abortAssertively,
           report,
           actIndex,
-          'Launch or navigation failed; retries and browser types exhausted'
+          `Launch or navigation failed; retries and browser types exhausted (${error})`
         );
       }
       // Return a failure.

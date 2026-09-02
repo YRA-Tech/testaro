@@ -67,6 +67,8 @@ export interface StandardInstance {
   count?: number;
   // Key of the violating element in the report catalog (v70+ reports).
   catalogIndex?: string | number;
+  // Index of the checkpoint (page state) the instance was found in (v78.2+ reports).
+  checkpoint?: number;
   // Inline element identifiers of pre-catalog (v60) reports; absent on v70+.
   tagName?: string;
   id?: string;
@@ -111,10 +113,47 @@ export interface CatalogEntry {
   textLinkable?: boolean;
   boxID?: string;
   headingIndex?: string;
+  // Index of the checkpoint (page state) whose snapshot the entry belongs to.
+  checkpoint?: number;
 }
 
 // The element catalog: element index (stringified integer) to entry.
 export type Catalog = Record<string, CatalogEntry>;
+
+// The event modality of interaction acts; only 'efficient' exists today.
+export interface Interaction {
+  modality: 'efficient';
+}
+
+/*
+  A checkpoint: a page state reached by the job's serial acts, snapshotted (catalog, page
+  image, ARIA snapshot) and tested by the test acts that follow it. Checkpoint 0 is the job
+  target as launched; a checkpoint act creates each later one. A navigation checkpoint was
+  reached by navigation alone and needs no replay; an interaction checkpoint was reached by
+  acts on a page, which a test act's browser replays after navigating to launchURL.
+*/
+export interface Checkpoint {
+  index: number;
+  name: string;
+  implicit: boolean;
+  actIndex: number | null;
+  launchActIndex: number | null;
+  launchURL: string;
+  replay: number[];
+  interaction: Interaction;
+  kind: 'navigation' | 'interaction';
+  url: string;
+  title: string;
+  imageIndexes: number[];
+  catalogRange: [number, number] | null;
+  elementCount: number;
+  ariaSnapshot: string;
+  domDigest?: string;
+  elapsedMs: number;
+  testActs: number[];
+  // Job-time: the structure diff with the previous checkpoint, moved into report.flow at job end.
+  structure?: StructureDiff;
+}
 
 // One act of a job. Permissive in Phase 0; see the file comment.
 export interface Act {
@@ -132,7 +171,97 @@ export interface Act {
   };
   expectations?: unknown;
   expectationFailures?: number;
+  // The checkpoint a test act belongs to, assigned by doActs.
+  checkpoint?: number | null;
+  // What a test act tests: its checkpoint's whole page (default) or the subtrees changed
+  // since the previous checkpoint (for the rules and tools that can be so restricted).
+  scope?: TestScope;
   [key: string]: unknown;
+}
+
+// The scope of a test act.
+export type TestScope = 'page' | 'changed';
+
+// What a changed-scope test act was given, recorded as act.data.scope.
+export interface ScopeData {
+  requested: TestScope;
+  // Whether the tool restricted its tests to the roots.
+  applied: boolean;
+  // Why not, if not.
+  reason: string;
+  // CSS selectors of the changed subtree roots, and their XPaths.
+  roots: string[];
+  pathIDs: string[];
+  // A selector of the nearest common ancestor of the roots, for tools that take one root.
+  commonRoot?: string;
+  // For the testaro tool: which of its rules were scoped to the roots and which tested the page.
+  localRules?: string[];
+  pageRules?: string[];
+}
+
+// An issue found at a checkpoint, identified across checkpoints by tool, rule, element XPath,
+// and start tag (report.flow).
+export interface FlowIssue {
+  tool: ToolID;
+  ruleID: string;
+  pathID: string;
+  startTag: string;
+  what: string;
+  ordinalSeverity: number;
+  outcome?: Outcome;
+  count: number;
+  actIndexes: number[];
+}
+
+// The difference between the catalogs of two checkpoints, as XPaths.
+export interface StructureDiff {
+  added: string[];
+  removed: string[];
+  changed: string[];
+  textChanged: string[];
+  // The outermost changed elements, whose subtrees contain every change.
+  roots: string[];
+  counts: Record<'before' | 'after' | 'added' | 'removed' | 'changed' | 'textChanged' | 'roots', number>;
+}
+
+// The line difference between the ARIA snapshots of two checkpoints.
+export interface AriaDiff {
+  addedLineCount: number;
+  removedLineCount: number;
+  truncated: boolean;
+  changes: {type: 'added' | 'removed'; line: number; text: string}[];
+}
+
+// What changed between two consecutive checkpoints: issues and page structure.
+export interface FlowDelta {
+  from: number;
+  to: number;
+  // Tools that observed both checkpoints, whose issues are compared.
+  tools: ToolID[];
+  // Tools that observed only one of the two.
+  notObserved: ToolID[];
+  added: FlowIssue[];
+  persisted: FlowIssue[];
+  removed: FlowIssue[];
+  // Earlier issues outside the changed subtrees a tool's later acts were all scoped to.
+  notRetested: FlowIssue[];
+  structure: StructureDiff;
+  aria: AriaDiff;
+}
+
+// The running list of issues across a job's checkpoints (reports with 2 or more checkpoints).
+export interface Flow {
+  checkpoints: {
+    index: number;
+    name: string;
+    kind: Checkpoint['kind'];
+    url: string;
+    actIndex: number | null;
+    testActs: number[];
+    tools: ToolID[];
+    issueCount: number;
+  }[];
+  deltas: FlowDelta[];
 }
 
 // A job before execution and the report it becomes during and after execution.
@@ -161,8 +290,19 @@ export interface Report {
   images?: string[];
   // The element catalog, added by getCatalog and pruned before the report ships.
   catalog?: Catalog;
-  // XPath-to-catalog-index map, added by getCatalog and deleted by pruneCatalog.
-  pathIDs?: Record<string, string>;
+  // The checkpoints (page states) of the job; checkpoint 0 is added by getCatalog.
+  checkpoints?: Checkpoint[];
+  // Job-time properties, deleted by pruneCatalog: per-checkpoint XPath-to-catalog-index maps,
+  // the next unused catalog index, and the checkpoint the current test act belongs to.
+  pathIDs?: Record<string, Record<string, string>>;
+  catalogNextIndex?: number;
+  activeCheckpoint?: number | null;
+  // Job-time: the changed subtree roots of the current changed-scope test act, and, within
+  // the testaro tool, those of the current rule (null for a page-level rule).
+  scope?: {roots: string[]; commonRoot?: string} | null;
+  ruleScopeRoots?: string[] | null;
+  // The running list of issues across checkpoints, added at job end when there are 2 or more.
+  flow?: Flow;
   jobData?: {
     aborted?: boolean;
     abortedAct?: number;

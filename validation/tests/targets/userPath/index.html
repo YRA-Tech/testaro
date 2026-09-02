@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<!--
+  © 2026 Jeff Witt.
+
+  Licensed under the MIT License. See LICENSE file at the project root or
+  https://opensource.org/license/mit/ for details.
+
+  SPDX-License-Identifier: MIT
+-->
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <title>Form whose completion reveals defects</title>
+    <meta name="description" content="tester">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+  </head>
+  <body>
+    <main>
+      <h1>Form whose completion reveals defects</h1>
+      <p>A recorded user path fills the name, chooses a color, and activates Continue. The name input has only a placeholder as its label (a defect the testaro phOnly rule reports). Continuing inserts a section containing a link without a destination and an image whose alternative text is a URL (defects the linkTo and altScheme rules report), so a test act at a checkpoint after the activation reports defects that one before it does not.</p>
+      <form>
+        <p><input id="name" type="text" placeholder="Your name"></p>
+        <p><label for="color">Favorite color</label> <select id="color"><option value="">Choose</option><option value="red">Red</option><option value="green">Green</option></select></p>
+        <p><button id="continue" type="button">Continue</button></p>
+      </form>
+      <div id="extra"></div>
+    </main>
+    <script>
+      document.getElementById('continue').addEventListener('click', () => {
+        const extra = document.getElementById('extra');
+        const name = document.getElementById('name').value;
+        const color = document.getElementById('color').value;
+        if (! extra.firstElementChild && name && color) {
+          extra.innerHTML = '<section id="revealed"><h2>Thanks, ' + name + '</h2>'
+          + '<p>Your color is ' + color + '. A link with no destination: <a id="noHref">Nowhere</a></p>'
+          + '<p>An image whose alternative text is a URL: <img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" alt="https://example.com/photo.png" width="20" height="20"></p>'
+          + '</section>';
+        }
+      });
+    </script>
+  </body>
+</html>
