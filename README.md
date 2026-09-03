@@ -8,6 +8,8 @@ Version 75.0.0 introduced a breaking change in the methods for making screenshot
 
 Version 68.0.0 introduced a breaking change in the format of reports.
 
+Changes in each version since 73.0.0 are listed in [Version change notes](#version-change-notes).
+
 ## Purposes
 
 Testaro is an application that performs ensemble testing of web pages for accessibility, usability, and conformity to HTML and CSS specifications.
@@ -701,6 +703,72 @@ Work on the `testaro` tests in this package began in 2017, and work on the multi
 On 12 February 2024 ownership of the Testaro repository was transfered from the personal account of contributor Jonathan Pool to the organization account `cvs-health` of CVS Health. The MIT license of the [repository](https://github.com/cvs-health/testaro) did not change, but the copyright holder changed to CVS Health.
 
 Maintenance of the repository owned by CVS Health came to an end on 30 September 2025. The current repository was forked from the `cvs-health` repository in October 2025 and then unlinked from the fork network, by agreement with CVS Health.
+
+## Version change notes
+
+These notes cover versions from 73.0.0 (May 2026) onward. The date of each version is its npm publication date, except that versions marked “unpublished” were committed but not published to npm, and their changes first reached npm in the next published version. Changes in earlier versions are recorded in the commit history.
+
+### 78
+
+- **78.4.0** (2 September 2026). The first npm publication since 78.0.8; it includes the changes of the unpublished versions 78.1.0 through 78.3.0. Deployment options, each a job property when set, else an environment variable, else the earlier behavior: the load state, time limit, and fail-fast-on-4xx policy of navigation (`navigation`; `NAV_WAIT_UNTIL`, `NAV_TIMEOUT`, `NAV_FAIL_FAST_4XX`), a scanner identity request header (`scannerId`; `SCANNER_ID`), a full-page scroll before testing (`scroll`; `PRESCAN_SCROLL`), a branded Chromium channel (`browserChannel`), launch retries per rule of the `testaro` tool (act `retries`; `TESTARO_RULE_RETRIES`), and stealth and ad blocking for the `qualWeb` tool (act `stealth` and `adBlock`; `QUALWEB_STEALTH`, `QUALWEB_ADBLOCK`), which the QualWeb driver had ignored and which are now provided by `playwright-extra` and `@ghostery/adblocker-playwright`. A GitHub Actions workflow publishes the package to npm when a GitHub release is created whose tag matches the package version.
+- **78.3.0** (2 September 2026, unpublished). Checkpoints (see [Checkpoints](#checkpoints) and `docs/checkpoint-scanning.md`): a `checkpoint` act snapshots a page state reached by the acts of a job, and test acts test the latest checkpoint, reaching it by replaying the recorded interaction acts; an `isolation` job property (`process`, `browser`, or `page`) governs how test acts are isolated; when a job has two or more checkpoints, the report gains a `flow` property listing the issues added, persisted, removed, and not retested between consecutive checkpoints, with catalog-structure and ARIA-snapshot diffs; a test act may have `scope: 'changed'` to test only the subtrees changed since the previous checkpoint; interaction acts may identify elements by a Playwright `selector`; catalog entries not cited by any test act are pruned incrementally; `procs/userPath.js` converts recorded user paths into acts. Repairs to the act loop (`next`, failed launches, `url`, `state`).
+- **78.2.0** (1 September 2026, unpublished). Two new rule engines, `pour` (Pour Engine 1.37.0) and `surea11y` (SureA11y core 1.7.0), each vendored as a browser bundle, bringing the count of rule engines from 10 to 12. All rule validators pass again (47 had been quarantined in 78.0.8), legacy expectation paths are resolved from the catalog, and a harness in `validation/act/` scores engines against the W3C ACT test cases. Dependency updates.
+- **78.1.0** (1 September 2026, unpublished). Certainty on standard instances: every instance carries `outcome` (`failed` or `cantTell`), optionally `uncertainty` and `needed`, and the standard result gains `outcomeTotals`; `ordinalSeverity` and `totals` are unchanged, and a later major version will redefine `ordinalSeverity` as impact only (see `docs/standard-result-outcome.md`). TypeScript: the rule modules, tool adapters, core procs, and `types.ts` are TypeScript sources whose emitted `.js` and `.d.ts` files are committed, the package declares `types`, a generated registry (`testaro/registry.ts`) maps rule IDs to rule modules, and the `typecheck`, `build:ts`, `build:registry`, and `lint` scripts are added. The required Node.js version becomes `>=22.12`, and dependencies are pinned to caret ranges instead of `*`. Polling a server (`netWatch`): authentication by a `Basic` authorization header (`NETWATCH_AUTH_TYPE`, `NETWATCH_WORKER_ID`, `NETWATCH_WORKER_SECRET`), job and report URLs no longer assume fixed paths, TLS certificates are verified by default, HTTP statuses are checked, and reports whose delivery fails are saved under `REPORTDIR/netWatchFailed`; the `AGENT` and `NETWATCH_URL_AUTH` variables are deprecated but still honored. Fixes: `ordinalSeverity` is numeric in summary instances of `doTest` rules, `getBasicResult` awaits the catalog index, `styleDiff` chooses the first list link deterministically, `htmlcs` leaves standard totals empty when standard results are off, `ed11y` reports a prevented run instead of crashing, `browserClose` abandons a close that has not settled after 10 seconds, the `elements` rule loads again (a duplicate parameter name had made it a syntax error), and `executionTimeStamp` is validated. Repository URLs point to `YRA-Tech/testaro`, and CI runs the linter, the type check, and the rule validators.
+- **78.0.8** (20 August 2026). Copyright and license notices updated; a nonstandard directory removed.
+- **78.0.7** (unpublished). `getAttributeXPath` tolerates Nu Html Checker messages without an extract, which had thrown and lost the standardization of the whole act.
+- **78.0.6** (20 August 2026). `nuVal` and `nuVnu`: the extract of a message that identifies no element is preserved in the `what` property of the instance.
+- **78.0.5** (20 August 2026). `htmlcs`: the `define`, `exports`, and `module` globals are hidden while `HTMLCS.js` is injected, so pages that expose an AMD loader no longer prevent the tool.
+- **78.0.4** (19 August 2026). `focAll` reports the specific elements not reached by tabbing and those reached unexpectedly, itemized when `withItems` is true.
+- **78.0.3** (unpublished). The `accessibility-checker` dependency is required to be at least 4.0.29.
+- **78.0.2** (19 August 2026). `browserClose` actually closes the browser context and browser; previously every browser outlived its act.
+- **78.0.1** (19 August 2026). The time budget of the `motion` rule rises from 5 to 30 seconds.
+- **78.0.0** (19 August 2026). New optional `imageScale` job property: when it is greater than 1, the catalog page is rendered at that device scale factor and a second page image, at device-pixel scale, becomes the second item of `images`; the first item stays at CSS-pixel scale. The major version was incremented because of the added job property.
+
+### 77
+
+- **77.2.1** (19 August 2026). The catalog records no `boxID` for elements that are laid out but not painted (`visibility: hidden` and `content-visibility: hidden` subtrees).
+- **77.2.0** (19 August 2026). During a job the map from path IDs to catalog indexes lives at `report.pathIDs` instead of `catalog.pathID`, so the catalog contains only element entries; the shipped report is unchanged.
+- **77.1.0** (19 August 2026). Closed `details` elements are expanded before the page image and the box measurements are made, so the two agree.
+- **77.0.4** (18 August 2026). Validation: expectations of test acts are resolved against `act.result`, so `standardResult` expectation paths work.
+- **77.0.3** (18 August 2026). `normalizeURL` resolves relative path segments, so strict jobs with `file:` targets no longer report spurious bad redirections.
+- **77.0.2** (18 August 2026). `deSlash` is defined, so strict jobs no longer abort on their first navigation.
+- **77.0.1** (18 August 2026). `autocomplete`: its label arrays are spliced correctly, so the name, given-name, family-name, and email heuristics fire. The order in which navigation load-wait conditions are relaxed is improved. Dependency updates.
+- **77.0.0** (28 July 2026). Observability: `doJob` accepts a second argument with an `onProgress` callback and emits `jobStart`, `catalogStart`, `catalogEnd`, `actStart`, `actEnd`, and `jobEnd` events (see [Execution with observability](#execution-with-observability)).
+
+### 76
+
+- **76.2.2** (28 July 2026). Container versioning requirements documented; dependency updates.
+- **76.2.1** (28 July 2026). The catalog no longer fails on pages whose scripts extend `Array.prototype`.
+- **76.2.0** (27 July 2026). When a target repeatedly rejects a job, the job's `browserID` is changed.
+- **76.1.2** (27 July 2026). The launch context honors a user agent supplied by the job for device emulation instead of overriding it.
+- **76.1.1** (26 July 2026). Corrections related to containerization.
+- **76.1.0** (25 July 2026). The `qualWeb` tool uses the QualWeb Playwright driver instead of Puppeteer. Documentation and dependency updates.
+- **76.0.0** (18 July 2026). Containerized deployment: the `TESTARO_CHROMIUM_NO_SANDBOX` environment variable and a reference container image (`Dockerfile`, `docker-compose.yml`, `CONTAINERS.md`). Archived jobs and reports are named by ID in `run` and `dirWatch`, and a `dirWatch` file-deletion bug is corrected. The `validation/watch` directory is removed.
+
+### 75
+
+- **75.2.2** (18 July 2026). The `call` commands tolerate absent `netWatch` environment variables instead of failing.
+- **75.2.1** (20 June 2026). A failure to launch a browser for the catalog is fatal to the job.
+- **75.2.0** (20 June 2026). When a browser crashes on launch, the launch is retried with a different browser type, and browser-type changes are logged.
+- **75.1.0** (6 June 2026). New optional `imageColor` job property: when a catalog is created, a page image with that color type is made the first item of an `images` array in the report. The `motion` rule makes its own screenshot and compares it with that image, using `pixelmatch` instead of BlazeDiff.
+- **75.0.0** (5 June 2026). Breaking: the `shoot` act creates a full-page screenshot as a base64-encoded PNG and, with its `exclusionSelector`, `colorType`, and `action` properties, decides what to mask, which color type to use, and whether to return the image in the act result, add it to the `images` array of the report, or save it as a file; the screenshot option of the `launch` act is removed.
+
+### 74
+
+- **74.2.3** (3 June 2026). `axe`: the full `data-xpath` of each flagged element is resolved from the live DOM, because axe truncates the HTML it reports. Dependency updates.
+- **74.2.2** (29 May 2026). Additions to `UPGRADES.md`.
+- **74.2.1** (26 May 2026). WebKit and Firefox are imported from `playwright-extra` again; 74.2.0 had imported only Chromium.
+- **74.2.0** (25 May 2026). The stealth plugin is applied only to Chromium; WebKit and Firefox had rejected a Chromium-only launch option and failed every job.
+- **74.1.3** (25 May 2026). The `TESTARO_NU_URL` environment variable overrides the URL of the Nu Html Checker, for a self-hosted checker without the body-size limit of the public one.
+- **74.1.2** (25 May 2026). `nuVal` survives empty responses from the W3C validator instead of losing the underlying error.
+- **74.1.1** (25 May 2026). The exclude-list form of the `testaro` rule specification (`['n', …]`) actually excludes the listed rules.
+- **74.1.0** (25 May 2026). Job-level `stealth` toggle.
+- **74.0.1** (25 May 2026). Copyright notices updated.
+- **74.0.0** (25 May 2026). New `shoot` act type, making full-page screenshots.
+
+### 73
+
+- **73.0.0** (25 May 2026). Temporary files are kept in a per-job directory under `tmp` at the project root, falling back to the operating system's temporary directory; the `TMPDIRNAME` environment variable and `procs/config.js` are removed.
 
 ## Contributing
 
