@@ -1,3 +1,4 @@
+"use strict";
 var computeAccessibleName = (() => {
   var __getOwnPropNames = Object.getOwnPropertyNames;
   var __commonJS = (cb, mod) => function __require() {
