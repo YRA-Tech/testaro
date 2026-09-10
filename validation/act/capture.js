@@ -59,11 +59,13 @@ const REPORTER_TIMEOUT_MS = 45000;
   seconds at a time) and, if still failing, is recaptured by a later resumed
   run instead of being treated as captured.
 */
-const RETRYABLE_ERROR = /ERR_INTERNET_DISCONNECTED|ERR_NAME_NOT_RESOLVED|ERR_CONNECTION|ERR_NETWORK_CHANGED|ERR_TIMED_OUT|newPage deadline|reporter timeout|has been closed|Protocol error/;
+const RETRYABLE_ERROR = /ERR_INTERNET_DISCONNECTED|ERR_NAME_NOT_RESOLVED|ERR_CONNECTION|ERR_NETWORK_CHANGED|ERR_TIMED_OUT|Timeout \d+ms exceeded|newPage deadline|reporter timeout|has been closed|Protocol error/;
 const NETWORK_RETRIES = 3;
 const NETWORK_RETRY_DELAY_MS = 15000;
-// The testaro tool runs ~45 rules (screenshots, hover, motion) in its own browser.
+// The testaro tool runs ~45 rules (screenshots, hover, motion) in its own
+// browser: seconds on a fixture, minutes on a heavy real page.
 const TESTARO_TIMEOUT_MS = 180000;
+const TESTARO_URL_TIMEOUT_MS = 600000;
 
 /*
   The testaro tool is not a page-injected reporter: its rules launch and
@@ -72,7 +74,7 @@ const TESTARO_TIMEOUT_MS = 180000;
   validation/validateTest.js does, and its test act is read back.
 */
 let testaroJobCount = 0;
-const testaroJob = url => {
+const testaroJob = (url, timeLimit = 120) => {
   const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/^\d\d(\d{6})T(\d{4}).*$/, '$1T$2');
   // The id names doJob's temporary directory, so it must be unique across
   // fixtures and across concurrent capture processes.
@@ -85,7 +87,7 @@ const testaroJob = url => {
     observe: false,
     device: {id: 'default', windowOptions: {reducedMotion: 'no-preference'}},
     browserID: 'chromium',
-    timeLimit: 120,
+    timeLimit,
     creationTimeStamp: stamp,
     executionTimeStamp: stamp,
     sendReportTo: '',
@@ -610,7 +612,7 @@ process.on('unhandledRejection', reason => {
         // Navigate, waiting out a dropped uplink rather than recording it as a result.
         for (let attempt = 0; ; attempt++) {
           try {
-            await page.goto(testcase.url, {waitUntil: 'load', timeout: args.urls ? 30000 : 20000});
+            await page.goto(testcase.url, {waitUntil: 'load', timeout: args.urls ? 60000 : 20000});
             break;
           }
           catch(error) {
@@ -644,9 +646,9 @@ process.on('unhandledRejection', reason => {
         if (engine === 'testaro') {
           const {doJob} = require('../../run');
           report = await Promise.race([
-            doJob(testaroJob(testcase.url)),
+            doJob(testaroJob(testcase.url, args.urls ? 540 : 120)),
             new Promise((resolve, reject) => setTimeout(
-              () => reject(new Error('reporter timeout')), TESTARO_TIMEOUT_MS
+              () => reject(new Error('reporter timeout')), args.urls ? TESTARO_URL_TIMEOUT_MS : TESTARO_TIMEOUT_MS
             ))
           ]);
           actReport = report.jobData && report.jobData.aborted
