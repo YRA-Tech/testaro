@@ -23,9 +23,12 @@
       [--rules id,id] [--max N] [--out path.jsonl]
       [--urls path.txt] [--recycle N]
 
-  Each output line: {testcaseId, ruleId, expected, engine, prevented,
-  instanceCount, outcomeTotals: {failed, cantTell}, asserted: {SC: count},
-  review: {SC: count}, ruleIDs: {engineRuleID: count}, ms}
+  First line is a header {header: true, capturedAt, mode, engines,
+  engineVersions, testaro, forkCommit, playwright}; scorers skip rows without
+  a testcaseId. Each further line: {testcaseId, ruleId, expected, engine,
+  prevented, instanceCount, outcomeTotals: {failed, cantTell},
+  asserted: {SC: count}, review: {SC: count}, ruleIDs: {engineRuleID: count},
+  ruleOutcomes: {engineRuleID: {failed, cantTell}}, ms}
   `asserted` counts definite failures (standard-instance outcome `failed`);
   `review` counts engine-flagged uncertainty (outcome `cantTell`). Criteria
   are dotted WCAG SC numbers, extracted per engine from native results;
@@ -49,6 +52,48 @@ const CACHE_DIR = path.join(__dirname, 'cache');
 const RESULTS_DIR = path.join(__dirname, 'results');
 // Per-reporter time limit, matching the production limits in procs/doActs.js.
 const REPORTER_TIMEOUT_MS = 45000;
+/*
+  Failures that say nothing about the engine: the fixture host was
+  unreachable, or the browser wedged. Such a row is retried in place a few
+  times (fixtures are fetched live from w3.org, and a flaky uplink drops for
+  seconds at a time) and, if still failing, is recaptured by a later resumed
+  run instead of being treated as captured.
+*/
+const RETRYABLE_ERROR = /ERR_INTERNET_DISCONNECTED|ERR_NAME_NOT_RESOLVED|ERR_CONNECTION|ERR_NETWORK_CHANGED|ERR_TIMED_OUT|newPage deadline|reporter timeout|has been closed|Protocol error/;
+const NETWORK_RETRIES = 3;
+const NETWORK_RETRY_DELAY_MS = 15000;
+// The testaro tool runs ~45 rules (screenshots, hover, motion) in its own browser.
+const TESTARO_TIMEOUT_MS = 180000;
+
+/*
+  The testaro tool is not a page-injected reporter: its rules launch and
+  navigate their own browser through procs/launch.js and validate the job
+  they are given. So it is run through doJob() with a minimal valid job, as
+  validation/validateTest.js does, and its test act is read back.
+*/
+let testaroJobCount = 0;
+const testaroJob = url => {
+  const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/^\d\d(\d{6})T(\d{4}).*$/, '$1T$2');
+  // The id names doJob's temporary directory, so it must be unique across
+  // fixtures and across concurrent capture processes.
+  testaroJobCount++;
+  return {
+    id: `${stamp}-act-${process.pid}-${testaroJobCount}`,
+    what: 'ACT fixture capture (testaro)',
+    strict: false,
+    standard: 'also',
+    observe: false,
+    device: {id: 'default', windowOptions: {reducedMotion: 'no-preference'}},
+    browserID: 'chromium',
+    timeLimit: 120,
+    creationTimeStamp: stamp,
+    executionTimeStamp: stamp,
+    sendReportTo: '',
+    target: {what: 'ACT fixture', url},
+    sources: {script: 'act', batch: 'act', mergeID: 'act', requester: ''},
+    acts: [{type: 'test', which: 'testaro', withItems: true, stopOnFail: false}]
+  };
+};
 
 // Mirrors procs/doTestAct.js xPathNeeds for the engines this harness supports.
 const XPATH_NEEDS = {
@@ -153,6 +198,55 @@ const ruleIDCounts = standardResult => {
   return counts;
 };
 
+// Per-rule certainty bands: {ruleID: {failed, cantTell}} from instance outcomes.
+// Lets a scorer join rules to ACT rule ids without a criterion extractor.
+const ruleOutcomeCounts = standardResult => {
+  const bands = {};
+  ((standardResult && standardResult.instances) || []).forEach(instance => {
+    const band = bands[instance.ruleID] ??= {failed: 0, cantTell: 0};
+    if (instance.outcome === 'failed' || instance.outcome === 'cantTell') {
+      band[instance.outcome] += instance.count || 1;
+    }
+  });
+  return bands;
+};
+
+// Versions of the engines in play, for the capture header row.
+const engineVersions = engines => {
+  const packages = {
+    alfa: '@siteimprove/alfa-rules',
+    aslint: 'aslint',
+    axe: 'axe-core',
+    ed11y: 'editoria11y',
+    htmlcs: 'html_codesniffer',
+    ibm: 'accessibility-checker',
+    qualWeb: '@qualweb/act-rules'
+  };
+  const versions = {};
+  const root = path.join(__dirname, '..', '..');
+  engines.forEach(engine => {
+    try {
+      if (packages[engine]) {
+        // Read from disk: some packages' `exports` maps block require() of package.json.
+        const packageJSON = path.join(root, 'node_modules', packages[engine], 'package.json');
+        versions[engine] = JSON.parse(fs.readFileSync(packageJSON, 'utf8')).version;
+      }
+      else if (['pour', 'surea11y'].includes(engine)) {
+        const readme = fs.readFileSync(path.join(root, engine, 'README.md'), 'utf8');
+        const match = readme.match(/\b(\d+\.\d+\.\d+)\b/);
+        versions[engine] = match ? match[1] : 'unknown';
+      }
+      else if (engine === 'testaro') {
+        versions[engine] = require('../../package.json').version;
+      }
+    }
+    catch(error) {
+      versions[engine] = 'unknown';
+    }
+  });
+  return versions;
+};
+
 // FUNCTIONS
 
 // Parses CLI arguments of the form --name value.
@@ -207,6 +301,13 @@ const getXPathScript = () => {
 
 // OPERATION
 
+// A tool's stray promise (e.g. a playwright-extra CDP session settling after
+// the page is closed) must not abort a multi-hour capture; the row's own
+// try/catch and the browser-replacement heuristics handle the page.
+process.on('unhandledRejection', reason => {
+  console.log(`WARNING: unhandled rejection (${reason && reason.message ? reason.message : reason})`);
+});
+
 (async () => {
   const args = parseArgs(process.argv);
   const engines = (args.engines || 'pour').split(',');
@@ -236,13 +337,26 @@ const getXPathScript = () => {
   if (args.max) {
     testcases = testcases.slice(0, Number(args.max));
   }
-  // Resume support: skip (testcase, engine) pairs already in the out file.
+  // Resume support: skip (testcase, engine) pairs already in the out file,
+  // except rows prevented for a retryable reason — those are recaptured, and
+  // a scorer keeps the last row per pair.
   const alreadyCaptured = new Set();
   if (fs.existsSync(outPath)) {
     fs.readFileSync(outPath, 'utf8').split('\n').filter(Boolean).forEach(line => {
       try {
         const row = JSON.parse(line);
-        alreadyCaptured.add(`${row.testcaseId}:${row.engine}`);
+        if (! row.testcaseId) {
+          return;
+        }
+        // Fixture ids are content hashes shared across rules (e.g. the AA and
+        // AAA contrast rules), so the rule is part of the identity.
+        const key = `${row.ruleId || ''}/${row.testcaseId}:${row.engine}`;
+        if (row.prevented && RETRYABLE_ERROR.test(row.error || '')) {
+          alreadyCaptured.delete(key);
+        }
+        else {
+          alreadyCaptured.add(key);
+        }
       }
       catch(error) {}
     });
@@ -252,6 +366,27 @@ const getXPathScript = () => {
     + (alreadyCaptured.size ? ` (resuming; ${alreadyCaptured.size} rows already captured)` : '')
   );
   const out = fs.createWriteStream(outPath, {flags: 'a'});
+  // Header row (no testcaseId) pinning what produced a fresh capture; scorers
+  // skip it, and a resumed capture keeps the original header.
+  if (! alreadyCaptured.size) {
+    let forkCommit = 'unknown';
+    try {
+      forkCommit = require('child_process')
+      .execFileSync('git', ['rev-parse', 'HEAD'], {cwd: path.join(__dirname, '..', '..'), encoding: 'utf8'})
+      .trim();
+    }
+    catch(error) {}
+    out.write(`${JSON.stringify({
+      header: true,
+      capturedAt: new Date().toISOString(),
+      mode: args.urls ? 'urls' : 'act-fixtures',
+      engines,
+      engineVersions: engineVersions(engines),
+      testaro: require('../../package.json').version,
+      forkCommit,
+      playwright: require('playwright/package.json').version
+    })}\n`);
+  }
   /*
     The browser is recycled every RECYCLE_EVERY testcases: a 2026-08-22 full
     run showed script-tag injection silently failing (tool global never
@@ -289,7 +424,7 @@ const getXPathScript = () => {
       await replaceBrowser();
     }
     for (const engine of engines) {
-      if (alreadyCaptured.has(`${testcase.testcaseId}:${engine}`)) {
+      if (alreadyCaptured.has(`${testcase.ruleId || ''}/${testcase.testcaseId}:${engine}`)) {
         continue;
       }
       const row = {
@@ -308,7 +443,21 @@ const getXPathScript = () => {
         if (xPathNeed === 'script' || xPathNeed === 'attribute') {
           await page.addInitScript(getXPathScript);
         }
-        await page.goto(testcase.url, {waitUntil: 'load', timeout: args.urls ? 30000 : 20000});
+        // Navigate, waiting out a dropped uplink rather than recording it as a result.
+        for (let attempt = 0; ; attempt++) {
+          try {
+            await page.goto(testcase.url, {waitUntil: 'load', timeout: args.urls ? 30000 : 20000});
+            break;
+          }
+          catch(error) {
+            if (attempt < NETWORK_RETRIES && /ERR_INTERNET_DISCONNECTED|ERR_NAME_NOT_RESOLVED|ERR_CONNECTION|ERR_NETWORK_CHANGED/.test(error.message)) {
+              console.log(`WARNING: network error on ${testcase.testcaseId}; retrying in ${NETWORK_RETRY_DELAY_MS / 1000}s`);
+              await new Promise(resolve => setTimeout(resolve, NETWORK_RETRY_DELAY_MS));
+              continue;
+            }
+            throw error;
+          }
+        }
         if (xPathNeed === 'attribute') {
           // Stamp data-xpath attributes, as procs/launch.js does.
           await withDeadline(page.evaluate(() => {
@@ -326,19 +475,36 @@ const getXPathScript = () => {
           const nonced = document.querySelector('script[nonce]');
           return (nonced && nonced.nonce) || '';
         }).catch(() => '');
-        const report = {
-          standard: 'also',
-          jobData: scriptNonce ? {lastScriptNonce: scriptNonce} : {},
-          catalog: {},
-          target: {url: testcase.url},
-          acts: [{type: 'test', which: engine, withItems: true}]
-        };
-        const actReport = await Promise.race([
-          require(`../../tests/${engine}`).reporter(page, report, 0, 40),
-          new Promise((resolve, reject) => setTimeout(
-            () => reject(new Error('reporter timeout')), REPORTER_TIMEOUT_MS
-          ))
-        ]);
+        let report;
+        let actReport;
+        if (engine === 'testaro') {
+          const {doJob} = require('../../run');
+          report = await Promise.race([
+            doJob(testaroJob(testcase.url)),
+            new Promise((resolve, reject) => setTimeout(
+              () => reject(new Error('reporter timeout')), TESTARO_TIMEOUT_MS
+            ))
+          ]);
+          actReport = report.jobData && report.jobData.aborted
+            ? {data: {prevented: true, error: report.jobData.abortMessage || 'job aborted'}}
+            : report.acts.find(jobAct => jobAct.type === 'test')
+              || {data: {prevented: true, error: 'no test act in job report'}};
+        }
+        else {
+          report = {
+            standard: 'also',
+            jobData: scriptNonce ? {lastScriptNonce: scriptNonce} : {},
+            catalog: {},
+            target: {url: testcase.url},
+            acts: [{type: 'test', which: engine, withItems: true}]
+          };
+          actReport = await Promise.race([
+            require(`../../tests/${engine}`).reporter(page, report, 0, 40),
+            new Promise((resolve, reject) => setTimeout(
+              () => reject(new Error('reporter timeout')), REPORTER_TIMEOUT_MS
+            ))
+          ]);
+        }
         const {data, result} = actReport;
         row.prevented = !! (data && data.prevented);
         if (row.prevented) {
@@ -348,6 +514,7 @@ const getXPathScript = () => {
           row.instanceCount = result.standardResult.instances.length;
           row.outcomeTotals = result.standardResult.outcomeTotals;
           row.ruleIDs = ruleIDCounts(result.standardResult);
+          row.ruleOutcomes = ruleOutcomeCounts(result.standardResult);
           const unoutcomed = result.standardResult.instances
           .filter(instance => ! OUTCOMES.includes(instance.outcome)).length;
           if (unoutcomed) {
@@ -368,7 +535,7 @@ const getXPathScript = () => {
               severity: instance.ordinalSeverity,
               outcome: instance.outcome,
               uncertainty: instance.uncertainty,
-              xPath: (report.catalog[instance.catalogIndex] || {}).pathID || ''
+              xPath: ((report.catalog || {})[instance.catalogIndex] || {}).pathID || ''
             }));
           }
         }
