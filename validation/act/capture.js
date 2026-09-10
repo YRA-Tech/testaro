@@ -211,6 +211,149 @@ const ruleOutcomeCounts = standardResult => {
   return bands;
 };
 
+/*
+  URL mode: one snapshot row per page, taken after every engine has run,
+  holding the DOM context of each element any engine flagged. Element
+  identity is the normalized XPath the engines already share, so one
+  snapshot serves every engine's instances (including the testaro tool,
+  whose own browser is gone by then). Bounded per page and per element.
+*/
+const SNAPSHOT_MAX_ELEMENTS = 400;
+const SNAPSHOT_MAX_HTML = 4000;
+// Elements per page for which the (slower) accessibility-tree snapshot is taken.
+const SNAPSHOT_MAX_ARIA = 200;
+/*
+  Snapshot profile version. v1: DOM context (outerHTML, two ancestor shells,
+  computed style subset, box, text) plus the accessibility invariant a
+  reducer must preserve, captured at source rather than reconstructed: the
+  element's own accessibility-tree snapshot (`aria`), the elements its IDREF
+  attributes point at (`refs`), and the structural context outside the
+  element itself (`context`: ancestor roles, table/list position).
+*/
+const SNAPSHOT_PROFILE_VERSION = 1;
+const IDREF_ATTRIBUTES = [
+  'aria-labelledby', 'aria-describedby', 'aria-controls', 'aria-owns', 'aria-activedescendant',
+  'aria-flowto', 'aria-details', 'aria-errormessage', 'headers', 'for', 'list', 'form'
+];
+const snapshotScript = ([xPaths, maxHTML, idrefAttributes]) => {
+  const shell = element => {
+    const attrs = Array.from(element.attributes)
+    .map(attribute => `${attribute.name}="${attribute.value.slice(0, 120)}"`)
+    .join(' ');
+    return `<${element.tagName.toLowerCase()}${attrs ? ` ${attrs}` : ''}>`;
+  };
+  const styleKeys = [
+    'display', 'visibility', 'opacity', 'position', 'color', 'background-color',
+    'font-size', 'font-weight', 'line-height', 'letter-spacing', 'word-spacing', 'outline-style'
+  ];
+  const snapshots = {};
+  for (const xPath of xPaths) {
+    try {
+      const element = document.evaluate(
+        xPath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null
+      ).singleNodeValue;
+      if (! element || element.nodeType !== Node.ELEMENT_NODE) {
+        snapshots[xPath] = {missing: true};
+        continue;
+      }
+      const ancestors = [];
+      const ancestorRoles = [];
+      let parent = element.parentElement;
+      while (parent && parent !== document.documentElement) {
+        if (ancestors.length < 2) {
+          ancestors.unshift(shell(parent));
+        }
+        const role = parent.getAttribute('role');
+        const tag = parent.tagName.toLowerCase();
+        if (role || /^(main|nav|header|footer|aside|section|article|form|table|thead|tbody|tr|ul|ol|dl|fieldset|dialog|menu|figure|details)$/.test(tag)) {
+          ancestorRoles.unshift(role ? `${tag}[role=${role}]` : tag);
+        }
+        parent = parent.parentElement;
+      }
+      // Elements this element points at by IDREF: the part of the invariant that lives outside it.
+      const refs = {};
+      idrefAttributes.forEach(attribute => {
+        const value = element.getAttribute(attribute);
+        if (! value) {
+          return;
+        }
+        refs[attribute] = value.trim().split(/\s+/).slice(0, 8).map(id => {
+          const target = document.getElementById(id);
+          return target
+            ? {id, html: target.outerHTML.slice(0, 400), text: (target.textContent || '').trim().slice(0, 120)}
+            : {id, missing: true};
+        });
+      });
+      // Structural context: table and list position, and whether the element labels something.
+      const context = {ancestorRoles};
+      const cell = element.closest('td, th');
+      if (cell) {
+        const row = cell.parentElement;
+        const table = cell.closest('table');
+        context.table = {
+          row: row ? Array.from(row.parentElement.children).indexOf(row) : -1,
+          col: Array.from(row ? row.children : []).indexOf(cell),
+          rows: table ? table.rows.length : 0,
+          scope: cell.getAttribute('scope') || '',
+          headers: cell.getAttribute('headers') || ''
+        };
+      }
+      const item = element.closest('li, option, [role=listitem], [role=option], [role=menuitem], [role=tab], [role=treeitem]');
+      if (item && item.parentElement) {
+        context.set = {
+          index: Array.from(item.parentElement.children).indexOf(item),
+          size: item.parentElement.children.length,
+          container: shell(item.parentElement)
+        };
+      }
+      if (element.id) {
+        const referrers = Array.from(document.querySelectorAll(
+          `[aria-labelledby~="${element.id}"], [aria-describedby~="${element.id}"], [headers~="${element.id}"], label[for="${element.id}"]`
+        )).slice(0, 8).map(shell);
+        if (referrers.length) {
+          context.referencedBy = referrers;
+        }
+      }
+      const computed = getComputedStyle(element);
+      const style = {};
+      styleKeys.forEach(key => {
+        style[key] = computed.getPropertyValue(key);
+      });
+      const rect = element.getBoundingClientRect();
+      const outerHTML = element.outerHTML;
+      snapshots[xPath] = {
+        outerHTML: outerHTML.length > maxHTML ? `${outerHTML.slice(0, maxHTML)} …` : outerHTML,
+        truncated: outerHTML.length > maxHTML,
+        ancestors,
+        style,
+        box: [rect.x, rect.y, rect.width, rect.height].map(Math.round),
+        text: (element.textContent || '').trim().slice(0, 200),
+        refs,
+        context
+      };
+    }
+    catch(error) {
+      snapshots[xPath] = {error: String(error && error.message || error).slice(0, 120)};
+    }
+  }
+  return snapshots;
+};
+// Adds each element's accessibility-tree snapshot (role, name, states, children) to its snapshot.
+const addAriaSnapshots = async (page, snapshots, xPaths) => {
+  for (const xPath of xPaths.slice(0, SNAPSHOT_MAX_ARIA)) {
+    const snapshot = snapshots[xPath];
+    if (! snapshot || snapshot.missing || snapshot.error) {
+      continue;
+    }
+    try {
+      snapshot.aria = await page.locator(`xpath=${xPath}`).first().ariaSnapshot({timeout: 2000});
+    }
+    catch(error) {
+      snapshot.ariaError = String(error && error.message || error).split('\n')[0].slice(0, 120);
+    }
+  }
+};
+
 // Versions of the engines in play, for the capture header row.
 const engineVersions = engines => {
   const packages = {
@@ -305,7 +448,14 @@ const getXPathScript = () => {
 // the page is closed) must not abort a multi-hour capture; the row's own
 // try/catch and the browser-replacement heuristics handle the page.
 process.on('unhandledRejection', reason => {
-  console.log(`WARNING: unhandled rejection (${reason && reason.message ? reason.message : reason})`);
+  const message = reason && reason.message ? reason.message : String(reason);
+  if (/cdpSession|Target page, context or browser has been closed/.test(message)) {
+    console.log(`WARNING: unhandled rejection (${message})`);
+    return;
+  }
+  // Anything else is a bug in the harness: fail loudly rather than hang.
+  console.error(`ERROR: unhandled rejection (${message})`);
+  process.exit(1);
 });
 
 (async () => {
@@ -341,6 +491,9 @@ process.on('unhandledRejection', reason => {
   // except rows prevented for a retryable reason — those are recaptured, and
   // a scorer keeps the last row per pair.
   const alreadyCaptured = new Set();
+  // URL mode: flagged XPaths from rows captured by earlier runs, so a resumed
+  // page still gets its snapshot row (its engine rows are skipped).
+  const priorFlagged = new Map();
   if (fs.existsSync(outPath)) {
     fs.readFileSync(outPath, 'utf8').split('\n').filter(Boolean).forEach(line => {
       try {
@@ -356,6 +509,15 @@ process.on('unhandledRejection', reason => {
         }
         else {
           alreadyCaptured.add(key);
+        }
+        if (Array.isArray(row.instances)) {
+          const flagged = priorFlagged.get(row.testcaseId) || new Set();
+          row.instances.forEach(instance => {
+            if (instance.xPath && instance.outcome === 'failed') {
+              flagged.add(instance.xPath);
+            }
+          });
+          priorFlagged.set(row.testcaseId, flagged);
         }
       }
       catch(error) {}
@@ -423,6 +585,8 @@ process.on('unhandledRejection', reason => {
     if (done > 0 && RECYCLE_EVERY && done % RECYCLE_EVERY === 0) {
       await replaceBrowser();
     }
+    // XPaths flagged on this page by any engine, for the URL-mode snapshot row.
+    const flaggedXPaths = new Set(priorFlagged.get(testcase.testcaseId) || []);
     for (const engine of engines) {
       if (alreadyCaptured.has(`${testcase.ruleId || ''}/${testcase.testcaseId}:${engine}`)) {
         continue;
@@ -537,6 +701,11 @@ process.on('unhandledRejection', reason => {
               uncertainty: instance.uncertainty,
               xPath: ((report.catalog || {})[instance.catalogIndex] || {}).pathID || ''
             }));
+            row.instances.forEach(instance => {
+              if (instance.xPath && instance.outcome === 'failed') {
+                flaggedXPaths.add(instance.xPath);
+              }
+            });
           }
         }
       }
@@ -579,6 +748,35 @@ process.on('unhandledRejection', reason => {
       }
       row.ms = Date.now() - started;
       out.write(`${JSON.stringify(row)}\n`);
+    }
+    // URL mode: snapshot the flagged elements once per page.
+    if (args.urls && flaggedXPaths.size && ! alreadyCaptured.has(`${testcase.ruleId || ''}/${testcase.testcaseId}:_snapshot`)) {
+      const snapshotRow = {testcaseId: testcase.testcaseId, engine: '_snapshot', prevented: false};
+      const started = Date.now();
+      let page;
+      try {
+        page = await withDeadline(context.newPage(), 20000, 'newPage');
+        await page.goto(testcase.url, {waitUntil: 'load', timeout: 30000});
+        const xPaths = [...flaggedXPaths].slice(0, SNAPSHOT_MAX_ELEMENTS);
+        snapshotRow.snapshots = await withDeadline(
+          page.evaluate(snapshotScript, [xPaths, SNAPSHOT_MAX_HTML, IDREF_ATTRIBUTES]), 30000, 'snapshot'
+        );
+        await withDeadline(addAriaSnapshots(page, snapshotRow.snapshots, xPaths), 120000, 'ariaSnapshot');
+        snapshotRow.profileVersion = SNAPSHOT_PROFILE_VERSION;
+        snapshotRow.flaggedCount = flaggedXPaths.size;
+        snapshotRow.capped = flaggedXPaths.size > SNAPSHOT_MAX_ELEMENTS;
+      }
+      catch(error) {
+        snapshotRow.prevented = true;
+        snapshotRow.error = error.message.slice(0, 200);
+      }
+      finally {
+        if (page) {
+          await withDeadline(page.close(), 5000, 'page.close').catch(() => {});
+        }
+      }
+      snapshotRow.ms = Date.now() - started;
+      out.write(`${JSON.stringify(snapshotRow)}\n`);
     }
     done++;
     if (done % 25 === 0) {
