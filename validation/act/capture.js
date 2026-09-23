@@ -392,6 +392,21 @@ const engineVersions = engines => {
   return versions;
 };
 
+/*
+  accessibility-checker runs the rule archive it is configured for ("latest" by default), whose
+  engine can be older than the package's own (4.0.27 under accessibility-checker 4.0.33 on
+  2026-09-23), so the ibm engine version is that archive's.
+*/
+const ibmRuleArchive = async () => {
+  try {
+    const {ruleArchive, ruleArchiveVersion} = await require('accessibility-checker').getConfig();
+    return {id: ruleArchive, version: ruleArchiveVersion};
+  }
+  catch(error) {
+    return null;
+  }
+};
+
 // FUNCTIONS
 
 // Parses CLI arguments of the form --name value.
@@ -540,12 +555,19 @@ process.on('unhandledRejection', reason => {
       .trim();
     }
     catch(error) {}
+    const versions = engineVersions(engines);
+    const ibmArchive = engines.includes('ibm') ? await ibmRuleArchive() : null;
+    if (ibmArchive) {
+      ibmArchive.checker = versions.ibm;
+      versions.ibm = ibmArchive.version;
+    }
     out.write(`${JSON.stringify({
       header: true,
       capturedAt: new Date().toISOString(),
       mode: args.urls ? 'urls' : 'act-fixtures',
       engines,
-      engineVersions: engineVersions(engines),
+      engineVersions: versions,
+      ...(ibmArchive ? {ibmRuleArchive: ibmArchive} : {}),
       testaro: require('../../package.json').version,
       forkCommit,
       playwright: require('playwright/package.json').version
@@ -623,6 +645,17 @@ process.on('unhandledRejection', reason => {
             }
             throw error;
           }
+        }
+        /*
+          Chromium shows an XML file it cannot render as a document (e.g. a <math> root with no
+          namespace) in its XML tree viewer, an HTML page of its own; the engines would test that
+          page instead of the fixture.
+        */
+        const inXMLViewer = await page.evaluate(
+          () => !! document.getElementById('webkit-xml-viewer-source-xml')
+        ).catch(() => false);
+        if (inXMLViewer) {
+          throw new Error('fixture not renderable as a document in Chromium (XML viewer)');
         }
         if (xPathNeed === 'attribute') {
           // Stamp data-xpath attributes, as procs/launch.js does.
