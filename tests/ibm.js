@@ -10,26 +10,35 @@
   SPDX-License-Identifier: MIT
 */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.reporter = void 0;
+exports.reporter = exports.ibmEngine = void 0;
 const xPath_1 = require("../procs/xPath");
 const standard_1 = require("../procs/standard");
 const accessibilityChecker = require('accessibility-checker');
-const { getCompliance } = accessibilityChecker;
-/*
-  ibm
-  Implements the IBM Equal Access ruleset for accessibility.
-
-  This rule engine depends on aceconfig.js.
-
-  This rule engine is compatible with Windows only if the accessibility-checker package
-  is revised. See README.md for details.
-  Compiled to ibm.js by tsc (issue #73); edit this file, not the emitted one.
-*/
-// FUNCTIONS
+const { getCompliance, getConfig } = accessibilityChecker;
+let engineSelection = null;
+const ibmEngine = () => {
+    engineSelection ??= (async () => {
+        const requested = (process.env.IBM_ENGINE || 'archive').trim().toLowerCase();
+        if (!['archive', 'package'].includes(requested)) {
+            console.log(`WARNING: IBM_ENGINE=${process.env.IBM_ENGINE} is not archive or package; using archive`);
+        }
+        const mode = requested === 'package' ? 'package' : 'archive';
+        const config = await getConfig();
+        if (mode === 'package' && config.toolVersion) {
+            config.rulePack = `https://cdn.jsdelivr.net/npm/accessibility-checker-engine@${config.toolVersion}`;
+            config.ruleArchiveVersion = config.toolVersion;
+            config.ruleArchiveLabel = `accessibility-checker-engine ${config.toolVersion} (package)`;
+        }
+        return { mode, version: config.ruleArchiveVersion ?? null };
+    })();
+    return engineSelection;
+};
+exports.ibmEngine = ibmEngine;
 // Runs the IBM test and returns the result.
 const run = async (content) => {
     const nowLabel = (new Date()).toISOString().slice(0, 19);
     try {
+        await (0, exports.ibmEngine)();
         const ibmReport = await getCompliance(content, nowLabel);
         if (typeof ibmReport === 'object' && ibmReport.report) {
             return ibmReport;

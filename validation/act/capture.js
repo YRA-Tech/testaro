@@ -393,14 +393,17 @@ const engineVersions = engines => {
 };
 
 /*
-  accessibility-checker runs the rule archive it is configured for ("latest" by default), whose
-  engine can be older than the package's own (4.0.27 under accessibility-checker 4.0.33 on
-  2026-09-23), so the ibm engine version is that archive's.
+  The ibm engine version is the one that actually runs: by default IBM's deployed rule archive
+  ("latest"), whose engine can be older than the package's own (4.0.27 under accessibility-checker
+  4.0.33 on 2026-09-23), or with IBM_ENGINE=package the engine released with the checker
+  (tests/ibm.ts, ibmEngine).
 */
 const ibmRuleArchive = async () => {
   try {
-    const {ruleArchive, ruleArchiveVersion} = await require('accessibility-checker').getConfig();
-    return {id: ruleArchive, version: ruleArchiveVersion};
+    // Applies IBM_ENGINE first, so the header records the engine that will run.
+    const {mode, version} = await require('../../tests/ibm').ibmEngine();
+    const {ruleArchive} = await require('accessibility-checker').getConfig();
+    return {id: mode === 'package' ? 'package' : ruleArchive, version, mode};
   }
   catch(error) {
     return null;

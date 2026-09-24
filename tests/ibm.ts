@@ -16,7 +16,7 @@ import {getAttributeXPath, getXPathCatalogIndex} from '../procs/xPath';
 import {getStandardResult, pushInstance} from '../procs/standard';
 import type {Act, Report, StandardInstance, StandardResult} from '../types';
 const accessibilityChecker = require('accessibility-checker') as typeof import('accessibility-checker');
-const {getCompliance} = accessibilityChecker;
+const {getCompliance, getConfig} = accessibilityChecker;
 
 // TYPES
 
@@ -69,10 +69,46 @@ type IbmTrimmedReport =
 
 // FUNCTIONS
 
+/*
+  Which IBM rule engine runs, per the IBM_ENGINE environment variable:
+    archive (default): the rule archive IBM deploys ("latest"), which is what
+      users of IBM's own tools get. It can lag the npm package (engine 4.0.27
+      under accessibility-checker 4.0.33 in September 2026).
+    package: the engine released with the installed accessibility-checker,
+      the one IBM's published ACT report describes. It is fetched from the
+      same CDN as the archive's.
+  accessibility-checker reads aceconfig.js from the working directory and then
+  ignores a configuration passed to it, so the package engine is selected by
+  adjusting its processed configuration before the first test. Setting
+  ruleArchiveVersion also keeps the two engines' cached files apart and makes
+  getConfig report the engine actually used.
+*/
+export type IbmEngineMode = 'archive' | 'package';
+let engineSelection: Promise<{mode: IbmEngineMode; version: string | null}> | null = null;
+export const ibmEngine = () => {
+  engineSelection ??= (async () => {
+    const requested = (process.env.IBM_ENGINE || 'archive').trim().toLowerCase();
+    if (! ['archive', 'package'].includes(requested)) {
+      console.log(`WARNING: IBM_ENGINE=${process.env.IBM_ENGINE} is not archive or package; using archive`);
+    }
+    const mode: IbmEngineMode = requested === 'package' ? 'package' : 'archive';
+    const config = await getConfig() as unknown as {
+      toolVersion?: string; rulePack?: string; ruleArchiveVersion?: string; ruleArchiveLabel?: string;
+    };
+    if (mode === 'package' && config.toolVersion) {
+      config.rulePack = `https://cdn.jsdelivr.net/npm/accessibility-checker-engine@${config.toolVersion}`;
+      config.ruleArchiveVersion = config.toolVersion;
+      config.ruleArchiveLabel = `accessibility-checker-engine ${config.toolVersion} (package)`;
+    }
+    return {mode, version: config.ruleArchiveVersion ?? null};
+  })();
+  return engineSelection;
+};
 // Runs the IBM test and returns the result.
 const run = async (content: Page) => {
   const nowLabel = (new Date()).toISOString().slice(0, 19);
   try {
+    await ibmEngine();
     const ibmReport = await getCompliance(content, nowLabel);
     if (typeof ibmReport === 'object' && ibmReport.report) {
       return ibmReport as unknown as {report: IbmActReport};
