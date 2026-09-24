@@ -34,6 +34,11 @@ type IbmTrimmedReport = {
     items: IbmItem[];
     error: string;
 };
+export type IbmEngineMode = 'archive' | 'package';
+export declare const ibmEngine: () => Promise<{
+    mode: IbmEngineMode;
+    version: string | null;
+}>;
 export declare const reporter: (page: Page, report: Report, actIndex: number) => Promise<{
     data: {};
     result: {
