@@ -461,6 +461,41 @@ const getXPathScript = () => {
 
 // OPERATION
 
+/*
+  Races a promise against a deadline and clears the timer once either settles.
+  An uncleared timer keeps the event loop alive: each Testaro job and engine
+  reporter used to leave one behind, so a finished capture lingered until the
+  last fired (up to 3 minutes for fixtures, 10 in URL mode). `message` keeps
+  the error text the resume logic matches (RETRYABLE_ERROR).
+*/
+const withDeadline = (promise, ms, label, message = `${label} deadline ${ms}ms`) => {
+  let timer;
+  const deadline = new Promise((resolve, reject) => {
+    timer = setTimeout(() => reject(new Error(message)), ms);
+  });
+  return Promise.race([promise, deadline]).finally(() => clearTimeout(timer));
+};
+
+/*
+  Stop on SIGTERM or SIGINT. Playwright's browser launcher registers listeners
+  for both that close its browsers but don't end the process, so a plain kill
+  used to be ignored. Now the capture stops once the (testcase, engine) run in
+  progress has been recorded (as a retryable prevention, if its browser was
+  just closed under it), writes out, and exits; rerunning the same command
+  resumes. A second signal exits at once.
+*/
+let stopSignal = null;
+for (const signal of ['SIGTERM', 'SIGINT']) {
+  process.on(signal, () => {
+    if (stopSignal) {
+      console.log(`${signal} again: exiting now`);
+      process.exit(signal === 'SIGINT' ? 130 : 143);
+    }
+    stopSignal = signal;
+    console.log(`${signal}: stopping after the current engine run`);
+  });
+}
+
 // A tool's stray promise (e.g. a playwright-extra CDP session settling after
 // the page is closed) must not abort a multi-hour capture; the row's own
 // try/catch and the browser-replacement heuristics handle the page.
@@ -593,12 +628,6 @@ process.on('unhandledRejection', reason => {
     replaced (the old one is closed with its own deadline and abandoned if
     that hangs too).
   */
-  const withDeadline = (promise, ms, label) => Promise.race([
-    promise,
-    new Promise((resolve, reject) => setTimeout(
-      () => reject(new Error(`${label} deadline ${ms}ms`)), ms
-    ))
-  ]);
   const replaceBrowser = async () => {
     const oldBrowser = browser;
     withDeadline(oldBrowser.close(), 10000, 'browser.close').catch(() => {});
@@ -606,12 +635,18 @@ process.on('unhandledRejection', reason => {
     context = await browser.newContext();
   };
   for (const testcase of testcases) {
+    if (stopSignal) {
+      break;
+    }
     if (done > 0 && RECYCLE_EVERY && done % RECYCLE_EVERY === 0) {
       await replaceBrowser();
     }
     // XPaths flagged on this page by any engine, for the URL-mode snapshot row.
     const flaggedXPaths = new Set(priorFlagged.get(testcase.testcaseId) || []);
     for (const engine of engines) {
+      if (stopSignal) {
+        break;
+      }
       if (alreadyCaptured.has(`${testcase.ruleId || ''}/${testcase.testcaseId}:${engine}`)) {
         continue;
       }
@@ -678,12 +713,12 @@ process.on('unhandledRejection', reason => {
         let actReport;
         if (engine === 'testaro') {
           const {doJob} = require('../../run');
-          report = await Promise.race([
+          report = await withDeadline(
             doJob(testaroJob(testcase.url, args.urls ? 540 : 120)),
-            new Promise((resolve, reject) => setTimeout(
-              () => reject(new Error('reporter timeout')), args.urls ? TESTARO_URL_TIMEOUT_MS : TESTARO_TIMEOUT_MS
-            ))
-          ]);
+            args.urls ? TESTARO_URL_TIMEOUT_MS : TESTARO_TIMEOUT_MS,
+            'testaro',
+            'reporter timeout'
+          );
           actReport = report.jobData && report.jobData.aborted
             ? {data: {prevented: true, error: report.jobData.abortMessage || 'job aborted'}}
             : report.acts.find(jobAct => jobAct.type === 'test')
@@ -697,12 +732,12 @@ process.on('unhandledRejection', reason => {
             target: {url: testcase.url},
             acts: [{type: 'test', which: engine, withItems: true}]
           };
-          actReport = await Promise.race([
+          actReport = await withDeadline(
             require(`../../tests/${engine}`).reporter(page, report, 0, 40),
-            new Promise((resolve, reject) => setTimeout(
-              () => reject(new Error('reporter timeout')), REPORTER_TIMEOUT_MS
-            ))
-          ]);
+            REPORTER_TIMEOUT_MS,
+            engine,
+            'reporter timeout'
+          );
         }
         const {data, result} = actReport;
         row.prevented = !! (data && data.prevented);
@@ -766,7 +801,7 @@ process.on('unhandledRejection', reason => {
         rows fail before the next scheduled recycle).
       */
       if (
-        closeHung
+        ! stopSignal && (closeHung
         || (row.error && /deadline|has been closed|Protocol error/.test(row.error))
         /*
           Canary: a script-tag-injecting tool reporting its global undefined
@@ -776,13 +811,17 @@ process.on('unhandledRejection', reason => {
           consecutive rows in a browser only ~36 pages old). XML pages are
           excluded: script elements legitimately never execute there.
         */
-        || (row.error && /global not defined \(contentType text\/html/.test(row.error))
+        || (row.error && /global not defined \(contentType text\/html/.test(row.error)))
       ) {
         row.browserReplaced = true;
         await replaceBrowser();
       }
       row.ms = Date.now() - started;
       out.write(`${JSON.stringify(row)}\n`);
+    }
+    // A stop mid-testcase leaves its remaining engines (and snapshot) to a resumed run.
+    if (stopSignal) {
+      break;
     }
     // URL mode: snapshot the flagged elements once per page.
     if (args.urls && flaggedXPaths.size && ! alreadyCaptured.has(`${testcase.ruleId || ''}/${testcase.testcaseId}:_snapshot`)) {
@@ -818,7 +857,18 @@ process.on('unhandledRejection', reason => {
       console.log(`${done}/${testcases.length}`);
     }
   }
-  await browser.close();
-  out.end();
-  console.log(`Done: ${done} testcases → ${outPath}`);
+  await withDeadline(browser.close(), 10000, 'browser.close').catch(() => {});
+  await new Promise(resolve => out.end(resolve));
+  if (stopSignal) {
+    console.log(`Stopped (${stopSignal}) after ${done} testcases → ${outPath}; rerun the same command to resume`);
+  }
+  else {
+    console.log(`Done: ${done} testcases → ${outPath}`);
+  }
+  /*
+    Exit explicitly: code under test (Testaro's own jobs, engine adapters) can
+    leave handles that would otherwise hold the process open after the output
+    is complete.
+  */
+  process.exit(stopSignal ? (stopSignal === 'SIGINT' ? 130 : 143) : 0);
 })();
