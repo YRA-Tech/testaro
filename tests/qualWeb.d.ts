@@ -20,9 +20,8 @@ interface QwModuleReport {
 }
 interface QwNativeResult {
     system?: {
-        page?: {
-            dom?: unknown;
-        };
+        url?: string;
+        evaluation?: string;
     };
     modules?: Record<string, QwModuleReport>;
 }
@@ -30,6 +29,7 @@ export declare const reporter: (page: Page, report: Report, actIndex: number, ti
     data: {
         prevented?: boolean;
         error?: string;
+        rulePreventions?: Record<string, string>;
     };
     result: {
         nativeResult: QwNativeResult;

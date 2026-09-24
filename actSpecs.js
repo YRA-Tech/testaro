@@ -215,8 +215,8 @@ exports.actSpecs = {
     qualWeb: [
       'Perform QualWeb tests',
       {
-        stealth: [false, 'boolean', '', 'whether the browser runs stealth evasions (default QUALWEB_STEALTH, else true)'],
-        adBlock: [false, 'boolean', '', 'whether the browser blocks ads and trackers (default QUALWEB_ADBLOCK, else true)']
+        stealth: [false, 'boolean', '', 'ignored: qualWeb runs in the page under test, not in a browser of its own'],
+        adBlock: [false, 'boolean', '', 'ignored: qualWeb runs in the page under test, not in a browser of its own']
       }
     ],
     testaro: [
