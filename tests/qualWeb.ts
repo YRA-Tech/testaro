@@ -192,6 +192,25 @@ export const reporter = async (page: Page, report: Report, actIndex: number, tim
     // Initialize the standard result.
     result.standardResult = getStandardResult();
   }
+  /*
+    QualWeb is given the serialized page as HTML, so a document that is not HTML (e.g. an SVG
+    image) would be re-parsed into an HTML page it is not, with false results such as a missing
+    lang on the html element. Given the URL instead, QualWeb returns an empty report for such
+    documents. Either way it cannot test them.
+  */
+  const rootNamespace = await page.evaluate(() => document.documentElement?.namespaceURI ?? null)
+  .catch(() => null);
+  // If the document is not HTML:
+  if (rootNamespace !== 'http://www.w3.org/1999/xhtml') {
+    // Report this.
+    return {
+      data: {
+        prevented: true,
+        error: `qualWeb tests HTML documents only (root namespace ${rootNamespace})`
+      },
+      result
+    };
+  }
   try {
     // Start the QualWeb core engine, which launches a Playwright browser.
     await qualWeb.start(clusterOptions);
