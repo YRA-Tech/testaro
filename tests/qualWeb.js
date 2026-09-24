@@ -13,55 +13,26 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.reporter = void 0;
 const xPath_1 = require("../procs/xPath");
 const standard_1 = require("../procs/standard");
+const fs_1 = require("fs");
+// CONSTANTS
 /*
-  The @qualweb packages declare their types only in package-exports maps, which
-  this project's node10 module resolution cannot read, so the imports stay
-  requires and are untyped.
+  QualWeb runs in the page under test, as @qualweb/core runs it in its own browser: the
+  page-side bundles first, then one bundle per section. It used to be given page.content() and
+  run by @qualweb/core, which loads that HTML with setContent() into a blank page — so relative
+  stylesheet links resolved nowhere, the page it tested was unstyled, and every CSS-dependent
+  rule (contrast, visibility, text spacing…) judged a page the user never sees. The bundles are
+  evaluated (not added as script tags), so the page's Content Security Policy does not apply.
 */
-const { QualWeb } = require('@qualweb/core');
-const { ACTRules } = require('@qualweb/act-rules');
-const { WCAGTechniques } = require('@qualweb/wcag-techniques');
-const { BestPractices } = require('@qualweb/best-practices');
-const { PlaywrightDriver } = require('@qualweb/playwright-driver');
-const config_1 = require("../procs/config");
-const qualWebInstances = {};
-const getQualWeb = (options) => {
-    const key = `${options.stealth}:${options.adBlock}`;
-    if (!qualWebInstances[key]) {
-        let launcher;
-        if (options.stealth) {
-            const { chromium } = require('playwright-extra');
-            chromium.use(require('puppeteer-extra-plugin-stealth')());
-            launcher = chromium;
-        }
-        const qualWeb = new QualWeb(undefined, new PlaywrightDriver(launcher ? { launcher } : {}));
-        if (options.adBlock) {
-            const { PlaywrightBlocker } = require('@ghostery/adblocker-playwright');
-            let blockerPromise = null;
-            qualWeb.use({
-                async beforePageLoad(page) {
-                    blockerPromise ??= PlaywrightBlocker.fromPrebuiltAdsAndTracking(fetch, {
-                        path: require('path').join(require('os').tmpdir(), 'qualweb-adblocker-engine.bin'),
-                        read: require('fs').promises.readFile,
-                        write: require('fs').promises.writeFile
-                    }).catch((error) => {
-                        console.log(`qualWeb: ad blocker unavailable, continuing without it (${error.message})`);
-                        return null;
-                    });
-                    const blocker = await blockerPromise;
-                    if (blocker) {
-                        await blocker.enableBlockingInPage(page.nativePage);
-                    }
-                }
-            });
-        }
-        qualWebInstances[key] = qualWeb;
-    }
-    return qualWebInstances[key];
+const readBundle = (name) => (0, fs_1.readFileSync)(require.resolve(name), 'utf8');
+let pageBundles = null;
+const sectionBundles = {};
+const sectionPackages = {
+    'act-rules': '@qualweb/act-rules',
+    'wcag-techniques': '@qualweb/wcag-techniques',
+    'best-practices': '@qualweb/best-practices'
 };
-const actRulesModule = new ACTRules({});
-const wcagModule = new WCAGTechniques({});
-const bpModule = new BestPractices({});
+// Rules a section may exclude after they crash before the section is given up on.
+const MAX_EXCLUDED = 5;
 // Mapping of QualWeb module violation types to ordinal severities.
 const ordinalSeverities = {
     'act-rules': {
@@ -85,18 +56,8 @@ const ordinalSeverities = {
 // FUNCTIONS
 // Conducts and reports the QualWeb tests.
 const reporter = async (page, report, actIndex, timeLimit) => {
-    const qualWebAct = report.acts[actIndex];
-    const qualWeb = getQualWeb({
-        stealth: qualWebAct.stealth ?? config_1.qualWebDefaults.stealth,
-        adBlock: qualWebAct.adBlock ?? config_1.qualWebDefaults.adBlock
-    });
     const act = report.acts[actIndex];
     const { rules } = act;
-    const clusterOptions = {
-        maxConcurrency: 1,
-        timeout: timeLimit * 1000,
-        monitor: false
-    };
     // Initialize the act report.
     const data = {};
     const result = {
@@ -110,10 +71,8 @@ const reporter = async (page, report, actIndex, timeLimit) => {
         result.standardResult = (0, standard_1.getStandardResult)();
     }
     /*
-      QualWeb is given the serialized page as HTML, so a document that is not HTML (e.g. an SVG
-      image) would be re-parsed into an HTML page it is not, with false results such as a missing
-      lang on the html element. Given the URL instead, QualWeb returns an empty report for such
-      documents. Either way it cannot test them.
+      QualWeb tests HTML documents only: on anything else (e.g. an SVG image) its rules report
+      false results such as a missing lang on the html element.
     */
     const rootNamespace = await page.evaluate(() => document.documentElement?.namespaceURI ?? null)
         .catch(() => null);
@@ -128,210 +87,191 @@ const reporter = async (page, report, actIndex, timeLimit) => {
             result
         };
     }
-    try {
-        // Start the QualWeb core engine, which launches a Playwright browser.
-        await qualWeb.start(clusterOptions);
-    }
-    // If the start fails:
-    catch (error) {
-        return {
-            data: {
-                prevented: true,
-                error: `Core engine start failed (${error.message})`
-            },
-            result
-        };
-    }
-    // Otherwise, i.e. if the start succeeds, specify the invariant test options.
-    const qualWebOptions = {
-        log: {
-            console: false,
-            file: false
-        },
-        crawlOptions: {
-            maxDepth: 0,
-            maxUrls: 1,
-            timeout: timeLimit * 1000,
-            maxParallelCrawls: 1,
-            logging: true
-        },
-        execute: {
-            counter: true
-        },
-        modules: []
+    // Specify, per section, whether and what to test (a rules spec of 'act:', 'wcag:' or 'best:'
+    // alone skips that section; with numbers, it tests only those rules).
+    const allAAA = {
+        levels: ['A', 'AA', 'AAA'],
+        principles: ['Perceivable', 'Operable', 'Understandable', 'Robust']
     };
+    const sectionSpec = (prefix, codePrefix, all) => {
+        const spec = rules?.find(typeRules => typeRules.startsWith(prefix));
+        if (spec === undefined) {
+            return all;
+        }
+        if (spec === prefix) {
+            return null;
+        }
+        return { include: spec.slice(prefix.length).split(',').map(num => `${codePrefix}${num}`) };
+    };
+    const sections = {};
+    for (const [section, options] of [
+        ['act-rules', sectionSpec('act:', 'QW-ACT-R', allAAA)],
+        ['wcag-techniques', sectionSpec('wcag:', 'QW-WCAG-T', allAAA)],
+        ['best-practices', sectionSpec('best:', 'QW-BP', {})]
+    ]) {
+        if (options) {
+            sections[section] = options;
+        }
+    }
+    const deadline = Date.now() + timeLimit * 1000;
     try {
-        // Provide the page content, including the data-xpath attributes.
-        qualWebOptions.html = await page.content();
-        // Specify which rules to test for, adding a custom execute property for report processing.
-        const actSpec = rules ? rules.find(typeRules => typeRules.startsWith('act:')) : null;
-        const wcagSpec = rules ? rules.find(typeRules => typeRules.startsWith('wcag:')) : null;
-        const bestSpec = rules ? rules.find(typeRules => typeRules.startsWith('best:')) : null;
-        if (actSpec) {
-            if (actSpec === 'act:') {
-                qualWebOptions.execute.act = false;
+        // Load QualWeb into the page.
+        pageBundles ??= ['@qualweb/qw-page', '@qualweb/util', '@qualweb/locale'].map(readBundle);
+        for (const source of pageBundles) {
+            await page.evaluate(source);
+        }
+        // The page's own source, which QualWeb's meta-element rules read.
+        const sourceHtml = await page.content();
+        const modules = {};
+        const rulePreventions = {};
+        // For each section to be tested:
+        for (const [section, options] of Object.entries(sections)) {
+            if (Date.now() > deadline) {
+                throw new Error(`time limit of ${timeLimit}s reached before ${section}`);
             }
-            else {
-                const actRules = actSpec.slice(4).split(',').map(num => `QW-ACT-R${num}`);
-                qualWebOptions['act-rules'] = { rules: actRules };
-                qualWebOptions.modules.push(actRulesModule);
-                qualWebOptions.execute.act = true;
+            sectionBundles[section] ??= readBundle(sectionPackages[section]);
+            await page.evaluate(sectionBundles[section]);
+            /*
+              One rule that throws takes its whole section down with it (e.g. QW-ACT-R76 in 0.8.5 on
+              lab(), oklab(), color() or color-mix() colours, qualweb/qualweb#352), so a rule named in
+              the stack trace of a crash is excluded and the section rerun; a crash that names no rule
+              prevents only its section.
+            */
+            const outcome = await page.evaluate(({ section, options, sourceHtml, maxExcluded }) => {
+                // Only this section's bundle has been loaded, so name only its runner.
+                const Runner = section === 'act-rules'
+                    // @ts-expect-error: defined by the section bundle evaluated above.
+                    ? ACTRulesRunner
+                    : section === 'wcag-techniques'
+                        // @ts-expect-error: defined by the section bundle evaluated above.
+                        ? WCAGTechniquesRunner
+                        // @ts-expect-error: defined by the section bundle evaluated above.
+                        : BestPracticesRunner;
+                const preventions = {};
+                const exclude = [];
+                for (;;) {
+                    try {
+                        const opts = exclude.length ? { ...options, exclude: [...(options.exclude ?? []), ...exclude] } : options;
+                        const runner = new Runner(opts, 'en').configure(opts).test({ sourceHtml, newTabWasOpen: false });
+                        window.__testaroQwRunners = { ...window.__testaroQwRunners, [section]: runner };
+                        // QualWeb core keeps the act-rules runner here for its special-case pass.
+                        if (section === 'act-rules') {
+                            window.act = runner;
+                        }
+                        return { ok: true, preventions };
+                    }
+                    catch (error) {
+                        const message = String(error?.message ?? error).slice(0, 200);
+                        // Rule classes are named QW_ACT_R76, QW_WCAG_T23, QW_BP1.
+                        const rule = String(error?.stack ?? '').match(/QW_(?:ACT_R|WCAG_T|BP)\d+/)?.[0].replace(/_/g, '-');
+                        if (!rule || exclude.includes(rule) || exclude.length >= maxExcluded) {
+                            preventions[section] = `section failed: ${message}`;
+                            return { ok: false, preventions };
+                        }
+                        preventions[rule] = message;
+                        exclude.push(rule);
+                    }
+                }
+            }, { section, options, sourceHtml, maxExcluded: MAX_EXCLUDED });
+            Object.assign(rulePreventions, outcome.preventions);
+            if (!outcome.ok) {
+                continue;
             }
-        }
-        else {
-            qualWebOptions['act-rules'] = {
-                levels: ['A', 'AA', 'AAA'],
-                principles: ['Perceivable', 'Operable', 'Understandable', 'Robust']
-            };
-            qualWebOptions.modules.push(actRulesModule);
-            qualWebOptions.execute.act = true;
-        }
-        if (wcagSpec) {
-            if (wcagSpec === 'wcag:') {
-                qualWebOptions.execute.wcag = false;
+            /*
+              QualWeb core's special case for act-rules: QW-ACT-R40 (zoomed text not clipped) is
+              re-tested at a 640 × 512 viewport, then the viewport is restored.
+            */
+            const include = options.include;
+            if (section === 'act-rules' && (!include || include.includes('QW-ACT-R40'))) {
+                const viewport = page.viewportSize();
+                if (viewport) {
+                    try {
+                        await page.setViewportSize({ width: 640, height: 512 });
+                        await page.evaluate(() => window.act?.testSpecial?.());
+                    }
+                    catch (error) {
+                        rulePreventions['QW-ACT-R40'] = `special-case pass failed: ${String(error.message).slice(0, 200)}`;
+                    }
+                    finally {
+                        await page.setViewportSize(viewport);
+                    }
+                }
             }
-            else {
-                const wcagTechniques = wcagSpec.slice(5).split(',').map(num => `QW-WCAG-T${num}`);
-                qualWebOptions['wcag-techniques'] = { techniques: wcagTechniques };
-                qualWebOptions.modules.push(wcagModule);
-                qualWebOptions.execute.wcag = true;
+            modules[section] = await page.evaluate(section => JSON.parse(JSON.stringify(window.__testaroQwRunners[section].getReport())), section);
+        }
+        if (Object.keys(rulePreventions).length) {
+            data.rulePreventions = rulePreventions;
+        }
+        // Add the module reports to the result.
+        result.nativeResult = { system: { url: page.url(), evaluation: 'in-page' }, modules };
+        const { standardResult } = result;
+        // For each section that was to be tested:
+        for (const section of Object.keys(sections)) {
+            const moduleReport = modules[section];
+            /*
+              A section that failed as a whole is recorded in rulePreventions; the act is prevented
+              only if no section ran.
+            */
+            if (!moduleReport) {
+                continue;
             }
-        }
-        else {
-            qualWebOptions['wcag-techniques'] = {
-                levels: ['A', 'AA', 'AAA'],
-                principles: ['Perceivable', 'Operable', 'Understandable', 'Robust']
-            };
-            qualWebOptions.modules.push(wcagModule);
-            qualWebOptions.execute.wcag = true;
-        }
-        if (bestSpec) {
-            if (bestSpec === 'best:') {
-                qualWebOptions.execute.bp = false;
-            }
-            else {
-                const bestPractices = bestSpec.slice(5).split(',').map(num => `QW-BP${num}`);
-                qualWebOptions['best-practices'] = { bestPractices };
-                qualWebOptions.modules.push(bpModule);
-                qualWebOptions.execute.bp = true;
-            }
-        }
-        else {
-            qualWebOptions['best-practices'] = {};
-            qualWebOptions.modules.push(bpModule);
-            qualWebOptions.execute.bp = true;
-        }
-        let qwReport;
-        try {
-            // Get the report.
-            qwReport = await qualWeb.evaluate(qualWebOptions);
-        }
-        catch (error) {
-            return {
-                data: {
-                    prevented: true,
-                    error: `qualWeb evaluation failed (${error.message})`
-                },
-                result
-            };
-        }
-        // Add the report to the result.
-        result.nativeResult = qwReport.customHtml;
-        const { nativeResult, standardResult } = result;
-        // If the report contains, as it should, a copy of the DOM:
-        if (nativeResult?.system?.page?.dom) {
-            // Delete the copy for parsimony.
-            delete nativeResult.system.page.dom;
-            const { modules } = nativeResult;
-            // If the report contains, as it should, a modules property:
-            if (modules) {
-                // For each test section in it:
-                for (const section of ['act-rules', 'wcag-techniques', 'best-practices']) {
-                    // If testing in the section was specified:
-                    if (qualWebOptions[section]) {
-                        // If the section exists:
-                        if (modules[section]) {
-                            const { assertions } = modules[section];
-                            // If it contains assertions (test results):
-                            if (assertions) {
-                                const ruleIDs = Object.keys(assertions);
-                                // For each rule:
-                                for (const ruleID of ruleIDs) {
-                                    const ruleAssertions = assertions[ruleID];
-                                    const { metadata } = ruleAssertions;
-                                    // If there were any warnings or failures:
-                                    if (metadata?.warning || metadata?.failed) {
-                                        // Delete nonviolations from the results.
-                                        ruleAssertions.results = ruleAssertions.results.filter(raResult => raResult.verdict !== 'passed');
-                                        // For each test result:
-                                        for (const raResult of ruleAssertions.results) {
-                                            const { elements, verdict } = raResult;
-                                            // If any violations are reported:
-                                            if (elements?.length) {
-                                                // For each violating element:
-                                                for (const element of elements) {
-                                                    // Limit the size of its reported excerpt.
-                                                    if (element.htmlCode?.length > 2000) {
-                                                        element.htmlCode = `${element.htmlCode.slice(0, 2000)} …`;
-                                                    }
-                                                    // If standard results are to be reported:
-                                                    if (standard) {
-                                                        const what = `[${verdict}] ${raResult.description}`;
-                                                        const xPath = (0, xPath_1.getAttributeXPath)(element.htmlCode);
-                                                        // Add an instance to the standard result.
-                                                        (0, standard_1.addInstance)(standardResult, {
-                                                            ruleID,
-                                                            what,
-                                                            ordinalSeverity: ordinalSeverities[section][verdict],
-                                                            outcome: verdict === 'warning' ? 'cantTell' : 'failed',
-                                                            catalogIndex: (0, xPath_1.getXPathCatalogIndex)(report, xPath)
-                                                        });
-                                                    }
-                                                }
-                                                ;
-                                            }
-                                        }
-                                        ;
+            const { assertions } = moduleReport;
+            // If it contains assertions (test results):
+            if (assertions) {
+                const ruleIDs = Object.keys(assertions);
+                // For each rule:
+                for (const ruleID of ruleIDs) {
+                    const ruleAssertions = assertions[ruleID];
+                    const { metadata } = ruleAssertions;
+                    // If there were any warnings or failures:
+                    if (metadata?.warning || metadata?.failed) {
+                        // Delete nonviolations from the results.
+                        ruleAssertions.results = ruleAssertions.results.filter(raResult => raResult.verdict !== 'passed');
+                        // For each test result:
+                        for (const raResult of ruleAssertions.results) {
+                            const { elements, verdict } = raResult;
+                            // If any violations are reported:
+                            if (elements?.length) {
+                                // For each violating element:
+                                for (const element of elements) {
+                                    // Limit the size of its reported excerpt.
+                                    if (element.htmlCode?.length > 2000) {
+                                        element.htmlCode = `${element.htmlCode.slice(0, 2000)} …`;
                                     }
-                                    // Otherwise, i.e. if there were no warnings or failures:
-                                    else {
-                                        // Delete the rule.
-                                        delete assertions[ruleID];
+                                    // If standard results are to be reported:
+                                    if (standard) {
+                                        const what = `[${verdict}] ${raResult.description}`;
+                                        const xPath = (0, xPath_1.getAttributeXPath)(element.htmlCode);
+                                        // Add an instance to the standard result.
+                                        (0, standard_1.addInstance)(standardResult, {
+                                            ruleID,
+                                            what,
+                                            ordinalSeverity: ordinalSeverities[section][verdict],
+                                            outcome: verdict === 'warning' ? 'cantTell' : 'failed',
+                                            catalogIndex: (0, xPath_1.getXPathCatalogIndex)(report, xPath)
+                                        });
                                     }
                                 }
                                 ;
                             }
-                            // Otherwise, i.e. if it contains no assertions:
-                            else {
-                                // Report this.
-                                data.prevented = true;
-                                data.error = 'No assertions';
-                            }
                         }
-                        // Otherwise, i.e. if the section is missing:
-                        else {
-                            // Report this.
-                            data.prevented = true;
-                            data.error = `No ${section} section`;
-                        }
+                        ;
+                    }
+                    // Otherwise, i.e. if there were no warnings or failures:
+                    else {
+                        // Delete the rule.
+                        delete assertions[ruleID];
                     }
                 }
-            }
-            // Otherwise, i.e. if the report does not contain a modules property:
-            else {
-                // Report this.
-                data.prevented = true;
-                data.error = 'No modules';
+                ;
             }
         }
-        // Otherwise, i.e. if the report does not contain a copy of the DOM:
-        else {
+        // If no section ran:
+        if (!Object.keys(modules).length) {
             // Report this.
             data.prevented = true;
-            data.error = 'No DOM';
+            data.error = `No qualWeb section ran (${JSON.stringify(rulePreventions).slice(0, 300)})`;
         }
-        // Stop the QualWeb core engine.
-        await qualWeb.stop();
         // Test whether the result is an object.
         try {
             JSON.stringify(result);

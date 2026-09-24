@@ -57,7 +57,7 @@ The validity criterion named in item 2 may be any of these:
 
 ## qualWeb tool
 
-A `qualWeb` test act may have `stealth` and `adBlock` boolean properties, which set whether the tool's browser runs stealth evasions and blocks ads and trackers (defaults `QUALWEB_STEALTH` and `QUALWEB_ADBLOCK`, else true).
+QualWeb runs in the page under test (as the page is after launch and any earlier acts), with that page's styles and scripts, not in a browser of its own. A rule that throws is excluded and its section rerun; the act's `data.rulePreventions` records such rules (and any section that failed as a whole). The `stealth` and `adBlock` properties a `qualWeb` test act may still have are accepted and ignored: they configured the separate browser QualWeb used to launch.
 
 ## testaro tool
 
