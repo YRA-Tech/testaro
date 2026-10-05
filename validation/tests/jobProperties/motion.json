@@ -1,6 +1,6 @@
 {
   "rule": "motion",
-  "timeLimit": 120,
+  "timeLimit": 150,
   "acts": [
     {
       "type": "launch",
@@ -197,6 +197,62 @@
       "rules": [
         "y",
         "motion"
+      ]
+    },
+    {
+      "type": "test",
+      "which": "testaro",
+      "target": {
+        "url": "file://validation/tests/targets/motion/autoplay.html",
+        "what": "page with instructions to play automatically"
+      },
+      "stopOnFail": false,
+      "withItems": true,
+      "rules": [
+        "y",
+        "motion"
+      ],
+      "expect": [
+        [
+          "standardResult.instances.length",
+          "=",
+          2
+        ],
+        [
+          "standardResult.instances.0.what",
+          "i",
+          "video with autoplay, not muted"
+        ],
+        [
+          "standardResult.instances.0.outcome",
+          "=",
+          "failed"
+        ],
+        [
+          "standardResult.instances.0.tagName",
+          "=",
+          "VIDEO"
+        ],
+        [
+          "standardResult.instances.1.what",
+          "i",
+          "YouTube player with autoplay;"
+        ],
+        [
+          "standardResult.instances.1.outcome",
+          "=",
+          "failed"
+        ],
+        [
+          "standardResult.instances.1.ordinalSeverity",
+          "=",
+          3
+        ],
+        [
+          "standardResult.instances.1.tagName",
+          "=",
+          "IFRAME"
+        ]
       ]
     }
   ]

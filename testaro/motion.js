@@ -9,6 +9,7 @@ exports.reporter = void 0;
 const config_1 = require("../procs/config");
 const launch_1 = require("../procs/launch");
 const xPath_1 = require("../procs/xPath");
+const xPathScript_1 = require("../procs/xPathScript");
 // pixelmatch and pngjs ship no bundled declarations, so their imports stay requires, untyped.
 const pixelmatch = require('pixelmatch').default;
 const { PNG } = require('pngjs');
@@ -18,7 +19,9 @@ const { PNG } = require('pngjs');
 
   For minimal accessibility, standards require motion to be brief, or else stoppable by the user. But stopping motion can be difficult or impossible, and, by the time a user manages to stop motion, the motion may have caused annoyance or harm. For superior accessibility, a page contains no motion until and unless the user authorizes it.
 
-  The rule is concurrent (see allRules in tests/testaro.ts): it runs while the serial rules run, on a page of its own. That page has a tall viewport (a multiple of the device viewport height, capped so the image stays within browser limits), so that motion below the fold, including motion that a page starts only when it becomes visible, is in view. After the page loads, the rule waits for a grace period, makes the first image, and makes two more images after two unequal, non-integer intervals, so that periodic motion is unlikely to coincide with both intervals and look still. Any change after the grace period is motion as a user sees it, including content that arrives late. A change between the second and third images is continuing motion; a change only between the first and second is a one-time change after loading. The larger the changed area, measured as a fraction of one device screen (and so possibly exceeding 1), the greater the ordinal severity, and continuing motion is one level more severe.
+  The rule is concurrent (see allRules in tests/testaro.ts): it runs while the serial rules run, on a page of its own. That page has a tall viewport (a multiple of the device viewport height, capped so the image stays within browser limits), so that motion below the fold, including motion that a page starts only when it becomes visible, is in view. After the page loads, the rule waits for a grace period, makes the first image, and makes two more images after two unequal, non-integer intervals, so that periodic motion is unlikely to coincide with both intervals and look still. Any change after the grace period is motion as a user sees it, including content that arrives late. A change between the second and third images is continuing motion; a change only between the first and second is a one-time change after loading. The larger the changed area, measured as a fraction of one device screen (and so possibly exceeding 1), the greater the ordinal severity, and continuing motion is one level more severe. A changed area smaller than a minimum is disregarded as noise.
+
+  Motion may be invisible to the images, because a player refuses to play in an automated browser (for example a video service that blocks bots) or cannot decode the media in the browser type tested. So, after the third image, the rule also reports each rendered element that the page instructs to play automatically: a video element with an autoplay attribute or property (or playing although started by a script), an embedded YouTube, Vimeo, Wistia, or Dailymotion player whose URL requests autoplay, and a Lottie player with an autoplay attribute. The instruction suffices for a violation, whether or not the motion appears in the images. An iframe that merely permits autoplay (allow="autoplay") is not reported. The severity depends on the element's area, as for observed changes, and is one level higher, because playing media is continuing motion.
 
   The grace period begins when the page fires its load event (or, at a later checkpoint, when the acts of the checkpoint have been replayed). The act may override the grace period and the intervals, in milliseconds, with args: {motion: [graceMs, firstIntervalMs, secondIntervalMs]}. None is scaled by TIMEOUT_MULTIPLIER, because they define motion rather than limit time.
 
@@ -36,6 +39,8 @@ const viewportMultiple = 8;
 const maxDeviceHeight = 16000;
 // Time in milliseconds to wait for the load event if the launch returned before it.
 const loadWaitMs = 10000;
+// Minimum changed area, as a fraction of a screen, deemed motion rather than noise (0.01%, about 200 pixels of a 1920 × 1080 screen).
+const minChange = 0.0001;
 // FUNCTIONS
 // Waits for a time, ending early with an error if the signal aborts.
 const sleep = (ms, signal) => new Promise((resolve, reject) => {
@@ -67,8 +72,86 @@ const getChangeCount = (pngA, pngB) => {
 };
 // Returns an ordinal severity from a changed area as a fraction of a screen.
 const getSeverity = (fraction) => fraction < 0.001 ? 0 : fraction < 0.01 ? 1 : fraction < 0.1 ? 2 : 3;
-// Returns a changed area as a percentage of a screen.
-const percent = (fraction) => `${Number((100 * fraction).toPrecision(2))}%`;
+// Returns a description of a changed area as a percentage of a screen.
+const describeArea = (fraction) => fraction >= 1
+    ? 'at least a full screen'
+    : `equal to ${Number((100 * fraction).toPrecision(2))}% of a screen`;
+// Returns the rendered elements of a page that the page instructs to play automatically.
+const getAutoplayers = (page) => page.evaluate(() => {
+    const players = [];
+    // Adds an element to the players if it is rendered with a nonzero area.
+    const addIfRendered = (element, kind, muted) => {
+        const box = element.getBoundingClientRect();
+        const isVisible = typeof element.checkVisibility === 'function'
+            ? element.checkVisibility({ visibilityProperty: true, opacityProperty: true })
+            : true;
+        const area = isVisible ? box.width * box.height : 0;
+        if (area) {
+            players.push({ xPath: window.getXPath(element) ?? '/html', kind, muted, area });
+        }
+    };
+    // For each video element with a source:
+    document.querySelectorAll('video').forEach(video => {
+        if (video.currentSrc || video.getAttribute('src') || video.querySelector('source[src]')) {
+            // If it is to play automatically, or a script has started it:
+            const isPlaying = !video.paused && video.currentTime > 0;
+            if (video.autoplay || isPlaying) {
+                const kind = video.autoplay ? 'video with autoplay' : 'video started by a script';
+                addIfRendered(video, kind, video.muted);
+            }
+        }
+    });
+    // Returns whether a URL parameter is true.
+    const isOn = (params, name) => ['1', 'true'].includes(params.get(name) ?? '');
+    // Embedded players, with the URL conditions requesting autoplay and muting.
+    const embedSpecs = [
+        {
+            name: 'YouTube player',
+            host: /(^|\.)youtube(-nocookie)?\.com$/,
+            path: /^\/embed\//,
+            autoplays: params => isOn(params, 'autoplay'),
+            mutes: params => isOn(params, 'mute')
+        },
+        {
+            name: 'Vimeo player',
+            host: /^player\.vimeo\.com$/,
+            path: /^\/video\//,
+            autoplays: params => isOn(params, 'autoplay') || isOn(params, 'background'),
+            mutes: params => isOn(params, 'muted') || isOn(params, 'background')
+        },
+        {
+            name: 'Wistia player',
+            host: /(^|\.)wistia\.(net|com)$/,
+            path: /\/embed\//,
+            autoplays: params => isOn(params, 'autoPlay'),
+            mutes: params => isOn(params, 'muted')
+        },
+        {
+            name: 'Dailymotion player',
+            host: /(^|\.)dailymotion\.com$/,
+            path: /\/embed\//,
+            autoplays: params => isOn(params, 'autoplay'),
+            mutes: params => isOn(params, 'mute')
+        }
+    ];
+    // For each iframe:
+    document.querySelectorAll('iframe').forEach(iframe => {
+        try {
+            const url = new URL(iframe.src);
+            const spec = embedSpecs.find(spec => spec.host.test(url.hostname) && spec.path.test(url.pathname));
+            // If it embeds a known player whose URL requests autoplay:
+            if (spec && spec.autoplays(url.searchParams)) {
+                addIfRendered(iframe, `${spec.name} with autoplay`, spec.mutes(url.searchParams));
+            }
+        }
+        catch { }
+    });
+    // For each Lottie player with an autoplay attribute:
+    document.querySelectorAll('lottie-player[autoplay], dotlottie-player[autoplay], dotlottie-wc[autoplay]').forEach(player => {
+        addIfRendered(player, 'Lottie animation with autoplay', null);
+    });
+    return players;
+});
 // Returns the time in milliseconds since the anchor of the grace period, i.e. the load event or the launch, waiting for the load event if necessary.
 const getSinceAnchor = async (page, report, launchedAt) => {
     // At a later checkpoint, the anchor is the end of the replay, i.e. the launch.
@@ -181,29 +264,29 @@ const reporter = async (_page, report, actIndex, _withItems, signal, graceMs = d
                 priorPNG = png;
             }
             priorPNG = null;
-            data.scrollHeight = await page.evaluate(() => document.documentElement.scrollHeight);
             data.shotTimes = shotTimes;
             // The changed areas between consecutive images, as fractions of a screen.
             data.changes = changes;
-            const [firstChange, secondChange] = changes;
+            // Disregard changes too small to be motion.
+            const [firstChange, secondChange] = changes.map(change => change < minChange ? 0 : change);
             let violationWhat = '';
             let ordinalSeverity = 0;
             // If the page changed between the second and third images:
             if (secondChange) {
                 // Describe continuing motion.
-                violationWhat = `Content changes spontaneously and continually (changed area between the last 2 images equal to ${percent(secondChange)} of a screen)`;
+                violationWhat = `Content changes spontaneously and continually (changed area between the last 2 images ${describeArea(secondChange)})`;
                 ordinalSeverity = Math.min(3, getSeverity(secondChange) + 1);
             }
             // Otherwise, if it changed only between the first and second images:
             else if (firstChange) {
                 // Describe a one-time change.
-                violationWhat = `Content changes spontaneously after loading (changed area equal to ${percent(firstChange)} of a screen)`;
+                violationWhat = `Content changes spontaneously after loading (changed area ${describeArea(firstChange)})`;
                 ordinalSeverity = getSeverity(firstChange);
             }
             // If there was a violation:
             if (violationWhat) {
                 // Add to the totals.
-                totals[ordinalSeverity] = 1;
+                totals[ordinalSeverity]++;
                 // Get a summary standard instance.
                 standardInstances.push({
                     ruleID: 'motion',
@@ -213,6 +296,26 @@ const reporter = async (_page, report, actIndex, _withItems, signal, graceMs = d
                     catalogIndex: (0, xPath_1.getXPathCatalogIndex)(report, '/html/body')
                 });
             }
+            // Get the rendered elements that the page instructs to play automatically.
+            await (0, xPathScript_1.defineGetXPath)(page);
+            const autoplayers = await getAutoplayers(page);
+            // For each of them:
+            autoplayers.forEach(({ xPath, kind, muted, area }) => {
+                const fraction = area / screenArea;
+                const severity = Math.min(3, getSeverity(fraction) + 1);
+                const mutedNote = muted === false ? ', not muted' : '';
+                // Add to the totals.
+                totals[severity]++;
+                // Get a standard instance.
+                standardInstances.push({
+                    ruleID: 'motion',
+                    what: `Element is instructed to play automatically (${kind}${mutedNote}; area ${describeArea(fraction)})`,
+                    ordinalSeverity: severity,
+                    count: 1,
+                    catalogIndex: (0, xPath_1.getXPathCatalogIndex)(report, xPath)
+                });
+            });
+            data.autoplayers = autoplayers.map(({ kind, muted }) => ({ kind, muted }));
         }
     }
     finally {
