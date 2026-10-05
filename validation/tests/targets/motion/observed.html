@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<!--
+  © 2026 Jonathan Robert Pool.
+
+  Licensed under the MIT License. See LICENSE file at the project root or
+  https://opensource.org/license/mit/ for details.
+
+  SPDX-License-Identifier: MIT
+-->
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <title>Page with motion that starts when seen</title>
+    <meta name="description" content="tester">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+      .spacer {
+        height: 4000px;
+      }
+      #carousel {
+        background-color: #ccc;
+        font-size: 3rem;
+        padding: 2rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Page with motion that starts when seen</h1>
+      <p>Nothing on the first screen of this page moves.</p>
+      <div class="spacer"></div>
+      <p id="carousel">Slide 1</p>
+    </main>
+    <script>
+      // Like many carousels, advance the slides only while the carousel is visible.
+      const carousel = document.getElementById('carousel');
+      let slide = 1;
+      let timer = null;
+      new IntersectionObserver(entries => {
+        if (entries[0].isIntersecting && ! timer) {
+          timer = setInterval(() => {
+            slide = slide % 4 + 1;
+            carousel.textContent = `Slide ${slide}`;
+            carousel.style.backgroundColor = slide % 2 ? '#ccc' : '#9cf';
+          }, 2000);
+        }
+        else if (! entries[0].isIntersecting && timer) {
+          clearInterval(timer);
+          timer = null;
+        }
+      }).observe(carousel);
+    </script>
+  </body>
+</html>

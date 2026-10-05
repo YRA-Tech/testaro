@@ -130,7 +130,14 @@ export const reporter = async (
   data.viewport = viewport;
   // The area of one screen of the device, the unit of changed areas.
   const screenArea = deviceViewport.width * deviceViewport.height;
-  const act = report.acts[actIndex] as {retries?: number};
+  const act = report.acts[actIndex] as {
+    retries?: number;
+    target?: {url: string};
+    launch?: {browserID?: Report['browserID']};
+  };
+  // Get the target URL and browser type the way the serial rules get them (tests/testaro.ts).
+  const url = (act.target || report.target)?.url;
+  const browserID = act.launch?.browserID || report.browserID;
   let page: Page | null = null;
   // On abortion (i.e. a timeout), close the page, ending any pending operation on it.
   const onAbort = () => {
@@ -142,6 +149,8 @@ export const reporter = async (
     const launchedPage = await launch({
       report,
       actIndex,
+      tempBrowserID: browserID,
+      tempURL: url,
       xPathNeed: report.activeCheckpoint ? 'script' : 'none',
       contextOverrides: {viewport},
       retries: Number.isInteger(act.retries) && (act.retries as number) >= 0

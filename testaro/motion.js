@@ -113,6 +113,9 @@ const reporter = async (_page, report, actIndex, _withItems, signal, graceMs = d
     // The area of one screen of the device, the unit of changed areas.
     const screenArea = deviceViewport.width * deviceViewport.height;
     const act = report.acts[actIndex];
+    // Get the target URL and browser type the way the serial rules get them (tests/testaro.ts).
+    const url = (act.target || report.target)?.url;
+    const browserID = act.launch?.browserID || report.browserID;
     let page = null;
     // On abortion (i.e. a timeout), close the page, ending any pending operation on it.
     const onAbort = () => {
@@ -124,6 +127,8 @@ const reporter = async (_page, report, actIndex, _withItems, signal, graceMs = d
         const launchedPage = await (0, launch_1.launch)({
             report,
             actIndex,
+            tempBrowserID: browserID,
+            tempURL: url,
             xPathNeed: report.activeCheckpoint ? 'script' : 'none',
             contextOverrides: { viewport },
             retries: Number.isInteger(act.retries) && act.retries >= 0

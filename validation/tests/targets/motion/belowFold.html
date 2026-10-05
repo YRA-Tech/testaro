@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<!--
+  © 2026 Jonathan Robert Pool.
+
+  Licensed under the MIT License. See LICENSE file at the project root or
+  https://opensource.org/license/mit/ for details.
+
+  SPDX-License-Identifier: MIT
+-->
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <title>Page with motion below the fold</title>
+    <meta name="description" content="tester">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+      @keyframes slide {
+        from {
+          margin-left: 0;
+        }
+        to {
+          margin-left: 50%;
+        }
+      }
+      .spacer {
+        height: 3000px;
+      }
+      .moving {
+        animation: slide 3s linear infinite alternate;
+        background-color: #ccc;
+        font-size: 2rem;
+        width: 20rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Page with motion below the fold</h1>
+      <p>Nothing on the first screen of this page moves.</p>
+      <div class="spacer"></div>
+      <p class="moving">This paragraph, 3000 pixels down, moves continually.</p>
+    </main>
+  </body>
+</html>
