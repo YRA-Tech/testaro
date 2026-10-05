@@ -21,9 +21,9 @@ const {PNG} = require('pngjs');
 
   For minimal accessibility, standards require motion to be brief, or else stoppable by the user. But stopping motion can be difficult or impossible, and, by the time a user manages to stop motion, the motion may have caused annoyance or harm. For superior accessibility, a page contains no motion until and unless the user authorizes it.
 
-  The rule is concurrent (see allRules in tests/testaro.ts): it runs while the serial rules run, on a page of its own. That page has a tall viewport (a multiple of the device viewport height, capped so the image stays within browser limits), so that motion below the fold, including motion that a page starts only when it becomes visible, is in view. After the page loads, the rule waits for a grace period, makes the first image, and makes two more images at intervals. Any change after the grace period is motion as a user sees it, including content that arrives late. A change between the second and third images is continuing motion; a change only between the first and second is a one-time change after loading. The larger the changed area, measured as a fraction of one device screen (and so possibly exceeding 1), the greater the ordinal severity, and continuing motion is one level more severe.
+  The rule is concurrent (see allRules in tests/testaro.ts): it runs while the serial rules run, on a page of its own. That page has a tall viewport (a multiple of the device viewport height, capped so the image stays within browser limits), so that motion below the fold, including motion that a page starts only when it becomes visible, is in view. After the page loads, the rule waits for a grace period, makes the first image, and makes two more images after two unequal, non-integer intervals, so that periodic motion is unlikely to coincide with both intervals and look still. Any change after the grace period is motion as a user sees it, including content that arrives late. A change between the second and third images is continuing motion; a change only between the first and second is a one-time change after loading. The larger the changed area, measured as a fraction of one device screen (and so possibly exceeding 1), the greater the ordinal severity, and continuing motion is one level more severe.
 
-  The grace period begins when the page fires its load event (or, at a later checkpoint, when the acts of the checkpoint have been replayed). The act may override the grace period and the interval, in milliseconds, with args: {motion: [graceMs, intervalMs]}. Neither is scaled by TIMEOUT_MULTIPLIER, because they define motion rather than limit time.
+  The grace period begins when the page fires its load event (or, at a later checkpoint, when the acts of the checkpoint have been replayed). The act may override the grace period and the intervals, in milliseconds, with args: {motion: [graceMs, firstIntervalMs, secondIntervalMs]}. None is scaled by TIMEOUT_MULTIPLIER, because they define motion rather than limit time.
 
   Compiled to motion.js by tsc (issue #73); edit this file, not the emitted one.
 */
@@ -32,10 +32,9 @@ const {PNG} = require('pngjs');
 
 // Default time in milliseconds after loading before the first image.
 const defaultGraceMs = 1500;
-// Default time in milliseconds between images.
-const defaultIntervalMs = 5000;
-// Count of images.
-const shotCount = 3;
+// Default times in milliseconds between the first and second and between the second and third images, unequal and non-integer in seconds so periodic motion is unlikely to coincide with both.
+const defaultFirstIntervalMs = 5300;
+const defaultSecondIntervalMs = 3800;
 // Multiple of the device viewport height that is the height of the tall viewport.
 const viewportMultiple = 8;
 // Maximum height of the tall viewport in device pixels, below the browser capture limit.
@@ -110,10 +109,13 @@ export const reporter = async (
   _withItems: boolean,
   signal?: AbortSignal,
   graceMs: number = defaultGraceMs,
-  intervalMs: number = defaultIntervalMs
+  firstIntervalMs: number = defaultFirstIntervalMs,
+  secondIntervalMs: number = defaultSecondIntervalMs
 ) => {
   // Initialize the data, totals, and standard instances.
-  const data: Record<string, unknown> = {graceMs, intervalMs, prescanScroll: getScroll(report)};
+  const data: Record<string, unknown> = {
+    graceMs, intervalsMs: [firstIntervalMs, secondIntervalMs], prescanScroll: getScroll(report)
+  };
   const totals = [0, 0, 0, 0];
   const standardInstances: StandardInstance[] = [];
   // Get the dimensions of the tall viewport from those of the device.
@@ -179,11 +181,12 @@ export const reporter = async (
       const shotTimes: number[] = [];
       const changes: number[] = [];
       let priorPNG: Buffer | null = null;
+      const intervals = [firstIntervalMs, secondIntervalMs];
       // For each image:
-      for (let shotIndex = 0; shotIndex < shotCount; shotIndex++) {
-        // If it is not the first, wait for the interval.
+      for (let shotIndex = 0; shotIndex <= intervals.length; shotIndex++) {
+        // If it is not the first, wait for the interval before it.
         if (shotIndex) {
-          await sleep(intervalMs, signal);
+          await sleep(intervals[shotIndex - 1], signal);
         }
         // Make it.
         const png: Buffer = await page.screenshot({

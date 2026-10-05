@@ -41,7 +41,7 @@
           timer = setInterval(() => {
             slide = slide % 4 + 1;
             carousel.textContent = `Slide ${slide}`;
-            carousel.style.backgroundColor = slide % 2 ? '#ccc' : '#9cf';
+            carousel.style.backgroundColor = ['#ccc', '#9cf', '#fc9', '#9f9'][slide - 1];
           }, 2000);
         }
         else if (! entries[0].isIntersecting && timer) {
