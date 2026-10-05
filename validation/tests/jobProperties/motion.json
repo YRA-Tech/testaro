@@ -1,7 +1,6 @@
 {
   "rule": "motion",
-  "timeLimit": 20,
-  "imageColor": 2,
+  "timeLimit": 45,
   "acts": [
     {
       "type": "launch",

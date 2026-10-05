@@ -432,13 +432,12 @@ const allRules: RuleMeta[] = [
   {
     id: 'motion',
     what: 'motion without user request',
+    concurrent: true,
     contaminates: false,
     needsAccessibleName: false,
     local: false,
-    // The budget must cover a full-page screenshot (itself allowed 4 seconds in
-    // procs/shoot.js), decoding two full-page PNGs, and a pixel comparison; 5
-    // seconds made the rule time out whenever an initial image existed.
-    timeOut: 30,
+    // The budget covers its own launch, the grace period, two intervals, three tall-viewport images, and two comparisons. It runs concurrently with the serial rules, so a generous budget does not lengthen the act.
+    timeOut: 60,
     defaultOn: true
   },
   {
