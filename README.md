@@ -399,7 +399,7 @@ In some cases no catalog entry can be found. The reasons may include:
 
 #### `images`
 
-Testaro inserts an `images` array property if necessary to store page images in the report. If the job has an `imageColor` property with `0`, `2`, `4`, or `6` as its value and Testaro will insert a `catalog` property, then Testaro also creates a page image with that color type and makes its base64-encoded PNG the first item in the `images` array. The first item is always captured at CSS-pixel scale (one image pixel per CSS pixel), so the `motion` test of the `testaro` tool can compare it with its own CSS-pixel screenshot.
+Testaro inserts an `images` array property if necessary to store page images in the report. If the job has an `imageColor` property with `0`, `2`, `4`, or `6` as its value and Testaro will insert a `catalog` property, then Testaro also creates a page image with that color type and makes its base64-encoded PNG the first item in the `images` array. The first item is always captured at CSS-pixel scale (one image pixel per CSS pixel).
 
 If the job also has an `imageScale` property with a number greater than 1 as its value, then the catalog page is rendered at that device scale factor, and Testaro captures a second page image at device-pixel scale and makes it the second item in the `images` array. That image has `imageScale` times the pixels of the CSS layout in each dimension, for crisp display on high-resolution screens. The `boxID` properties of the catalog remain in CSS pixels; consumers can map them onto the second image by multiplying the coordinates by `imageScale`. Fractional values (such as a device's native `2.625`) are valid. A natural choice is the emulated device's own `deviceScaleFactor`, which also makes the catalog page select the same `srcset`/`image-set` resources as the test pages. If `imageScale` is omitted, `1`, or invalid, the behavior is identical to that before this property existed.
 
@@ -586,6 +586,7 @@ The Testaro rules are classified by an `allRules` array defined in the `tests/te
 - `id`: the rule ID.
 - `what`: a description of the rule.
 - `contaminates`: whether the test for the rule modifies the page, requiring the next test to launch a new browser for test isolation
+- `concurrent` (optional): whether the test for the rule runs concurrently with the tests for the other rules, on a page that it launches itself, instead of in their sequence. Concurrent tests start before the other tests and end before the act ends, and their results are recorded in the order of `allRules`. Currently only `motion` is concurrent: it waits between page images, and running concurrently keeps that waiting from lengthening the act.
 - `needsAccessibleName`: whether the rule requires an added script adding an accessible-name computation method to `window`
 - `timeOut`: the maximum time in seconds allowed for a test of the rule
 - `defaultOn`: whether the rule is to be tested for by default
@@ -596,7 +597,9 @@ The optional `rules` argument for a `testaro` test act is an array whose first i
 
 The `testaro` rule engine (like the `ibm` rule engine) has a `withItems` property. If you set it to `false`, the `standardResult` object will contain an `instances` property with summaries that identify issues and instance counts. If you set it to `true`, some of the instances will be itemized.
 
-Unlike any other rule engine, the `testaro` rule engine requires a `stopOnFail` property, which specifies whether a failure to conform to any rule (i.e. any value of `totals` other than `[0, 0, 0, 0]`) should terminate the execution of tests for the remaining rules.
+Unlike any other rule engine, the `testaro` rule engine requires a `stopOnFail` property, which specifies whether a failure to conform to any rule (i.e. any value of `totals` other than `[0, 0, 0, 0]`) should terminate the execution of tests for the remaining rules. A failure does not terminate a concurrent test, and a concurrent test does not terminate other tests.
+
+The `motion` rule tests a page during one visit. On a page of its own, with a viewport 8 device screens tall (capped at 16,000 device pixels) so that motion below the fold is in view, it waits for a grace period (1.5 seconds by default) after the page loads (or after a checkpoint’s acts are replayed), then makes three images at intervals (5 seconds by default). Any change after the grace period is reported: a change between the second and third images as continuing motion, and a change only between the first and second as a one-time change after loading. The ordinal severity depends on the changed area, measured as a fraction of one device screen, and is one level higher for continuing motion. A `testaro` act may override the grace period and interval, in milliseconds, with `args: {motion: [graceMs, intervalMs]}`. The rule’s `data` records the timing, viewport, and changed areas.
 
 Tests of the `testaro` tests (i.e. _validation_) could previously be performed as documented in the `VALIDATION.md` file. This functionality has broken and its redesign is planned.
 
