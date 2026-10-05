@@ -11,11 +11,13 @@
     },
     {
       "type": "test",
-      "which": "testaro",
-      "target": {
-        "url": "file://validation/tests/targets/motion/bad.html",
-        "what": "page with motion at the top"
+      "launch": {
+        "target": {
+          "url": "file://validation/tests/targets/motion/bad.html",
+          "what": "page with motion at the top"
+        }
       },
+      "which": "testaro",
       "stopOnFail": false,
       "withItems": true,
       "expect": [
@@ -52,11 +54,13 @@
     },
     {
       "type": "test",
-      "which": "testaro",
-      "target": {
-        "url": "file://validation/tests/targets/motion/good.html",
-        "what": "page without motion"
+      "launch": {
+        "target": {
+          "url": "file://validation/tests/targets/motion/good.html",
+          "what": "page without motion"
+        }
       },
+      "which": "testaro",
       "stopOnFail": false,
       "withItems": true,
       "expect": [
@@ -78,11 +82,13 @@
     },
     {
       "type": "test",
-      "which": "testaro",
-      "target": {
-        "url": "file://validation/tests/targets/motion/late.html",
-        "what": "page with a late change"
+      "launch": {
+        "target": {
+          "url": "file://validation/tests/targets/motion/late.html",
+          "what": "page with a late change"
+        }
       },
+      "which": "testaro",
       "stopOnFail": false,
       "withItems": true,
       "expect": [
@@ -119,11 +125,13 @@
     },
     {
       "type": "test",
-      "which": "testaro",
-      "target": {
-        "url": "file://validation/tests/targets/motion/belowFold.html",
-        "what": "page with motion below the fold"
+      "launch": {
+        "target": {
+          "url": "file://validation/tests/targets/motion/belowFold.html",
+          "what": "page with motion below the fold"
+        }
       },
+      "which": "testaro",
       "stopOnFail": false,
       "withItems": true,
       "expect": [
@@ -160,11 +168,13 @@
     },
     {
       "type": "test",
-      "which": "testaro",
-      "target": {
-        "url": "file://validation/tests/targets/motion/observed.html",
-        "what": "page with motion that starts when seen"
+      "launch": {
+        "target": {
+          "url": "file://validation/tests/targets/motion/observed.html",
+          "what": "page with motion that starts when seen"
+        }
       },
+      "which": "testaro",
       "stopOnFail": false,
       "withItems": true,
       "expect": [
@@ -201,11 +211,13 @@
     },
     {
       "type": "test",
-      "which": "testaro",
-      "target": {
-        "url": "file://validation/tests/targets/motion/autoplay.html",
-        "what": "page with instructions to play automatically"
+      "launch": {
+        "target": {
+          "url": "file://validation/tests/targets/motion/autoplay.html",
+          "what": "page with instructions to play automatically"
+        }
       },
+      "which": "testaro",
       "stopOnFail": false,
       "withItems": true,
       "rules": [

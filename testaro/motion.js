@@ -197,8 +197,8 @@ const reporter = async (_page, report, actIndex, _withItems, signal, graceMs = d
     // The area of one screen of the device, the unit of changed areas.
     const screenArea = deviceViewport.width * deviceViewport.height;
     const act = report.acts[actIndex];
-    // Get the target URL and browser type the way the serial rules get them (tests/testaro.ts).
-    const url = (act.target || report.target)?.url;
+    // Get the target URL and browser type of the act's launch property (see actSpecs.js), if any, else those of the job.
+    const url = (act.launch?.target || report.target)?.url;
     const browserID = act.launch?.browserID || report.browserID;
     let page = null;
     // On abortion (i.e. a timeout), close the page, ending any pending operation on it.
