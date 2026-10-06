@@ -1,0 +1,188 @@
+{
+  "rule": "allCaps",
+  "timeLimit": 180,
+  "aiMock": [
+    {
+      "confidences": [],
+      "default": 0.9
+    },
+    {
+      "confidences": [],
+      "default": 0.9
+    },
+    {
+      "confidences": [],
+      "default": 0.9
+    },
+    {
+      "confidences": [],
+      "default": 0.9
+    }
+  ],
+  "acts": [
+    {
+      "type": "launch",
+      "target": {
+        "url": "file://validation/tests/targets/allCaps/checkpoint.html",
+        "what": "page whose upper-case text grows after an action"
+      }
+    },
+    {
+      "type": "test",
+      "which": "testaro",
+      "withItems": true,
+      "stopOnFail": false,
+      "rules": [
+        "y",
+        "allCaps"
+      ],
+      "what": "before the action, at checkpoint 0",
+      "expect": [
+        [
+          "data.ruleData.allCaps.candidateCount",
+          "=",
+          1
+        ],
+        [
+          "standardResult.instances.length",
+          "=",
+          1
+        ],
+        [
+          "standardResult.instances.0.id",
+          "=",
+          "initial"
+        ],
+        [
+          "standardResult.instances.0.checkpoint",
+          "=",
+          0
+        ]
+      ]
+    },
+    {
+      "type": "button",
+      "which": "Show more",
+      "what": "reveal the section"
+    },
+    {
+      "type": "checkpoint",
+      "which": "revealed",
+      "what": "the page after the section is revealed"
+    },
+    {
+      "type": "test",
+      "which": "testaro",
+      "withItems": true,
+      "stopOnFail": false,
+      "rules": [
+        "y",
+        "allCaps"
+      ],
+      "what": "after the action, at checkpoint 1",
+      "expect": [
+        [
+          "data.ruleData.allCaps.candidateCount",
+          "=",
+          2
+        ],
+        [
+          "standardResult.instances.length",
+          "=",
+          2
+        ],
+        [
+          "standardResult.instances.0.id",
+          "=",
+          "initial"
+        ],
+        [
+          "standardResult.instances.1.id",
+          "=",
+          "revealed"
+        ],
+        [
+          "standardResult.instances.1.checkpoint",
+          "=",
+          1
+        ]
+      ]
+    },
+    {
+      "type": "test",
+      "which": "testaro",
+      "withItems": true,
+      "stopOnFail": false,
+      "rules": [
+        "y",
+        "allCaps"
+      ],
+      "what": "after the action, at checkpoint 1, scoped to the changed subtree",
+      "expect": [
+        [
+          "data.ruleData.allCaps.candidateCount",
+          "=",
+          1
+        ],
+        [
+          "standardResult.instances.length",
+          "=",
+          1
+        ],
+        [
+          "standardResult.instances.0.id",
+          "=",
+          "revealed"
+        ],
+        [
+          "data.scope.localRules",
+          "e",
+          [
+            "allCaps"
+          ]
+        ]
+      ],
+      "scope": "changed"
+    },
+    {
+      "type": "launch",
+      "target": {
+        "url": "file://validation/tests/targets/allCaps/index.html",
+        "what": "page with various letter cases"
+      }
+    },
+    {
+      "type": "checkpoint",
+      "which": "other page",
+      "what": "the other page as launched"
+    },
+    {
+      "type": "test",
+      "which": "testaro",
+      "withItems": true,
+      "stopOnFail": false,
+      "rules": [
+        "y",
+        "allCaps"
+      ],
+      "what": "after navigation to another page",
+      "expect": [
+        [
+          "data.ruleData.allCaps.candidateCount",
+          "=",
+          10
+        ],
+        [
+          "standardResult.instances.length",
+          "=",
+          10
+        ],
+        [
+          "standardResult.instances.0.checkpoint",
+          "=",
+          2
+        ]
+      ]
+    }
+  ]
+}
