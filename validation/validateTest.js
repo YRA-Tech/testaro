@@ -20,6 +20,8 @@
 const {doJob} = require('../run');
 // Function to evaluate an expectation against an object.
 const {isTrue} = require('../procs/doActs');
+// Function to start a mock of the AI service for AI-dependent rules.
+const {startAIMock} = require('./aiMock');
 
 // CONSTANTS
 const jobTemplate = {
@@ -90,8 +92,47 @@ exports.validateTest = async testID => {
   }
   // Initialize the failure descriptions.
   const failures = [];
+  // If the validator scripts the responses of the AI service, mock the service, giving its address and a fake key to the job and its forked test acts through the environment.
+  const aiScript = jobProperties.aiMock;
+  const aiMock = Array.isArray(aiScript) ? await startAIMock(aiScript) : null;
+  const priorEnv = {
+    ANTHROPIC_BASE_URL: process.env.ANTHROPIC_BASE_URL,
+    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY
+  };
+  if (aiMock) {
+    process.env.ANTHROPIC_BASE_URL = aiMock.url;
+    process.env.ANTHROPIC_API_KEY = 'mock-key';
+  }
   // Perform the job.
-  const report = await doJob(job);
+  let report;
+  try {
+    report = await doJob(job);
+  }
+  finally {
+    // If the AI service was mocked, stop the mock and restore the environment.
+    if (aiMock) {
+      await aiMock.stop();
+      Object.entries(priorEnv).forEach(([name, value]) => {
+        if (value === undefined) {
+          delete process.env[name];
+        }
+        else {
+          process.env[name] = value;
+        }
+      });
+    }
+  }
+  // If the AI service was mocked, report whether it received one request per scripted response.
+  if (aiMock) {
+    if (aiMock.requests.length === aiScript.length) {
+      console.log(`Success: The AI mock received ${aiScript.length} requests, as scripted`);
+    }
+    else {
+      const message = `The AI mock received ${aiMock.requests.length} requests, not the ${aiScript.length} scripted`;
+      console.log(`Failure: ${message}`);
+      failures.push(message);
+    }
+  }
   // Report whether the end time was reported.
   const {acts, jobData} = report;
   if (jobData.endTime && /^(?:\d{2}-){2}\d{2}T\d{2}:\d{2}$/.test(jobData.endTime)) {

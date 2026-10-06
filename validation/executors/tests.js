@@ -23,8 +23,6 @@ const {spawn} = require('child_process');
 
 const ruleDir = `${__dirname}/../../testaro`;
 const validatorDir = `${__dirname}/../tests/jobProperties`;
-// Rules that ask an AI model to classify candidate instances.
-const aiRuleIDs = ['allCaps'];
 // Validators of features other than rules, run after the rule validators.
 const featureValidatorIDs = ['checkpoint', 'checkpoint-browser', 'checkpoint-page', 'userPath'];
 // Maximum number of seconds allowed for the validation of one rule.
@@ -82,10 +80,6 @@ Promise.all([fs.readdir(ruleDir), fs.readdir(validatorDir)])
   const orphanIDs = validatorIDs.filter(
     id => ! ruleIDs.includes(id) && ! featureValidatorIDs.includes(id)
   );
-  // Identify the AI-dependent rules to be skipped for lack of an API key.
-  const skippedIDs = process.env.ANTHROPIC_API_KEY
-    ? []
-    : ruleIDs.filter(id => aiRuleIDs.includes(id));
   // Initialize the results.
   const failedIDs = [];
   const knownFailedIDs = [];
@@ -95,7 +89,7 @@ Promise.all([fs.readdir(ruleDir), fs.readdir(validatorDir)])
   const featureIDs = featureValidatorIDs.filter(id => validatorIDs.includes(id));
   for (
     const testID of ruleIDs
-    .filter(id => validatorIDs.includes(id) && ! skippedIDs.includes(id))
+    .filter(id => validatorIDs.includes(id))
     .concat(featureIDs)
   ) {
     // Validate the rule.
@@ -122,13 +116,6 @@ Promise.all([fs.readdir(ruleDir), fs.readdir(validatorDir)])
   if (recoveredIDs.length) {
     console.log(
       `Warning - rules now passing; remove them from knownFailures.json: ${recoveredIDs.join(', ')}`
-    );
-  }
-  if (skippedIDs.length) {
-    console.log(
-      `Warning - AI-dependent rules skipped because ANTHROPIC_API_KEY is not set: ${
-        skippedIDs.join(', ')
-      }`
     );
   }
   if (unvalidatedIDs.length) {
