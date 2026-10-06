@@ -401,8 +401,10 @@ const launchOnce = async opts => {
   let page;
   // If the specified browser and device types and URL are valid:
   if (isBrowserID(browserID) && isDeviceID(deviceID) && isURL(url)) {
-    // Replace the report target URL with the specified URL.
-    report.target.url = url;
+    // Unless the launch is for a test act, whose target applies only to that act, replace the report target URL with the specified URL.
+    if (act.type !== 'test') {
+      report.target.url = url;
+    }
     // Resolve whether to run with stealth evasions. Defaults to true (the
     // historical behavior). `report.stealth === false` opts out — useful
     // for sites whose anti-bot heuristics react badly to stealth's patches,
@@ -715,6 +717,9 @@ exports.launch = async (opts = {}) => {
     // interaction acts and for the catalog pass do not).
     replay = actIndex !== null
   } = opts;
+  // Get whether the launch is for a test act with its own browser type.
+  const launchAct = actIndex === null ? null : report.acts?.[actIndex];
+  const actOverridesBrowser = launchAct?.type === 'test' && Boolean(launchAct.launch?.browserID);
   // If the launch is for a test act at a later checkpoint, navigate to that checkpoint's
   // origin: its URL if navigation reached it, else the URL its replayed acts start from.
   const checkpoint = report.checkpoints?.[report.activeCheckpoint];
@@ -816,8 +821,14 @@ exports.launch = async (opts = {}) => {
           if (tempBrowserID && unusedBrowserIDs.length && ! retriesLeft) {
             // Change the browser type.
             tempBrowserID = unusedBrowserIDs.shift();
-            console.log(`NOTICE: Changing job browser type to ${tempBrowserID}`);
-            report.browserID = tempBrowserID;
+            // Unless the browser type is a test act's own, which applies only to that act, change the job browser type too.
+            if (! actOverridesBrowser) {
+              console.log(`NOTICE: Changing job browser type to ${tempBrowserID}`);
+              report.browserID = tempBrowserID;
+            }
+            else {
+              console.log(`NOTICE: Changing browser type of act ${actIndex} to ${tempBrowserID}`);
+            }
             // Reset the retries.
             retriesLeft = retries;
           }
