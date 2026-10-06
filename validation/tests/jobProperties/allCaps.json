@@ -63,6 +63,33 @@
     {
       "confidences": [],
       "default": 0.5
+    },
+    {
+      "confidences": [
+        [
+          "TRANSFORMED BY ITS STYLE",
+          0.8
+        ],
+        [
+          "ENTIRELY",
+          0.9
+        ],
+        [
+          "PARTLY",
+          1
+        ],
+        [
+          "transformed ONLY",
+          0.2
+        ],
+        [
+          "ONLY IN PART",
+          0.7
+        ]
+      ],
+      "omit": [
+        "SHORT"
+      ]
     }
   ],
   "acts": [
@@ -381,6 +408,53 @@
         ],
         [
           "data.ruleData.allCaps.aiError"
+        ]
+      ]
+    },
+    {
+      "type": "test",
+      "which": "testaro",
+      "withItems": true,
+      "stopOnFail": false,
+      "rules": [
+        "y",
+        "allCaps"
+      ],
+      "expect": [
+        [
+          "standardResult.totals.0",
+          "=",
+          4
+        ],
+        [
+          "standardResult.instances.length",
+          "=",
+          4
+        ],
+        [
+          "standardResult.instances.2.id",
+          "=",
+          "allUC"
+        ],
+        [
+          "standardResult.instances.3.what",
+          "i",
+          "Elements have all-capital text"
+        ],
+        [
+          "standardResult.instances.3.count",
+          "=",
+          1
+        ],
+        [
+          "data.ruleData.allCaps.leftOut.count",
+          "=",
+          1
+        ],
+        [
+          "data.ruleData.allCaps.leftOut.estimatedViolations",
+          "=",
+          1
         ]
       ]
     }
