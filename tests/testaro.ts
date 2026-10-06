@@ -52,12 +52,12 @@ interface RuleMeta {
 }
 // The testaro-act properties this reporter consumes.
 interface TestaroAct extends Act {
-  target?: {url: string; what?: string};
   args?: Record<string, unknown[]>;
   stopOnFail?: boolean;
   withItems?: boolean;
   rules?: string[];
-  launch?: {browserID?: BrowserID};
+  // A target and browser type replacing those of the job, as in actSpecs.js.
+  launch?: {target?: {url: string; what?: string}; browserID?: BrowserID};
   scope?: 'page' | 'changed';
   // Launch retries per rule (default TESTARO_RULE_RETRIES, else 2).
   retries?: number;
@@ -564,8 +564,8 @@ export const reporter = async (page: Page | undefined, report: Report, actIndex:
   const act = report.acts[actIndex] as TestaroAct;
   const givenPage = page;
   const {args, stopOnFail, withItems} = act;
-  // A testaro act always has a target on itself or the report; verbatim from the original.
-  const target = (act.target || report.target)!;
+  // Get the target of the act's launch property (see actSpecs.js), if any, else that of the job.
+  const target = (act.launch?.target || report.target)!;
   const url = target.url;
   const browserID = act.launch ? act.launch.browserID || report.browserID : report.browserID;
   const argRules = args ? Object.keys(args) : null;

@@ -503,8 +503,8 @@ const reporter = async (page, report, actIndex) => {
     const act = report.acts[actIndex];
     const givenPage = page;
     const { args, stopOnFail, withItems } = act;
-    // A testaro act always has a target on itself or the report; verbatim from the original.
-    const target = (act.target || report.target);
+    // Get the target of the act's launch property (see actSpecs.js), if any, else that of the job.
+    const target = (act.launch?.target || report.target);
     const url = target.url;
     const browserID = act.launch ? act.launch.browserID || report.browserID : report.browserID;
     const argRules = args ? Object.keys(args) : null;
