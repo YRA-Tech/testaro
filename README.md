@@ -129,6 +129,14 @@ git pull
 (p)npm run deps
 ```
 
+This takes the newest versions of the dependencies that `package.json` allows, which suits development. A deployed instance, such as a worker polling a server for jobs, usually needs instead the exact dependency versions of the committed `package-lock.json`, so that its results are reproducible and match those of other instances. To renew such an instance, stop any running watcher (because its dependencies are replaced) and execute:
+
+```bash
+(p)npm run renew
+```
+
+This makes the instance match the remote branch it tracks exactly, even if that branch has been rebuilt and force-pushed, discarding any local changes to tracked files (but not untracked files such as `.env`). It then installs the dependencies of the lock file with `npm ci`, installs the Playwright browsers, and builds. To move an instance to another branch first, check that branch out (for example, `git switch main`).
+
 ## Environment configuration
 
 The `.env` file stores your decisions about the environment in which Testaro runs. The variables that can be defined there are documented in the `env.example` file.
