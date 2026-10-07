@@ -23,7 +23,7 @@ import {browserClose, launch} from '../procs/launch';
 // Function to get an empty standard result.
 import {getStandardResult} from '../procs/standard';
 import {ruleModules} from '../testaro/registry';
-import type {RuleID, RuleModule} from '../testaro/registry';
+import type {RuleID, RuleModule, RuleReport} from '../testaro/registry';
 import type {Act, BrowserID, Outcome, Report, StandardInstance, UncertaintyCode} from '../types';
 
 // TYPES
@@ -44,6 +44,8 @@ interface RuleMeta {
   // Page-level rules (heading order, landmarks, duplicate IDs, focus order, hover, motion, …)
   // are not local: any change can alter their verdicts, so they always test the whole page.
   local: boolean;
+  // Whether the rule runs concurrently with the serial rules instead of in their sequence. A concurrent rule launches and closes its own page, so its reporter receives no page; its arguments are (undefined, report, actIndex, withItems, signal, ...act args), where signal is an AbortSignal that aborts if the rule times out, so the rule can close its page. A concurrent rule must not be local, because the scope roots of local rules change during the serial sequence.
+  concurrent?: boolean;
   timeOut: number;
   defaultOn: boolean;
   // Read below but defined by no rule, so the temporary-directory branch never runs;
@@ -71,6 +73,12 @@ interface RuleTestResult {
   totals: number[];
   instances: StandardInstance[];
   elapsedTime: number;
+}
+// A rule, its test result, and its report if the test ended without a timeout or an error.
+interface RuleTest {
+  rule: RuleMeta;
+  ruleResult: RuleTestResult;
+  ruleReport: RuleReport | null;
 }
 
 // CONSTANTS
@@ -424,13 +432,12 @@ const allRules: RuleMeta[] = [
   {
     id: 'motion',
     what: 'motion without user request',
+    concurrent: true,
     contaminates: false,
     needsAccessibleName: false,
     local: false,
-    // The budget must cover a full-page screenshot (itself allowed 4 seconds in
-    // procs/shoot.js), decoding two full-page PNGs, and a pixel comparison; 5
-    // seconds made the rule time out whenever an initial image existed.
-    timeOut: 30,
+    // The budget covers its own launch, the grace period, two intervals, three tall-viewport images, and two comparisons. It runs concurrently with the serial rules, so a generous budget does not lengthen the act.
+    timeOut: 60,
     defaultOn: true
   },
   {
@@ -559,6 +566,73 @@ process.on('unhandledRejection', reason => {
 
 // FUNCTIONS
 
+// Tests a rule within its time limit and returns the rule, its test result, and its report.
+const testRule = async (
+  rule: RuleMeta, ruleArgs: unknown[], onTimeout?: () => void
+): Promise<RuleTest> => {
+  // Initialize the rule result.
+  const ruleResult: RuleTestResult = {
+    id: rule.id,
+    prevented: false,
+    error: '',
+    data: {},
+    totals: [0, 0, 0, 0],
+    instances: [],
+    elapsedTime: 0
+  };
+  let ruleReport: RuleReport | null = null;
+  const startTime = Date.now();
+  let timeout: NodeJS.Timeout | undefined;
+  try {
+    // Apply a time limit to the test.
+    const timeLimit = applyMultiplier(1000 * rule.timeOut);
+    // If the time limit expires during the test:
+    const timer = new Promise<{timedOut: true}>(resolve => {
+      timeout = setTimeout(() => {
+        // Add data about the timeout to the rule result.
+        ruleResult.prevented = true;
+        ruleResult.error = 'Timeout';
+        console.log(`ERROR: Test of testaro rule ${rule.id} timed out`);
+        onTimeout?.();
+        resolve({timedOut: true});
+      }, timeLimit);
+    });
+    // Try to perform the test and get a test report, loading the rule via the registry.
+    // The RuleModule cast widens the per-rule signature union to the registry contract.
+    const testReport = (ruleModules[rule.id]() as RuleModule).reporter(... ruleArgs);
+    // Get a test or timeout report.
+    const raceReport: RuleReport | {timedOut: true} = await Promise.race([timer, testReport]);
+    // If it was a test report:
+    if (! ('timedOut' in raceReport)) {
+      ruleReport = raceReport;
+    }
+  }
+  // If an error is thrown by the test:
+  catch(error) {
+    ruleResult.prevented = true;
+    const isPageClosed = ['closed', 'Protocol error', 'Target page'].some(phrase =>
+      (error as Error).message.includes(phrase)
+    );
+    // If the page has closed:
+    if (isPageClosed) {
+      // Report this.
+      console.log(`ERROR: Test ${rule.id} failed because page closed`);
+    }
+    // Otherwise, i.e. if the page is open:
+    else {
+      // Add this to the rule result.
+      ruleResult.error = (error as Error).message;
+      console.log(`ERROR: Test of testaro rule ${rule.id} prevented (${(error as Error).message})`);
+    }
+  }
+  finally {
+    // Stop the timer, so it cannot report a timeout after the test has ended with an error.
+    clearTimeout(timeout);
+    // Add the elapsed time to the rule result.
+    ruleResult.elapsedTime = Math.round((Date.now() - startTime) / 1000);
+  }
+  return {rule, ruleResult, ruleReport};
+};
 // Conducts and reports Testaro tests.
 export const reporter = async (page: Page | undefined, report: Report, actIndex: number) => {
   const act = report.acts[actIndex] as TestaroAct;
@@ -613,6 +687,43 @@ export const reporter = async (page: Page | undefined, report: Report, actIndex:
     }
   };
   const {standardResult} = result;
+  // Adds a rule test to the act data and the standard result.
+  const recordRuleTest = ({rule, ruleResult, ruleReport}: RuleTest) => {
+    // If the test ended with a report:
+    if (ruleReport) {
+      // Add the rule-report properties to the rule result.
+      ruleResult.data = ruleReport.data;
+      ruleResult.totals = ruleReport.totals;
+      ruleResult.instances = ruleReport.standardInstances as StandardInstance[];
+      // Add the rule-result properties to the result.
+      if (Object.keys(ruleReport.data as Record<string, unknown>).length) {
+        data.ruleData[rule.id] = ruleResult.data;
+      }
+      if (ruleResult.totals) {
+        ruleResult.totals.forEach((total, index) => {
+          standardResult.totals[index] += Math.round(total);
+        });
+      }
+      if (ruleResult.instances?.length) {
+        // Apply the rule's default outcome to instances without their own.
+        ruleResult.instances.forEach(instance => {
+          instance.outcome ??= rule.outcome ?? 'failed';
+          if (instance.outcome === 'cantTell' && rule.uncertainty) {
+            instance.uncertainty ??= rule.uncertainty;
+          }
+          standardResult.outcomeTotals[instance.outcome] += instance.count || 1;
+        });
+        standardResult.instances.push(... ruleResult.instances);
+      }
+    }
+    // Add the elapsed time to the data.
+    data.ruleTestTimes.push([rule.id, ruleResult.elapsedTime]);
+    // If the test timed out or otherwise failed:
+    if (ruleResult.prevented) {
+      // Add this and the error to the data.
+      data.rulePreventions[rule.id] = ruleResult.error;
+    }
+  };
   const allRuleIDs = allRules.map(rule => rule.id);
   if (
     // If the rule specification has at least 2 items
@@ -630,30 +741,43 @@ export const reporter = async (page: Page | undefined, report: Report, actIndex:
       .filter(rule => rule.defaultOn && ! excludeIDs.includes(rule.id))
       .map(rule => rule.id);
     const jobRules = allRules.filter(rule => jobRuleIDs.includes(rule.id));
+    // Separate the rules that run concurrently on their own pages from the serial rules.
+    const concurrentRules = jobRules.filter(rule => rule.concurrent);
+    const serialRules = jobRules.filter(rule => ! rule.concurrent);
+    // Start the tests of the concurrent rules without waiting for them to end.
+    const concurrentTests = concurrentRules.map(rule => {
+      console.log(`Starting concurrent rule ${rule.id}`);
+      // A concurrent rule tests the whole page, whatever the scope.
+      if (scopeRoots) {
+        data.scope!.pageRules.push(rule.id);
+      }
+      // Create a signal with which to tell the rule that it has timed out.
+      const aborter = new AbortController();
+      // Initialize an argument array for the reporter, with no page.
+      const ruleArgs: unknown[] = [undefined, report, actIndex, withItems, aborter.signal];
+      // If the testaro test act specifies extra arguments for this rule:
+      if (argRules?.includes(rule.id)) {
+        // Add them to the argument array.
+        ruleArgs.push(... args![rule.id]);
+      }
+      return testRule(rule, ruleArgs, () => aborter.abort());
+    });
+    // Initialize the tests of the serial rules.
+    const ruleTests: RuleTest[] = [];
     let justPrevented = false;
-    // For each rule to be tested for:
-    for (let ruleIndex = 0; ruleIndex < jobRules.length; ruleIndex++) {
-      const rule = jobRules[ruleIndex];
-      // Initialize the rule result.
-      const ruleResult: RuleTestResult = {
-        id: rule.id,
-        prevented: false,
-        error: '',
-        data: {},
-        totals: [0, 0, 0, 0],
-        instances: [],
-        elapsedTime: 0
-      };
-      console.log(`Starting rule ${ruleResult.id}`);
+    // For each serial rule to be tested for:
+    for (let ruleIndex = 0; ruleIndex < serialRules.length; ruleIndex++) {
+      const rule = serialRules[ruleIndex];
+      console.log(`Starting rule ${rule.id}`);
       // Make the browser emulate headedness in all cases, because performance does not suffer.
-      const headEmulation = ruleResult.id.startsWith('shoot') ? 'high' : 'high';
+      const headEmulation = rule.id.startsWith('shoot') ? 'high' : 'high';
       // Get whether the rule needs a new browser launched. Under page isolation the first rules
       // run on the live page provided; a contaminating rule still gets a fresh page.
-      const previousRule = ruleIndex > 0 ? jobRules[ruleIndex - 1] : null;
+      const previousRule = ruleIndex > 0 ? serialRules[ruleIndex - 1] : null;
       const needsLaunch = (ruleIndex === 0 && ! (page && report.jobData?.isolation === 'page'))
       || justPrevented
       || Boolean(previousRule?.contaminates)
-      || jobRules[ruleIndex].needsAccessibleName && ! previousRule?.needsAccessibleName
+      || serialRules[ruleIndex].needsAccessibleName && ! previousRule?.needsAccessibleName
       && ! (ruleIndex === 0 && page);
       const pageClosed = page && page.isClosed();
       // If it does, or if the page has closed:
@@ -661,7 +785,7 @@ export const reporter = async (page: Page | undefined, report: Report, actIndex:
         // If the page has closed when it is expected to be open:
         if (pageClosed && ! needsLaunch) {
           // Report this.
-          console.log(`WARNING: Relaunching browser for test ${rule} after abnormal closure`);
+          console.log(`WARNING: Relaunching browser for test ${rule.id} after abnormal closure`);
         }
         // Create a browser, replace the page, and visit the target, retrying twice if necessary.
         page = await launch({
@@ -671,7 +795,7 @@ export const reporter = async (page: Page | undefined, report: Report, actIndex:
           tempURL: url,
           headEmulation,
           xPathNeed: 'script',
-          needsAccessibleName: jobRules[ruleIndex].needsAccessibleName,
+          needsAccessibleName: serialRules[ruleIndex].needsAccessibleName,
           retries: Number.isInteger(act.retries) && (act.retries as number) >= 0
             ? act.retries as number
             : ruleLaunchRetries
@@ -682,11 +806,9 @@ export const reporter = async (page: Page | undefined, report: Report, actIndex:
       if (! page) {
         const message = String(
           report.jobData?.abortMessage
-          || `Launch or checkpoint replay failed before rule ${ruleResult.id}`
+          || `Launch or checkpoint replay failed before rule ${rule.id}`
         );
-        ruleResult.prevented = true;
-        ruleResult.error = message;
-        data.rulePreventions[ruleResult.id] = message;
+        data.rulePreventions[rule.id] = message;
         data.prevented = true;
         data.error = message;
         standardResult.prevented = true;
@@ -698,7 +820,7 @@ export const reporter = async (page: Page | undefined, report: Report, actIndex:
       let disconnectHandler: (() => void) | null | undefined;
       if (page && ! page.isClosed()) {
         crashHandler = () => {
-          console.log(`ERROR: Page crashed during ${rule} test`);
+          console.log(`ERROR: Page crashed during ${rule.id} test`);
         };
         page.on('crash', crashHandler);
       }
@@ -706,7 +828,7 @@ export const reporter = async (page: Page | undefined, report: Report, actIndex:
       const browser = page!.context().browser();
       if (browser) {
         disconnectHandler = () => {
-          console.log(`ERROR: Browser disconnected during ${rule} test`);
+          console.log(`ERROR: Browser disconnected during ${rule.id} test`);
         };
         browser.on('disconnected', disconnectHandler);
       }
@@ -723,106 +845,14 @@ export const reporter = async (page: Page | undefined, report: Report, actIndex:
         ruleArgs.push(report.jobData!.tmpDir);
       }
       // If the testaro test act specifies extra arguments for this rule:
-      if (argRules?.includes(ruleResult.id)) {
+      if (argRules?.includes(rule.id)) {
         // Add them to the argument array.
-        ruleArgs.push(... args![ruleResult.id]);
+        ruleArgs.push(... args![rule.id]);
       }
-      const startTime = Date.now();
-      let timer: Promise<{timedOut: true}>;
-      try {
-        // Apply a time limit to the test.
-        const timeLimit = applyMultiplier(1000 * rule.timeOut);
-        let timeout: NodeJS.Timeout;
-        // If the time limit expires during the test:
-        timer = new Promise(resolve => {
-          timeout = setTimeout(() => {
-            // Add data about the timeout to the rule result.
-            justPrevented = true;
-            ruleResult.prevented = true;
-            ruleResult.error = 'Timeout';
-            console.log(`ERROR: Test of testaro rule ${ruleResult.id} timed out`);
-            resolve({timedOut: true});
-          }, timeLimit);
-        });
-        // Try to perform the test and get a test report, loading the rule via the registry.
-        // The RuleModule cast widens the per-rule signature union to the registry contract.
-        const testReport = (ruleModules[ruleResult.id]() as RuleModule).reporter(... ruleArgs);
-        // Get a test or timeout report.
-        const ruleReport: {
-          timedOut?: boolean;
-          data?: unknown;
-          totals?: number[];
-          standardInstances?: unknown[];
-        } = await Promise.race([timer, testReport]);
-        clearTimeout(timeout!);
-        // If it was a test report:
-        if (! ruleReport.timedOut) {
-          // Add the rule-report properties to the rule result.
-          ruleResult.data = ruleReport.data;
-          ruleResult.totals = ruleReport.totals as number[];
-          ruleResult.instances = ruleReport.standardInstances as StandardInstance[];
-          // Add the rule-result properties to the result.
-          if (Object.keys(ruleReport.data as Record<string, unknown>).length) {
-            data.ruleData[ruleResult.id] = ruleResult.data;
-          }
-          if (ruleResult.totals) {
-            ruleResult.totals.forEach((total, index) => {
-              standardResult.totals[index] += Math.round(total);
-            });
-          }
-          if (ruleResult.instances?.length) {
-            // Apply the rule's default outcome to instances without their own.
-            ruleResult.instances.forEach(instance => {
-              instance.outcome ??= rule.outcome ?? 'failed';
-              if (instance.outcome === 'cantTell' && rule.uncertainty) {
-                instance.uncertainty ??= rule.uncertainty;
-              }
-              standardResult.outcomeTotals[instance.outcome] += instance.count || 1;
-            });
-            standardResult.instances.push(... ruleResult.instances);
-          }
-          justPrevented = false;
-          // If testing is to stop after a failure and the page failed the test:
-          if (stopOnFail && ruleReport.totals?.some(total => total)) {
-            // Test for no more rules.
-            break;
-          }
-        }
-      }
-      // If an error is thrown by the test:
-      catch(error) {
-        ruleResult.prevented = true;
-        justPrevented = true;
-        const isPageClosed = ['closed', 'Protocol error', 'Target page'].some(phrase =>
-          (error as Error).message.includes(phrase)
-        );
-        // If the page has closed:
-        if (isPageClosed) {
-          // Report this.
-          console.log(`ERROR: Test ${ruleResult.id} failed because page closed`);
-        }
-        // Otherwise, i.e. if the page is open:
-        else {
-          // Add this to the rule result.
-          ruleResult.error = (error as Error).message;
-          console.log(
-            `ERROR: Test of testaro rule ${ruleResult.id} prevented (${(error as Error).message})`
-          );
-        }
-      }
-      finally {
-        // Add the elapsed time to the rule result.
-        ruleResult.elapsedTime = Math.round((Date.now() - startTime) / 1000);
-        // Add the elapsed time to the data.
-        data.ruleTestTimes.push([ruleResult.id, ruleResult.elapsedTime]);
-        // If the test timed out or otherwise failed:
-        if (ruleResult.prevented) {
-          // Add this and the error to the data.
-          data.rulePreventions[ruleResult.id] = ruleResult.error;
-        }
-      }
-      // Sort the rule test times.
-      data.ruleTestTimes.sort((a, b) => b[1] - a[1]);
+      // Test the rule and keep the test for recording after all tests have ended.
+      const ruleTest = await testRule(rule, ruleArgs);
+      ruleTests.push(ruleTest);
+      justPrevented = ruleTest.ruleResult.prevented;
       // Clear the error listeners.
       if (page && ! page.isClosed() && crashHandler) {
         page.off('crash', crashHandler);
@@ -839,7 +869,20 @@ export const reporter = async (page: Page | undefined, report: Report, actIndex:
         }
       }
       catch(error) {}
-    };
+      // If testing is to stop after a failure and the page failed the test:
+      if (stopOnFail && ruleTest.ruleReport?.totals?.some(total => total)) {
+        // Test for no more serial rules.
+        break;
+      }
+    }
+    // Wait for the tests of the concurrent rules to end and add them to the tests.
+    ruleTests.push(... await Promise.all(concurrentTests));
+    // Record the tests in the order of the rules.
+    ruleTests
+    .sort((a, b) => jobRules.indexOf(a.rule) - jobRules.indexOf(b.rule))
+    .forEach(recordRuleTest);
+    // Sort the rule test times.
+    data.ruleTestTimes.sort((a, b) => b[1] - a[1]);
   }
   // Otherwise, i.e. if the rule specification is invalid:
   else {
