@@ -35,7 +35,7 @@ const allRules = [
         needsAccessibleName: false,
         local: true,
         timeOut: 5,
-        defaultOn: false
+        defaultOn: true
     },
     {
         id: 'allCaps',

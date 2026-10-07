@@ -1,6 +1,205 @@
 {
   "rule": "allCaps",
-  "timeLimit": 20,
+  "timeLimit": 120,
+  "aiMock": [
+    {
+      "confidences": [
+        [
+          "PARTLY",
+          1
+        ],
+        [
+          "ENTIRELY",
+          0.9
+        ],
+        [
+          "SHORT",
+          0.2
+        ],
+        [
+          "WARNING",
+          0.8
+        ],
+        [
+          "\"LOUD\"",
+          0.9
+        ],
+        [
+          "\"VERY\"",
+          0.7
+        ],
+        [
+          "NASA",
+          0.1
+        ],
+        [
+          "COAGULANT",
+          0.9
+        ],
+        [
+          "DECISION",
+          0.9
+        ],
+        [
+          "FAB",
+          0.9
+        ],
+        [
+          "PDF",
+          0.1
+        ],
+        [
+          "\"MH\"",
+          0.1
+        ],
+        [
+          "SHADOW",
+          0.9
+        ],
+        [
+          "SAVE NOW",
+          0.85
+        ]
+      ]
+    },
+    {
+      "confidences": [
+        [
+          "PARTLY",
+          1
+        ],
+        [
+          "ENTIRELY",
+          0.9
+        ],
+        [
+          "SHORT",
+          0.2
+        ],
+        [
+          "WARNING",
+          0.8
+        ],
+        [
+          "\"LOUD\"",
+          0.9
+        ],
+        [
+          "\"VERY\"",
+          0.7
+        ],
+        [
+          "NASA",
+          0.1
+        ],
+        [
+          "COAGULANT",
+          0.9
+        ],
+        [
+          "DECISION",
+          0.9
+        ],
+        [
+          "FAB",
+          0.9
+        ],
+        [
+          "PDF",
+          0.1
+        ],
+        [
+          "\"MH\"",
+          0.1
+        ],
+        [
+          "SHADOW",
+          0.9
+        ],
+        [
+          "SAVE NOW",
+          0.85
+        ]
+      ],
+      "format": "pretty"
+    },
+    {
+      "error": "Your credit balance is too low to access the Anthropic API."
+    },
+    {
+      "malformed": true
+    },
+    {
+      "disconnect": true
+    },
+    {
+      "confidences": [],
+      "default": 0.5
+    },
+    {
+      "confidences": [
+        [
+          "PARTLY",
+          1
+        ],
+        [
+          "ENTIRELY",
+          0.9
+        ],
+        [
+          "SHORT",
+          0.2
+        ],
+        [
+          "WARNING",
+          0.8
+        ],
+        [
+          "\"LOUD\"",
+          0.9
+        ],
+        [
+          "\"VERY\"",
+          0.7
+        ],
+        [
+          "NASA",
+          0.1
+        ],
+        [
+          "COAGULANT",
+          0.9
+        ],
+        [
+          "DECISION",
+          0.9
+        ],
+        [
+          "FAB",
+          0.9
+        ],
+        [
+          "PDF",
+          0.1
+        ],
+        [
+          "\"MH\"",
+          0.1
+        ],
+        [
+          "SHADOW",
+          0.9
+        ],
+        [
+          "SAVE NOW",
+          0.85
+        ]
+      ],
+      "omit": [
+        "SHORT"
+      ]
+    }
+  ],
   "acts": [
     {
       "type": "launch",
@@ -13,32 +212,26 @@
       "type": "test",
       "which": "testaro",
       "withItems": true,
-      "stopOnFail": true,
+      "stopOnFail": false,
+      "rules": [
+        "y",
+        "allCaps"
+      ],
       "expect": [
         [
           "standardResult.totals.0",
           "=",
-          4
+          10
         ],
         [
-          "standardResult.totals.2",
+          "standardResult.instances.length",
           "=",
-          0
+          10
         ],
         [
           "standardResult.instances.0.ruleID",
           "=",
           "allCaps"
-        ],
-        [
-          "standardResult.instances.0.what",
-          "i",
-          "Element contains"
-        ],
-        [
-          "standardResult.instances.0.tagName",
-          "=",
-          "P"
         ],
         [
           "standardResult.instances.0.ordinalSeverity",
@@ -56,71 +249,124 @@
           "judgement-required"
         ],
         [
-          "standardResult.outcomeTotals.cantTell",
+          "standardResult.instances.0.what",
+          "i",
+          "100% confidence"
+        ],
+        [
+          "standardResult.instances.0.tagName",
           "=",
-          4
+          "P"
         ],
         [
-          "standardResult.instances.1.tagName",
-          "=",
-          "SPAN"
-        ],
-        [
-          "standardResult.instances.1.location.type",
-          "=",
-          "box"
-        ],
-        [
-          "standardResult.instances.1.location.spec.x",
-          ">",
-          0
-        ],
-        [
-          "standardResult.instances.1.location.spec.width",
-          ">",
-          0
-        ],
-        [
-          "standardResult.instances.3.id",
+          "standardResult.instances.1.id",
           "=",
           "allUC"
         ],
         [
-          "standardResult.instances.3.location.type",
+          "standardResult.instances.1.what",
+          "i",
+          "90% confidence"
+        ],
+        [
+          "standardResult.instances.1.location.type",
           "=",
           "selector"
         ],
         [
-          "standardResult.instances.3.location.spec",
+          "standardResult.instances.1.location.spec",
           "=",
           "#allUC"
         ],
         [
-          "standardResult.instances.3.excerpt",
+          "standardResult.instances.2.id",
+          "=",
+          "mixed"
+        ],
+        [
+          "standardResult.instances.2.what",
           "i",
-          "ENTIRELY"
+          "80% confidence"
+        ],
+        [
+          "standardResult.instances.3.id",
+          "=",
+          "split"
+        ],
+        [
+          "standardResult.instances.4.id",
+          "=",
+          "infix"
+        ],
+        [
+          "standardResult.instances.5.id",
+          "=",
+          "prefix"
+        ],
+        [
+          "standardResult.instances.6.id",
+          "=",
+          "fab"
+        ],
+        [
+          "standardResult.instances.7.id",
+          "=",
+          "host"
+        ],
+        [
+          "standardResult.instances.8.tagName",
+          "=",
+          "LI"
+        ],
+        [
+          "standardResult.instances.9.tagName",
+          "=",
+          "LI"
+        ],
+        [
+          "standardResult.outcomeTotals.cantTell",
+          "=",
+          10
+        ],
+        [
+          "standardResult.outcomeTotals.failed",
+          "=",
+          0
+        ],
+        [
+          "data.ruleData.allCaps.aiError"
+        ],
+        [
+          "data.ruleData.allCaps.candidateCount",
+          "=",
+          15
+        ],
+        [
+          "data.ruleData.allCaps.distinctCandidateCount",
+          "=",
+          14
         ]
-      ],
-      "rules": [
-        "y",
-        "allCaps"
       ]
     },
     {
       "type": "test",
       "which": "testaro",
       "withItems": false,
-      "stopOnFail": true,
+      "stopOnFail": false,
+      "rules": [
+        "y",
+        "allCaps"
+      ],
       "expect": [
         [
           "standardResult.totals.0",
           "=",
-          4
+          10
         ],
         [
-          "standardResult.totals.1",
+          "standardResult.instances.length",
           "=",
-          0
+          1
         ],
         [
           "standardResult.instances.0.ruleID",
@@ -138,24 +384,301 @@
           "cantTell"
         ],
         [
-          "standardResult.outcomeTotals.failed",
+          "standardResult.instances.0.uncertainty",
           "=",
-          0
+          "judgement-required"
         ],
         [
           "standardResult.instances.0.what",
           "i",
-          "Elements contain"
+          "Elements have all-capital text"
         ],
         [
           "standardResult.instances.0.count",
           "=",
-          4
+          10
+        ],
+        [
+          "data.ruleData.allCaps.aiError"
         ]
-      ],
+      ]
+    },
+    {
+      "type": "test",
+      "which": "testaro",
+      "withItems": true,
+      "stopOnFail": false,
       "rules": [
         "y",
         "allCaps"
+      ],
+      "expect": [
+        [
+          "standardResult.totals.0",
+          "=",
+          4
+        ],
+        [
+          "standardResult.instances.length",
+          "=",
+          4
+        ],
+        [
+          "standardResult.instances.0.what",
+          "i",
+          "[No AI available]"
+        ],
+        [
+          "standardResult.instances.0.id",
+          "=",
+          "allUC"
+        ],
+        [
+          "standardResult.instances.1.id",
+          "=",
+          "infix"
+        ],
+        [
+          "standardResult.instances.2.id",
+          "=",
+          "prefix"
+        ],
+        [
+          "standardResult.instances.3.id",
+          "=",
+          "host"
+        ],
+        [
+          "standardResult.outcomeTotals.cantTell",
+          "=",
+          4
+        ],
+        [
+          "data.ruleData.allCaps.aiError",
+          "i",
+          "credit balance is too low"
+        ],
+        [
+          "data.ruleData.allCaps.candidateCount",
+          "=",
+          15
+        ],
+        [
+          "data.ruleData.allCaps.distinctCandidateCount",
+          "=",
+          14
+        ]
+      ]
+    },
+    {
+      "type": "test",
+      "which": "testaro",
+      "withItems": true,
+      "stopOnFail": false,
+      "rules": [
+        "y",
+        "allCaps"
+      ],
+      "expect": [
+        [
+          "standardResult.totals.0",
+          "=",
+          4
+        ],
+        [
+          "standardResult.instances.length",
+          "=",
+          4
+        ],
+        [
+          "standardResult.instances.0.what",
+          "i",
+          "[No AI available]"
+        ],
+        [
+          "standardResult.instances.0.id",
+          "=",
+          "allUC"
+        ],
+        [
+          "standardResult.instances.1.id",
+          "=",
+          "infix"
+        ],
+        [
+          "standardResult.instances.2.id",
+          "=",
+          "prefix"
+        ],
+        [
+          "standardResult.instances.3.id",
+          "=",
+          "host"
+        ],
+        [
+          "standardResult.outcomeTotals.cantTell",
+          "=",
+          4
+        ],
+        [
+          "data.ruleData.allCaps.aiError",
+          "i",
+          "Haiku response error"
+        ],
+        [
+          "data.ruleData.allCaps.candidateCount",
+          "=",
+          15
+        ],
+        [
+          "data.ruleData.allCaps.distinctCandidateCount",
+          "=",
+          14
+        ]
+      ]
+    },
+    {
+      "type": "test",
+      "which": "testaro",
+      "withItems": true,
+      "stopOnFail": false,
+      "rules": [
+        "y",
+        "allCaps"
+      ],
+      "expect": [
+        [
+          "standardResult.totals.0",
+          "=",
+          4
+        ],
+        [
+          "standardResult.instances.length",
+          "=",
+          4
+        ],
+        [
+          "standardResult.instances.0.what",
+          "i",
+          "[No AI available]"
+        ],
+        [
+          "standardResult.instances.0.id",
+          "=",
+          "allUC"
+        ],
+        [
+          "standardResult.instances.1.id",
+          "=",
+          "infix"
+        ],
+        [
+          "standardResult.instances.2.id",
+          "=",
+          "prefix"
+        ],
+        [
+          "standardResult.instances.3.id",
+          "=",
+          "host"
+        ],
+        [
+          "standardResult.outcomeTotals.cantTell",
+          "=",
+          4
+        ],
+        [
+          "data.ruleData.allCaps.aiError",
+          "i",
+          ""
+        ],
+        [
+          "data.ruleData.allCaps.candidateCount",
+          "=",
+          15
+        ],
+        [
+          "data.ruleData.allCaps.distinctCandidateCount",
+          "=",
+          14
+        ]
+      ]
+    },
+    {
+      "type": "test",
+      "which": "testaro",
+      "withItems": true,
+      "stopOnFail": false,
+      "rules": [
+        "y",
+        "allCaps"
+      ],
+      "expect": [
+        [
+          "standardResult.totals.0",
+          "=",
+          0
+        ],
+        [
+          "standardResult.instances.length",
+          "=",
+          0
+        ],
+        [
+          "data.ruleData.allCaps.aiError"
+        ],
+        [
+          "data.ruleData.allCaps.candidateCount",
+          "=",
+          15
+        ],
+        [
+          "data.ruleData.allCaps.distinctCandidateCount",
+          "=",
+          14
+        ]
+      ]
+    },
+    {
+      "type": "test",
+      "which": "testaro",
+      "withItems": true,
+      "stopOnFail": false,
+      "rules": [
+        "y",
+        "allCaps"
+      ],
+      "expect": [
+        [
+          "standardResult.totals.0",
+          "=",
+          11
+        ],
+        [
+          "standardResult.instances.length",
+          "=",
+          11
+        ],
+        [
+          "standardResult.instances.10.what",
+          "i",
+          "Elements have all-capital text"
+        ],
+        [
+          "standardResult.instances.10.count",
+          "=",
+          1
+        ],
+        [
+          "data.ruleData.allCaps.leftOut.count",
+          "=",
+          1
+        ],
+        [
+          "data.ruleData.allCaps.leftOut.estimatedViolations",
+          "=",
+          1
+        ]
       ]
     }
   ]
