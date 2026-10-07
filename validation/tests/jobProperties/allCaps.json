@@ -5,48 +5,120 @@
     {
       "confidences": [
         [
-          "TRANSFORMED BY ITS STYLE",
-          0.8
+          "PARTLY",
+          1
         ],
         [
           "ENTIRELY",
           0.9
         ],
         [
-          "PARTLY",
-          1
-        ],
-        [
-          "transformed ONLY",
+          "SHORT",
           0.2
         ],
         [
-          "ONLY IN PART",
+          "WARNING",
+          0.8
+        ],
+        [
+          "\"LOUD\"",
+          0.9
+        ],
+        [
+          "\"VERY\"",
           0.7
+        ],
+        [
+          "NASA",
+          0.1
+        ],
+        [
+          "COAGULANT",
+          0.9
+        ],
+        [
+          "DECISION",
+          0.9
+        ],
+        [
+          "FAB",
+          0.9
+        ],
+        [
+          "PDF",
+          0.1
+        ],
+        [
+          "\"MH\"",
+          0.1
+        ],
+        [
+          "SHADOW",
+          0.9
+        ],
+        [
+          "SAVE NOW",
+          0.85
         ]
       ]
     },
     {
       "confidences": [
         [
-          "TRANSFORMED BY ITS STYLE",
-          0.8
+          "PARTLY",
+          1
         ],
         [
           "ENTIRELY",
           0.9
         ],
         [
-          "PARTLY",
-          1
-        ],
-        [
-          "transformed ONLY",
+          "SHORT",
           0.2
         ],
         [
-          "ONLY IN PART",
+          "WARNING",
+          0.8
+        ],
+        [
+          "\"LOUD\"",
+          0.9
+        ],
+        [
+          "\"VERY\"",
           0.7
+        ],
+        [
+          "NASA",
+          0.1
+        ],
+        [
+          "COAGULANT",
+          0.9
+        ],
+        [
+          "DECISION",
+          0.9
+        ],
+        [
+          "FAB",
+          0.9
+        ],
+        [
+          "PDF",
+          0.1
+        ],
+        [
+          "\"MH\"",
+          0.1
+        ],
+        [
+          "SHADOW",
+          0.9
+        ],
+        [
+          "SAVE NOW",
+          0.85
         ]
       ],
       "format": "pretty"
@@ -67,24 +139,60 @@
     {
       "confidences": [
         [
-          "TRANSFORMED BY ITS STYLE",
-          0.8
+          "PARTLY",
+          1
         ],
         [
           "ENTIRELY",
           0.9
         ],
         [
-          "PARTLY",
-          1
-        ],
-        [
-          "transformed ONLY",
+          "SHORT",
           0.2
         ],
         [
-          "ONLY IN PART",
+          "WARNING",
+          0.8
+        ],
+        [
+          "\"LOUD\"",
+          0.9
+        ],
+        [
+          "\"VERY\"",
           0.7
+        ],
+        [
+          "NASA",
+          0.1
+        ],
+        [
+          "COAGULANT",
+          0.9
+        ],
+        [
+          "DECISION",
+          0.9
+        ],
+        [
+          "FAB",
+          0.9
+        ],
+        [
+          "PDF",
+          0.1
+        ],
+        [
+          "\"MH\"",
+          0.1
+        ],
+        [
+          "SHADOW",
+          0.9
+        ],
+        [
+          "SAVE NOW",
+          0.85
         ]
       ],
       "omit": [
@@ -113,12 +221,12 @@
         [
           "standardResult.totals.0",
           "=",
-          3
+          10
         ],
         [
           "standardResult.instances.length",
           "=",
-          3
+          10
         ],
         [
           "standardResult.instances.0.ruleID",
@@ -143,7 +251,7 @@
         [
           "standardResult.instances.0.what",
           "i",
-          "80% confidence"
+          "100% confidence"
         ],
         [
           "standardResult.instances.0.tagName",
@@ -151,34 +259,74 @@
           "P"
         ],
         [
-          "standardResult.instances.1.what",
-          "i",
-          "100% confidence"
-        ],
-        [
-          "standardResult.instances.2.what",
-          "i",
-          "90% confidence"
-        ],
-        [
-          "standardResult.instances.2.id",
+          "standardResult.instances.1.id",
           "=",
           "allUC"
         ],
         [
-          "standardResult.instances.2.location.type",
+          "standardResult.instances.1.what",
+          "i",
+          "90% confidence"
+        ],
+        [
+          "standardResult.instances.1.location.type",
           "=",
           "selector"
         ],
         [
-          "standardResult.instances.2.location.spec",
+          "standardResult.instances.1.location.spec",
           "=",
           "#allUC"
         ],
         [
+          "standardResult.instances.2.id",
+          "=",
+          "mixed"
+        ],
+        [
+          "standardResult.instances.2.what",
+          "i",
+          "80% confidence"
+        ],
+        [
+          "standardResult.instances.3.id",
+          "=",
+          "split"
+        ],
+        [
+          "standardResult.instances.4.id",
+          "=",
+          "infix"
+        ],
+        [
+          "standardResult.instances.5.id",
+          "=",
+          "prefix"
+        ],
+        [
+          "standardResult.instances.6.id",
+          "=",
+          "fab"
+        ],
+        [
+          "standardResult.instances.7.id",
+          "=",
+          "host"
+        ],
+        [
+          "standardResult.instances.8.tagName",
+          "=",
+          "LI"
+        ],
+        [
+          "standardResult.instances.9.tagName",
+          "=",
+          "LI"
+        ],
+        [
           "standardResult.outcomeTotals.cantTell",
           "=",
-          3
+          10
         ],
         [
           "standardResult.outcomeTotals.failed",
@@ -187,6 +335,16 @@
         ],
         [
           "data.ruleData.allCaps.aiError"
+        ],
+        [
+          "data.ruleData.allCaps.candidateCount",
+          "=",
+          15
+        ],
+        [
+          "data.ruleData.allCaps.distinctCandidateCount",
+          "=",
+          14
         ]
       ]
     },
@@ -203,7 +361,7 @@
         [
           "standardResult.totals.0",
           "=",
-          3
+          10
         ],
         [
           "standardResult.instances.length",
@@ -238,7 +396,7 @@
         [
           "standardResult.instances.0.count",
           "=",
-          3
+          10
         ],
         [
           "data.ruleData.allCaps.aiError"
@@ -258,12 +416,12 @@
         [
           "standardResult.totals.0",
           "=",
-          2
+          4
         ],
         [
           "standardResult.instances.length",
           "=",
-          2
+          4
         ],
         [
           "standardResult.instances.0.what",
@@ -271,24 +429,44 @@
           "[No AI available]"
         ],
         [
-          "standardResult.instances.0.tagName",
-          "=",
-          "P"
-        ],
-        [
-          "standardResult.instances.1.id",
+          "standardResult.instances.0.id",
           "=",
           "allUC"
         ],
         [
+          "standardResult.instances.1.id",
+          "=",
+          "infix"
+        ],
+        [
+          "standardResult.instances.2.id",
+          "=",
+          "prefix"
+        ],
+        [
+          "standardResult.instances.3.id",
+          "=",
+          "host"
+        ],
+        [
           "standardResult.outcomeTotals.cantTell",
           "=",
-          2
+          4
         ],
         [
           "data.ruleData.allCaps.aiError",
           "i",
           "credit balance is too low"
+        ],
+        [
+          "data.ruleData.allCaps.candidateCount",
+          "=",
+          15
+        ],
+        [
+          "data.ruleData.allCaps.distinctCandidateCount",
+          "=",
+          14
         ]
       ]
     },
@@ -305,12 +483,12 @@
         [
           "standardResult.totals.0",
           "=",
-          2
+          4
         ],
         [
           "standardResult.instances.length",
           "=",
-          2
+          4
         ],
         [
           "standardResult.instances.0.what",
@@ -318,24 +496,44 @@
           "[No AI available]"
         ],
         [
-          "standardResult.instances.0.tagName",
-          "=",
-          "P"
-        ],
-        [
-          "standardResult.instances.1.id",
+          "standardResult.instances.0.id",
           "=",
           "allUC"
         ],
         [
+          "standardResult.instances.1.id",
+          "=",
+          "infix"
+        ],
+        [
+          "standardResult.instances.2.id",
+          "=",
+          "prefix"
+        ],
+        [
+          "standardResult.instances.3.id",
+          "=",
+          "host"
+        ],
+        [
           "standardResult.outcomeTotals.cantTell",
           "=",
-          2
+          4
         ],
         [
           "data.ruleData.allCaps.aiError",
           "i",
           "Haiku response error"
+        ],
+        [
+          "data.ruleData.allCaps.candidateCount",
+          "=",
+          15
+        ],
+        [
+          "data.ruleData.allCaps.distinctCandidateCount",
+          "=",
+          14
         ]
       ]
     },
@@ -352,12 +550,12 @@
         [
           "standardResult.totals.0",
           "=",
-          2
+          4
         ],
         [
           "standardResult.instances.length",
           "=",
-          2
+          4
         ],
         [
           "standardResult.instances.0.what",
@@ -365,24 +563,44 @@
           "[No AI available]"
         ],
         [
-          "standardResult.instances.0.tagName",
-          "=",
-          "P"
-        ],
-        [
-          "standardResult.instances.1.id",
+          "standardResult.instances.0.id",
           "=",
           "allUC"
         ],
         [
+          "standardResult.instances.1.id",
+          "=",
+          "infix"
+        ],
+        [
+          "standardResult.instances.2.id",
+          "=",
+          "prefix"
+        ],
+        [
+          "standardResult.instances.3.id",
+          "=",
+          "host"
+        ],
+        [
           "standardResult.outcomeTotals.cantTell",
           "=",
-          2
+          4
         ],
         [
           "data.ruleData.allCaps.aiError",
           "i",
           ""
+        ],
+        [
+          "data.ruleData.allCaps.candidateCount",
+          "=",
+          15
+        ],
+        [
+          "data.ruleData.allCaps.distinctCandidateCount",
+          "=",
+          14
         ]
       ]
     },
@@ -408,6 +626,16 @@
         ],
         [
           "data.ruleData.allCaps.aiError"
+        ],
+        [
+          "data.ruleData.allCaps.candidateCount",
+          "=",
+          15
+        ],
+        [
+          "data.ruleData.allCaps.distinctCandidateCount",
+          "=",
+          14
         ]
       ]
     },
@@ -424,25 +652,20 @@
         [
           "standardResult.totals.0",
           "=",
-          4
+          11
         ],
         [
           "standardResult.instances.length",
           "=",
-          4
+          11
         ],
         [
-          "standardResult.instances.2.id",
-          "=",
-          "allUC"
-        ],
-        [
-          "standardResult.instances.3.what",
+          "standardResult.instances.10.what",
           "i",
           "Elements have all-capital text"
         ],
         [
-          "standardResult.instances.3.count",
+          "standardResult.instances.10.count",
           "=",
           1
         ],

@@ -10,7 +10,7 @@
 /*
   aiMock.js
   Mock of the Anthropic Messages API for validators of AI-dependent rules, so that validation neither depends on nor pays for an external, nondeterministic service. A validator lists, in its aiMock property, one scripted response per expected request, in order. A response is one of:
-    {confidences: [[substring, confidence], ...], default, omit: [substring, ...], format}: an answer classifying each element sent, with the confidence of the first pair whose substring its text contains, else default (0 if omitted), except the elements whose texts contain a substring in omit, which the answer leaves out, as models sometimes do. With format 'pretty' the JSON array follows a sentence and is spread over lines; otherwise it is compact. In both formats, confidences of 0 and 1 are written as integers.
+    {confidences: [[substring, confidence], ...], default, omit: [substring, ...], format}: an answer classifying each element sent, with the confidence of the first pair whose substring the JSON of the element (as sent: index, tagName, any runs, and text) contains, so a quoted substring such as '"VERY"' can select a run, else default (0 if omitted), except the elements whose JSON contains a substring in omit, which the answer leaves out, as models sometimes do. With format 'pretty' the JSON array follows a sentence and is spread over lines; otherwise it is compact. In both formats, confidences of 0 and 1 are written as integers.
     {error: message}: an API error with that message.
     {malformed: true}: an answer without a JSON array.
     {disconnect: true}: a closed connection without a response.
@@ -31,9 +31,10 @@ const getEntries = body => {
 // Returns the text of an answer classifying elements as scripted.
 const getAnswerText = (entries, {confidences = [], default: fallback = 0, omit = [], format}) => {
   const classifications = entries
-  .filter(({text}) => ! omit.some(substring => text.includes(substring)))
-  .map(({index, text}) => {
-    const pair = confidences.find(([substring]) => text.includes(substring));
+  .filter(entry => ! omit.some(substring => JSON.stringify(entry).includes(substring)))
+  .map(entry => {
+    const {index} = entry;
+    const pair = confidences.find(([substring]) => JSON.stringify(entry).includes(substring));
     return {index, confidence: pair ? pair[1] : fallback};
   });
   // If the answer is to be pretty, spread it over lines, as models often do.
