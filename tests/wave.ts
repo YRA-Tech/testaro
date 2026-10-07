@@ -186,14 +186,15 @@ export const reporter = async (page: Page, report: Report, actIndex: number) => 
                       // For each of those violations:
                       for (const index in selectors) {
                         const selector = selectors[index as unknown as number] as string;
-                        // Get the violator.
-                        let violator: Element | null | undefined;
                         try {
-                          violator = document.querySelector(selector);
-                          // Concatenate its selector with its XPath in the native result.
-                          selectors[index as unknown as number] = [
-                            selector, window.getXPath(violator as Element) ?? ''
-                          ];
+                          // Get the violator.
+                          const violator = document.querySelector(selector);
+                          // If it exists, get its XPath.
+                          const xPath = violator ? window.getXPath(violator) : null;
+                          // If that succeeded, concatenate the selector with the XPath in the native result; otherwise leave the selector alone, so no XPath is made up for it.
+                          if (xPath) {
+                            selectors[index as unknown as number] = [selector, xPath];
+                          }
                         } catch (error) {
                           console.error(`ERROR: Invalid selector: ${selector} (${(error as Error).message})`);
                         }
@@ -207,14 +208,15 @@ export const reporter = async (page: Page, report: Report, actIndex: number) => 
                     const {description, selectors} = annotatedItems[ruleID];
                     // For each violation of the rule:
                     for (const violation of selectors) {
-                      const xPath = violation[1];
+                      // Get the XPath of the violator, if its selector was converted to a selector-XPath pair (a selector that is a string would otherwise yield its second character).
+                      const xPath = Array.isArray(violation) ? violation[1] : null;
                       // Add an instance to the standard result. Alerts are uncertainty.
                       pushInstance(standardResult, {
                         ruleID,
                         what: description,
                         ordinalSeverity,
                         outcome: categoryName === 'alert' ? 'cantTell' : 'failed',
-                        catalogIndex: getXPathCatalogIndex(report, xPath)
+                        ... (xPath ? {catalogIndex: getXPathCatalogIndex(report, xPath)} : {})
                       });
                     }
                   }
