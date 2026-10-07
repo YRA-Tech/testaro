@@ -7,6 +7,7 @@
     "build:nameComputation": "esbuild src/nameComputation.js --bundle --format=iife --global-name=computeAccessibleName --outfile=dist/nameComputation.js",
     "build": "npm run build:nameComputation",
     "deps": "npm update && npx playwright install && npm run build",
+    "renew": "git fetch origin && git reset --hard @{upstream} && npm ci && npx playwright install && npm run build",
     "tests": "node validation/executors/tests",
     "test": "node validation/executors/test",
     "run": "node validation/executors/run",
