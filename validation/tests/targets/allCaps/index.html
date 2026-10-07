@@ -36,6 +36,13 @@
       <p id="split">This is <b>VERY</b> LOUD.</p>
       <!-- An intrinsically upper-case acronym. -->
       <p id="acronym">NASA launched a rocket.</p>
+      <!-- Capitals within words: candidates. -->
+      <p id="infix">They are not antidepressants; they are antiCOAGULANTs!</p>
+      <p id="prefix">He was the DECISIONmaker behind this catastrophe, not some cog in a machine.</p>
+      <p id="fab">The performance was FABulous.</p>
+      <!-- Capitals within words that are intrinsic: candidates, for classification as intrinsic. -->
+      <p id="pdfs">Download the PDFs.</p>
+      <p id="mhz">The clock runs at 3 MHz.</p>
       <!-- Text directly in an open shadow root: the host is the candidate. -->
       <div id="host"></div>
       <!-- Identical runs in identical contexts: classified once. -->
@@ -49,7 +56,7 @@
         const NOTE = 'SCRIPT CAPITALS';
         document.getElementById('host').attachShadow({mode: 'open'}).textContent = 'SHADOW CAPITALS here';
       </script>
-      <p>The candidate elements number ten, of which nine are distinct.</p>
+      <p>The candidate elements number fifteen, of which fourteen are distinct.</p>
     </main>
   </body>
 </html>

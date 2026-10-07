@@ -33,6 +33,26 @@
           0.1
         ],
         [
+          "COAGULANT",
+          0.9
+        ],
+        [
+          "DECISION",
+          0.9
+        ],
+        [
+          "FAB",
+          0.9
+        ],
+        [
+          "PDF",
+          0.1
+        ],
+        [
+          "\"MH\"",
+          0.1
+        ],
+        [
           "SHADOW",
           0.9
         ],
@@ -70,6 +90,26 @@
         ],
         [
           "NASA",
+          0.1
+        ],
+        [
+          "COAGULANT",
+          0.9
+        ],
+        [
+          "DECISION",
+          0.9
+        ],
+        [
+          "FAB",
+          0.9
+        ],
+        [
+          "PDF",
+          0.1
+        ],
+        [
+          "\"MH\"",
           0.1
         ],
         [
@@ -127,6 +167,26 @@
           0.1
         ],
         [
+          "COAGULANT",
+          0.9
+        ],
+        [
+          "DECISION",
+          0.9
+        ],
+        [
+          "FAB",
+          0.9
+        ],
+        [
+          "PDF",
+          0.1
+        ],
+        [
+          "\"MH\"",
+          0.1
+        ],
+        [
           "SHADOW",
           0.9
         ],
@@ -161,12 +221,12 @@
         [
           "standardResult.totals.0",
           "=",
-          7
+          10
         ],
         [
           "standardResult.instances.length",
           "=",
-          7
+          10
         ],
         [
           "standardResult.instances.0.ruleID",
@@ -236,22 +296,37 @@
         [
           "standardResult.instances.4.id",
           "=",
+          "infix"
+        ],
+        [
+          "standardResult.instances.5.id",
+          "=",
+          "prefix"
+        ],
+        [
+          "standardResult.instances.6.id",
+          "=",
+          "fab"
+        ],
+        [
+          "standardResult.instances.7.id",
+          "=",
           "host"
         ],
         [
-          "standardResult.instances.5.tagName",
+          "standardResult.instances.8.tagName",
           "=",
           "LI"
         ],
         [
-          "standardResult.instances.6.tagName",
+          "standardResult.instances.9.tagName",
           "=",
           "LI"
         ],
         [
           "standardResult.outcomeTotals.cantTell",
           "=",
-          7
+          10
         ],
         [
           "standardResult.outcomeTotals.failed",
@@ -264,12 +339,12 @@
         [
           "data.ruleData.allCaps.candidateCount",
           "=",
-          10
+          15
         ],
         [
           "data.ruleData.allCaps.distinctCandidateCount",
           "=",
-          9
+          14
         ]
       ]
     },
@@ -286,7 +361,7 @@
         [
           "standardResult.totals.0",
           "=",
-          7
+          10
         ],
         [
           "standardResult.instances.length",
@@ -321,7 +396,7 @@
         [
           "standardResult.instances.0.count",
           "=",
-          7
+          10
         ],
         [
           "data.ruleData.allCaps.aiError"
@@ -341,12 +416,12 @@
         [
           "standardResult.totals.0",
           "=",
-          2
+          4
         ],
         [
           "standardResult.instances.length",
           "=",
-          2
+          4
         ],
         [
           "standardResult.instances.0.what",
@@ -361,12 +436,22 @@
         [
           "standardResult.instances.1.id",
           "=",
+          "infix"
+        ],
+        [
+          "standardResult.instances.2.id",
+          "=",
+          "prefix"
+        ],
+        [
+          "standardResult.instances.3.id",
+          "=",
           "host"
         ],
         [
           "standardResult.outcomeTotals.cantTell",
           "=",
-          2
+          4
         ],
         [
           "data.ruleData.allCaps.aiError",
@@ -376,12 +461,12 @@
         [
           "data.ruleData.allCaps.candidateCount",
           "=",
-          10
+          15
         ],
         [
           "data.ruleData.allCaps.distinctCandidateCount",
           "=",
-          9
+          14
         ]
       ]
     },
@@ -398,12 +483,12 @@
         [
           "standardResult.totals.0",
           "=",
-          2
+          4
         ],
         [
           "standardResult.instances.length",
           "=",
-          2
+          4
         ],
         [
           "standardResult.instances.0.what",
@@ -418,12 +503,22 @@
         [
           "standardResult.instances.1.id",
           "=",
+          "infix"
+        ],
+        [
+          "standardResult.instances.2.id",
+          "=",
+          "prefix"
+        ],
+        [
+          "standardResult.instances.3.id",
+          "=",
           "host"
         ],
         [
           "standardResult.outcomeTotals.cantTell",
           "=",
-          2
+          4
         ],
         [
           "data.ruleData.allCaps.aiError",
@@ -433,12 +528,12 @@
         [
           "data.ruleData.allCaps.candidateCount",
           "=",
-          10
+          15
         ],
         [
           "data.ruleData.allCaps.distinctCandidateCount",
           "=",
-          9
+          14
         ]
       ]
     },
@@ -455,12 +550,12 @@
         [
           "standardResult.totals.0",
           "=",
-          2
+          4
         ],
         [
           "standardResult.instances.length",
           "=",
-          2
+          4
         ],
         [
           "standardResult.instances.0.what",
@@ -475,12 +570,22 @@
         [
           "standardResult.instances.1.id",
           "=",
+          "infix"
+        ],
+        [
+          "standardResult.instances.2.id",
+          "=",
+          "prefix"
+        ],
+        [
+          "standardResult.instances.3.id",
+          "=",
           "host"
         ],
         [
           "standardResult.outcomeTotals.cantTell",
           "=",
-          2
+          4
         ],
         [
           "data.ruleData.allCaps.aiError",
@@ -490,12 +595,12 @@
         [
           "data.ruleData.allCaps.candidateCount",
           "=",
-          10
+          15
         ],
         [
           "data.ruleData.allCaps.distinctCandidateCount",
           "=",
-          9
+          14
         ]
       ]
     },
@@ -525,12 +630,12 @@
         [
           "data.ruleData.allCaps.candidateCount",
           "=",
-          10
+          15
         ],
         [
           "data.ruleData.allCaps.distinctCandidateCount",
           "=",
-          9
+          14
         ]
       ]
     },
@@ -547,20 +652,20 @@
         [
           "standardResult.totals.0",
           "=",
-          8
+          11
         ],
         [
           "standardResult.instances.length",
           "=",
-          8
+          11
         ],
         [
-          "standardResult.instances.7.what",
+          "standardResult.instances.10.what",
           "i",
           "Elements have all-capital text"
         ],
         [
-          "standardResult.instances.7.count",
+          "standardResult.instances.10.count",
           "=",
           1
         ],

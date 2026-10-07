@@ -170,12 +170,12 @@
         [
           "data.ruleData.allCaps.candidateCount",
           "=",
-          10
+          15
         ],
         [
           "standardResult.instances.length",
           "=",
-          10
+          15
         ],
         [
           "standardResult.instances.0.checkpoint",

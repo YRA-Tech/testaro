@@ -68,8 +68,8 @@ const whats = 'Elements have all-capital text';
 // Returns the candidates of a page in document order, within the scope roots if any.
 const getCandidates = (page, scopeRoots) => page.evaluate(({ scopeRoots, maxMargin, maxTotal }) => {
     const excludedTags = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEMPLATE', 'TEXTAREA']);
-    // A run: a word of 2+ capitals, with any following all-capital words, each word complete (not adjacent to another letter).
-    const runPattern = /(?<!\p{L})\p{Lu}{2,}(?:[\s\p{Pd}]+\p{Lu}+)*(?!\p{L})/gu;
+    // A run: 2+ consecutive capitals, even within a word (as in DECISIONmaker or antiCOAGULANT), with any following words that are entirely capitals (so that in WCAG-EM Overview the run is WCAG-EM).
+    const runPattern = /\p{Lu}{2,}(?:[\s\p{Pd}]+\p{Lu}+(?!\p{L}))*/gu;
     // Returns text with its whitespace collapsed.
     const tidy = (text) => text.replace(/\s+/g, ' ');
     const roots = (scopeRoots ?? [])
