@@ -475,6 +475,20 @@ Checkpoint acts are optional. A job without one behaves as before: every test ac
 
 The rule engines whose tests Testaro performs have particularities described below.
 
+### Alfa
+
+Alfa does not use the styles that the browser computes. It reads the page’s stylesheets by running a script in the page and computes styles itself. It silently treats some style rules as absent:
+
+- All rules of a stylesheet loaded from another origin without CORS, because browsers do not let page scripts read such rules
+- All rules of a stylesheet containing a rule type that Alfa does not support, such as `@property` or `@container`, and all rules of an `@media` block containing such a rule
+- Rules nested in other style rules (CSS nesting)
+
+Alfa then tests the page as if those rules did not exist, and its verdicts can be wrong, not only for color contrast but for any rule that depends on styles, including visibility. For example, if Alfa cannot read a stylesheet that makes a heading’s text white, it reports a contrast failure for text that is actually white.
+
+To reduce such losses, Testaro uses Alfa’s `enforceAnonymousCrossOrigin` option, which reloads each cross-origin stylesheet with CORS so that its rules become readable. A stylesheet whose server refuses CORS then fails to load, and the page as well as Alfa loses its rules. This change affects later acts only if they test the same page (with `page` isolation).
+
+Testaro then compares the style rules of each stylesheet, as page scripts see them, with those Alfa received, and inspects the text of any stylesheet whose rules page scripts cannot read. Rules that cannot affect how the page is shown on screen (`@font-face` and `@page` rules) are disregarded. If Alfa lacks any other rules, the act’s `data.styleLosses` lists each affected stylesheet with a reason (`unreadable`, `unloaded`, or `unserialized`) and a count of the rules Alfa lacks, and the act is reported as prevented. An `alfa` test act with the property `reckless: true` records `data.styleLosses` but lets Alfa test the page anyway. Stylesheets in shadow roots are not inspected. Since browsers treat each file URL as an origin of its own, an `alfa` test act on a page loaded from a file URL is prevented if the page links to any stylesheet with material rules.
+
 ### ASLint
 
 The `aslint` rule engine makes use of the [`aslint-testaro` fork](https://www.npmjs.com/package/aslint-testaro) of the [`aslint` repository](https://github.com/essentialaccessibility/aslint), which, unlike the published `aslint` package, contains the `aslint.bundle.js` file.

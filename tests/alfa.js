@@ -11,6 +11,9 @@
 */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.reporter = void 0;
+// IMPORTS
+const promises_1 = require("fs/promises");
+const url_1 = require("url");
 const xPath_1 = require("../procs/xPath");
 const standard_1 = require("../procs/standard");
 const config_1 = require("../procs/config");
@@ -28,10 +31,154 @@ const { Playwright } = require('@siteimprove/alfa-playwright');
   Compiled to alfa.js by tsc (issue #73); edit this file, not the emitted one.
 */
 // FUNCTIONS
+/*
+  A material rule is one that can affect how a page is presented on screen. Font-face rules (which only make fonts available) and page rules (which apply only to printing) are not material, and neither are the rules nested in page rules.
+*/
+// Counts the material rules in an alfa serialization of rules.
+const countAlfaRules = (rules) => rules.reduce((count, rule) => ['font-face', 'page'].includes(rule.type)
+    ? count
+    : count + 1 + countAlfaRules(rule.rules ?? []), 0);
+// Gets the document stylesheets of the page as page scripts see them, in alfa’s order.
+const getPageSheets = (page) => page.evaluate(() => {
+    // Counts the material rules in a list of rules, recording imports whose rules are unreadable.
+    const countRules = (rules, unreadableImports) => {
+        let count = 0;
+        for (const rule of Array.from(rules)) {
+            if (rule instanceof CSSFontFaceRule || rule instanceof CSSPageRule) {
+                continue;
+            }
+            count++;
+            if (rule instanceof CSSImportRule) {
+                if (rule.styleSheet) {
+                    try {
+                        count += countRules(rule.styleSheet.cssRules, unreadableImports);
+                    }
+                    catch (error) {
+                        unreadableImports.push(rule.styleSheet.href || rule.href);
+                    }
+                }
+            }
+            // Grouping, keyframes, and style rules can contain rules (style rules by CSS nesting).
+            else if ('cssRules' in rule) {
+                count += countRules(rule.cssRules, unreadableImports);
+            }
+        }
+        return count;
+    };
+    // Alfa serializes the document sheets first and then the constructed (adopted) sheets.
+    const sheets = [...Array.from(document.styleSheets), ...(document.adoptedStyleSheets ?? [])];
+    return sheets.map((sheet, index) => {
+        const unreadableImports = [];
+        const sheetName = sheet.href
+            || (sheet.ownerNode ? `inline sheet ${index}` : `constructed sheet ${index}`);
+        const isCrossOrigin = !!sheet.href && new URL(sheet.href).origin !== location.origin;
+        let ruleCount = null;
+        try {
+            ruleCount = countRules(sheet.cssRules, unreadableImports);
+        }
+        catch (error) { }
+        return { sheet: sheetName, isCrossOrigin, ruleCount, unreadableImports };
+    });
+});
+// Gets the count of material rules in the text of a stylesheet that page scripts cannot read.
+const countFetchedRules = async (page, url) => {
+    try {
+        let text;
+        // If the sheet is a local file (each file URL being an origin of its own):
+        if (url.startsWith('file:')) {
+            // Read it.
+            text = await (0, promises_1.readFile)((0, url_1.fileURLToPath)(url), 'utf8');
+        }
+        // Otherwise, if it is an HTTP resource:
+        else if (url.startsWith('http')) {
+            // Fetch it outside the page, where the cross-origin rule does not apply.
+            const response = await page.request.get(url, { timeout: (0, config_1.applyMultiplier)(5000) });
+            if (!response.ok()) {
+                return null;
+            }
+            text = await response.text();
+        }
+        else {
+            return null;
+        }
+        // Count its material rules in a sheet constructed by the page, whose rules are readable.
+        return await page.evaluate(text => {
+            const countRules = (rules) => {
+                let count = 0;
+                for (const rule of Array.from(rules)) {
+                    if (rule instanceof CSSFontFaceRule || rule instanceof CSSPageRule) {
+                        continue;
+                    }
+                    count++;
+                    if ('cssRules' in rule) {
+                        count += countRules(rule.cssRules);
+                    }
+                }
+                return count;
+            };
+            const sheet = new CSSStyleSheet();
+            // This ignores any @import rules in the text.
+            sheet.replaceSync(text);
+            return countRules(sheet.cssRules);
+        }, text);
+    }
+    catch (error) {
+        return null;
+    }
+};
+/*
+  Alfa reads a page’s styles by running a script in the page. It silently treats a sheet as empty if page scripts cannot read its rules (a cross-origin sheet requested without CORS) or if the sheet contains a rule type alfa does not support (such as @property or @container); it treats a @media block containing such a rule as empty; and it omits rules nested in style rules (CSS nesting). Alfa then tests the page as if those rules did not exist. Its enforceAnonymousCrossOrigin option reloads cross-origin sheets with CORS, making them readable, but a sheet whose server refuses CORS then fails to load, and the page as well as alfa loses its rules: Chromium and WebKit leave the sheet unreadable, and Firefox leaves it empty. This function reports the stylesheets whose material rules alfa did not receive. It does not inspect sheets in shadow roots.
+*/
+// Gets the stylesheets of the page whose material rules alfa did not receive.
+const getStyleLosses = async (page, alfaSheets) => {
+    const losses = [];
+    const pageSheets = await getPageSheets(page);
+    const unreadableURLs = [];
+    const emptyCrossOriginURLs = [];
+    pageSheets.forEach((pageSheet, index) => {
+        const { sheet, isCrossOrigin, ruleCount, unreadableImports } = pageSheet;
+        // If page scripts cannot read the sheet:
+        if (ruleCount === null) {
+            // Postpone the decision until its text can be inspected.
+            unreadableURLs.push(sheet);
+        }
+        // Otherwise, if it is a cross-origin sheet that seems empty, perhaps because it failed to reload:
+        else if (isCrossOrigin && ruleCount === 0) {
+            // Postpone the decision until its text can be inspected.
+            emptyCrossOriginURLs.push(sheet);
+        }
+        else {
+            const alfaSheet = alfaSheets[index];
+            const alfaCount = alfaSheet ? countAlfaRules(alfaSheet.toJSON().rules) : 0;
+            // If alfa received fewer material rules than the page has:
+            if (alfaCount < ruleCount) {
+                losses.push({ sheet, reason: 'unserialized', ruleCount: ruleCount - alfaCount });
+            }
+        }
+        unreadableURLs.push(...unreadableImports);
+    });
+    // For each sheet that page scripts cannot read:
+    for (const url of unreadableURLs) {
+        const ruleCount = await countFetchedRules(page, url);
+        // If it has material rules or they could not be counted, report it.
+        if (ruleCount !== 0) {
+            losses.push({ sheet: url, reason: 'unreadable', ruleCount });
+        }
+    }
+    // For each cross-origin sheet that seems empty:
+    for (const url of emptyCrossOriginURLs) {
+        const ruleCount = await countFetchedRules(page, url);
+        // If its text has material rules, report it.
+        if (ruleCount) {
+            losses.push({ sheet: url, reason: 'unloaded', ruleCount });
+        }
+    }
+    return losses;
+};
 // Conducts and reports the alfa tests.
 const reporter = async (page, report, actIndex) => {
     const act = report.acts[actIndex];
-    const { rules } = act;
+    const { rules, reckless } = act;
     // If only some rules are to be employed:
     if (rules && rules.length) {
         // Remove the other rules.
@@ -66,7 +213,29 @@ const reporter = async (page, report, actIndex) => {
             await page.waitForLoadState('domcontentloaded', { timeout: (0, config_1.applyMultiplier)(6000) });
         }
         const doc = await page.evaluateHandle('document');
-        const alfaPage = await Playwright.toPage(doc);
+        // Get the alfa version of the page, first reloading cross-origin sheets with CORS where possible.
+        const alfaPage = await Playwright.toPage(doc, { enforceAnonymousCrossOrigin: true });
+        // Get the stylesheets whose material rules alfa did not receive.
+        const styleLosses = await getStyleLosses(page, Array.from(alfaPage.document.style));
+        // If there are any:
+        if (styleLosses.length) {
+            // Report them.
+            data.styleLosses = styleLosses;
+            // If the act does not permit testing a page with incomplete styles:
+            if (!reckless) {
+                // Report the act as prevented.
+                data.prevented = true;
+                data.error = `Alfa cannot test page correctly because it lacks the style rules of ${styleLosses.length} stylesheet${styleLosses.length > 1 ? 's' : ''}`;
+                if (standard) {
+                    result.standardResult.prevented = true;
+                }
+                console.log(`ERROR: ${data.error}`);
+                return {
+                    data,
+                    result
+                };
+            }
+        }
         // Test the page content with the specified rules.
         const audit = Audit.of(alfaPage, alfaRules);
         // Get the evaluations.
