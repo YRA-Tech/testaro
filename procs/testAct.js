@@ -42,6 +42,13 @@ const xPathNeeds = exports.xPathNeeds = {
   wave: 'script'
 };
 const accessibleNameNeeders = ['testaro'];
+/*
+  Tools whose testing modifies the page under test, so they cannot share the live page of a
+  checkpoint under page isolation. The alfa reporter reloads cross-origin stylesheets with
+  CORS; a refused reload removes the rules of such a stylesheet from the page, altering what
+  later acts and checkpoints observe.
+*/
+const pageContaminators = ['alfa'];
 
 // FUNCTIONS
 
@@ -49,12 +56,15 @@ const accessibleNameNeeders = ['testaro'];
   Performs the test act at an index of a report and revises the report. Under page isolation,
   livePage is the live page of the current checkpoint, which tools that take a page use as it
   is (after preparation); otherwise each tool gets a page launched for it. The testaro tool
-  launches its own pages per rule (starting from livePage if given).
+  launches its own pages per rule (starting from livePage if given), and page-contaminating
+  tools get a launched page, replaying the acts of the checkpoint, even under page isolation.
 */
 exports.performTestAct = async ({report, actIndex, livePage = null}) => {
   const act = report.acts[actIndex];
   const {which} = act;
-  const useLivePage = Boolean(livePage) && report.jobData?.isolation === 'page';
+  const useLivePage = Boolean(livePage)
+    && report.jobData?.isolation === 'page'
+    && ! pageContaminators.includes(which);
   let page;
   // If the tool is not Testaro:
   if (which !== 'testaro') {

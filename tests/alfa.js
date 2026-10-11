@@ -80,14 +80,59 @@ const getPageSheets = (page) => page.evaluate(() => {
         return { sheet: sheetName, isCrossOrigin, ruleCount, unreadableImports };
     });
 });
-// Gets the count of material rules in the text of a stylesheet that page scripts cannot read.
-const countFetchedRules = async (page, url) => {
+// Returns the hrefs of the @import rules of a stylesheet text.
+const getImportHrefs = (text) => {
+    // Erase comments, which can contain import-like text.
+    let rest = text.replace(/\/\*[\s\S]*?\*\//g, ' ').trimStart();
+    const hrefs = [];
+    /*
+      An import rule is valid only before all other rules except charset rules and layer
+      statements. Scan the leading statements and stop at the first other rule; browsers ignore
+      any later import rules.
+    */
+    const importRE = /^@import\s+(?:url\(\s*["']?([^"')]+?)["']?\s*\)|["']([^"']+)["'])[^;]*(?:;|$)/i;
+    const preludeRE = /^@(?:charset\s+["'][^"']+["']|layer\s+[^;{]+);/i;
+    while (rest.length) {
+        const importMatch = rest.match(importRE);
+        if (importMatch) {
+            hrefs.push((importMatch[1] ?? importMatch[2]).trim());
+            rest = rest.slice(importMatch[0].length).trimStart();
+            continue;
+        }
+        const preludeMatch = rest.match(preludeRE);
+        if (preludeMatch) {
+            rest = rest.slice(preludeMatch[0].length).trimStart();
+            continue;
+        }
+        break;
+    }
+    return hrefs;
+};
+/*
+  Counts the material rules in the text of a stylesheet that page scripts cannot read, plus
+  those of the stylesheets it validly imports, fetched relative to its URL. Each import rule
+  counts as 1, as it does for page scripts; an imported sheet whose rules cannot be counted
+  adds nothing more, so the count may be a minimum rather than the exact count.
+*/
+const countFetchedRules = async (page, url, visited = []) => {
     try {
         let text;
         // If the sheet is a local file (each file URL being an origin of its own):
         if (url.startsWith('file:')) {
             // Read it.
             text = await (0, promises_1.readFile)((0, url_1.fileURLToPath)(url), 'utf8');
+        }
+        // Otherwise, if the sheet is a data URL:
+        else if (url.startsWith('data:')) {
+            // Decode it.
+            const commaIndex = url.indexOf(',');
+            if (commaIndex === -1) {
+                return null;
+            }
+            const payload = url.slice(commaIndex + 1);
+            text = url.slice(5, commaIndex).endsWith(';base64')
+                ? Buffer.from(payload, 'base64').toString('utf8')
+                : decodeURIComponent(payload);
         }
         // Otherwise, if it is an HTTP resource:
         else if (url.startsWith('http')) {
@@ -101,8 +146,8 @@ const countFetchedRules = async (page, url) => {
         else {
             return null;
         }
-        // Count its material rules in a sheet constructed by the page, whose rules are readable.
-        return await page.evaluate(text => {
+        // Count its own material rules in a sheet constructed by the page, whose rules are readable.
+        const ownCount = await page.evaluate(text => {
             const countRules = (rules) => {
                 let count = 0;
                 for (const rule of Array.from(rules)) {
@@ -117,10 +162,29 @@ const countFetchedRules = async (page, url) => {
                 return count;
             };
             const sheet = new CSSStyleSheet();
-            // This ignores any @import rules in the text.
+            // This ignores any @import rules in the text; they are counted below instead.
             sheet.replaceSync(text);
             return countRules(sheet.cssRules);
         }, text);
+        // Add the import rules themselves and the material rules of the sheets they import.
+        const importHrefs = getImportHrefs(text);
+        let count = ownCount + importHrefs.length;
+        // Guard against circular imports.
+        const visitedNext = [...visited, url];
+        for (const href of importHrefs) {
+            let importURL;
+            try {
+                importURL = new URL(href, url).href;
+            }
+            catch (error) {
+                continue;
+            }
+            if (!visitedNext.includes(importURL)) {
+                const importCount = await countFetchedRules(page, importURL, visitedNext);
+                count += importCount ?? 0;
+            }
+        }
+        return count;
     }
     catch (error) {
         return null;

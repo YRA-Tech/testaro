@@ -22,7 +22,7 @@
         [
           "data.styleLosses.length",
           "=",
-          2
+          3
         ],
         [
           "data.styleLosses.0.sheet",
@@ -46,6 +46,16 @@
         ],
         [
           "data.styleLosses.1.ruleCount",
+          "=",
+          3
+        ],
+        [
+          "data.styleLosses.2.reason",
+          "=",
+          "unreadable"
+        ],
+        [
+          "data.styleLosses.2.ruleCount",
           "=",
           3
         ]
