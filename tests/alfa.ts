@@ -13,10 +13,11 @@
 
 import {readFile} from 'fs/promises';
 import {fileURLToPath} from 'url';
-import type {Page} from 'playwright';
+import {request} from 'playwright';
+import type {APIRequestContext, Page} from 'playwright';
 import {getNormalizedXPath, getXPathCatalogIndex} from '../procs/xPath';
 import {getStandardResult, addInstance} from '../procs/standard';
-import {applyMultiplier} from '../procs/config';
+import {applyMultiplier, getScannerId} from '../procs/config';
 import type {Act, Report, StandardInstance, StandardResult} from '../types';
 /*
   The alfa packages are pure ESM that Node loads via require(esm); their own
@@ -197,7 +198,7 @@ const getSchemeFamily = (url: string): string => {
   return url.startsWith('data:') ? 'data' : 'other';
 };
 // Gets the text of a stylesheet that page scripts cannot read, or null if it is unavailable.
-const getSheetText = async (page: Page, url: string): Promise<string | null> => {
+const getSheetText = async (fetcher: APIRequestContext, url: string): Promise<string | null> => {
   try {
     const family = getSchemeFamily(url);
     // If the sheet is a local file (each file URL being an origin of its own):
@@ -220,7 +221,7 @@ const getSheetText = async (page: Page, url: string): Promise<string | null> => 
     // Otherwise, if it is an HTTP resource:
     if (family === 'http') {
       // Fetch it outside the page, where the cross-origin rule does not apply.
-      const response = await page.request.get(url, {timeout: applyMultiplier(5000)});
+      const response = await fetcher.get(url, {timeout: applyMultiplier(5000)});
       return response.ok() ? await response.text() : null;
     }
     return null;
@@ -238,7 +239,7 @@ const getSheetText = async (page: Page, url: string): Promise<string | null> => 
   Returns null if the rules of any followed import cannot be counted.
 */
 const countTextRules = async (
-  page: Page, text: string, url: string, visited: string[] = []
+  page: Page, fetcher: APIRequestContext, text: string, url: string, visited: string[] = []
 ): Promise<number | null> => {
   try {
     // Count the sheet’s own material rules in a sheet constructed by the page, whose rules are readable.
@@ -278,10 +279,10 @@ const countTextRules = async (
       const importFamily = getSchemeFamily(importURL);
       const isFollowable = importFamily === 'data' || importFamily === rootFamily;
       if (isFollowable && ! visitedNext.includes(importURL)) {
-        const importText = await getSheetText(page, importURL);
+        const importText = await getSheetText(fetcher, importURL);
         const importCount = importText === null
           ? null
-          : await countTextRules(page, importText, importURL, visitedNext);
+          : await countTextRules(page, fetcher, importText, importURL, visitedNext);
         // If the rules of the imported sheet cannot be counted, neither can those of this sheet.
         if (importCount === null) {
           return null;
@@ -300,7 +301,7 @@ const countTextRules = async (
 */
 // Gets the stylesheets of the page whose material rules alfa did not receive.
 const getStyleLosses = async (
-  page: Page, alfaSheets: {toJSON: () => {rules: AlfaRuleJSON[]}}[]
+  page: Page, fetcher: APIRequestContext, alfaSheets: {toJSON: () => {rules: AlfaRuleJSON[]}}[]
 ): Promise<StyleLoss[]> => {
   const losses: StyleLoss[] = [];
   const pageSheets = await getPageSheets(page);
@@ -330,8 +331,8 @@ const getStyleLosses = async (
   });
   // For each sheet that page scripts cannot read:
   for (const url of unreadableURLs) {
-    const text = await getSheetText(page, url);
-    const ruleCount = text === null ? null : await countTextRules(page, text, url);
+    const text = await getSheetText(fetcher, url);
+    const ruleCount = text === null ? null : await countTextRules(page, fetcher, text, url);
     // If it has material rules or they could not be counted, report it.
     if (ruleCount !== 0) {
       losses.push({sheet: url, reason: 'unreadable', ruleCount});
@@ -339,10 +340,10 @@ const getStyleLosses = async (
   }
   // For each cross-origin sheet that seems empty:
   for (const url of emptyCrossOriginURLs) {
-    const text = await getSheetText(page, url);
+    const text = await getSheetText(fetcher, url);
     // If its text is available:
     if (text !== null) {
-      const ruleCount = await countTextRules(page, text, url);
+      const ruleCount = await countTextRules(page, fetcher, text, url);
       // If it has material rules or rules of its imports could not be counted, report it.
       if (ruleCount !== 0) {
         losses.push({sheet: url, reason: 'unloaded', ruleCount});
@@ -390,11 +391,37 @@ export const reporter = async (page: Page, report: Report, actIndex: number) => 
       // Wait for the page to be loaded.
       await page.waitForLoadState('domcontentloaded', {timeout: applyMultiplier(6000)});
     }
+    /*
+      Under page isolation, the page is the live page of a checkpoint, which later acts observe,
+      so it must remain unchanged. Alfa’s enforceAnonymousCrossOrigin option changes the page:
+      it replaces every link element lacking a crossorigin attribute with a clone that has one,
+      so the browser reloads it, and a stylesheet whose server refuses CORS then loses its
+      rules. Without the option, alfa and this reporter only read the page.
+    */
+    const isPageShared = report.jobData?.isolation === 'page';
     const doc = await page.evaluateHandle('document');
-    // Get the alfa version of the page, first reloading cross-origin sheets with CORS where possible.
-    const alfaPage = await Playwright.toPage(doc, {enforceAnonymousCrossOrigin: true});
-    // Get the stylesheets whose material rules alfa did not receive.
-    const styleLosses = await getStyleLosses(page, Array.from(alfaPage.document.style));
+    // Get the alfa version of the page, first reloading cross-origin sheets with CORS if permitted.
+    const alfaPage = await Playwright.toPage(doc, {enforceAnonymousCrossOrigin: ! isPageShared});
+    /*
+      Fetch stylesheets with the page’s own request context, unless the page is shared, in which
+      case use a separate context, so that cookies set by the responses do not reach the page.
+    */
+    const fetcher = isPageShared
+      ? await request.newContext({
+        userAgent: await page.evaluate(() => navigator.userAgent),
+        extraHTTPHeaders: getScannerId(report) ? {'X-YRA-Scanner': getScannerId(report)} : {}
+      })
+      : page.request;
+    let styleLosses: StyleLoss[];
+    try {
+      // Get the stylesheets whose material rules alfa did not receive.
+      styleLosses = await getStyleLosses(page, fetcher, Array.from(alfaPage.document.style));
+    }
+    finally {
+      if (isPageShared) {
+        await fetcher.dispose();
+      }
+    }
     // If there are any:
     if (styleLosses.length) {
       // Report them.
