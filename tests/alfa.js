@@ -108,45 +108,60 @@ const getImportHrefs = (text) => {
     }
     return hrefs;
 };
-/*
-  Counts the material rules in the text of a stylesheet that page scripts cannot read, plus
-  those of the stylesheets it validly imports, fetched relative to its URL. Each import rule
-  counts as 1, as it does for page scripts; an imported sheet whose rules cannot be counted
-  adds nothing more, so the count may be a minimum rather than the exact count.
-*/
-const countFetchedRules = async (page, url, visited = []) => {
+// Returns the scheme family of a URL: file, http (including https), data, or other.
+const getSchemeFamily = (url) => {
+    if (url.startsWith('file:')) {
+        return 'file';
+    }
+    if (/^https?:/.test(url)) {
+        return 'http';
+    }
+    return url.startsWith('data:') ? 'data' : 'other';
+};
+// Gets the text of a stylesheet that page scripts cannot read, or null if it is unavailable.
+const getSheetText = async (page, url) => {
     try {
-        let text;
+        const family = getSchemeFamily(url);
         // If the sheet is a local file (each file URL being an origin of its own):
-        if (url.startsWith('file:')) {
+        if (family === 'file') {
             // Read it.
-            text = await (0, promises_1.readFile)((0, url_1.fileURLToPath)(url), 'utf8');
+            return await (0, promises_1.readFile)((0, url_1.fileURLToPath)(url), 'utf8');
         }
         // Otherwise, if the sheet is a data URL:
-        else if (url.startsWith('data:')) {
+        if (family === 'data') {
             // Decode it.
             const commaIndex = url.indexOf(',');
             if (commaIndex === -1) {
                 return null;
             }
             const payload = url.slice(commaIndex + 1);
-            text = url.slice(5, commaIndex).endsWith(';base64')
+            return url.slice(5, commaIndex).endsWith(';base64')
                 ? Buffer.from(payload, 'base64').toString('utf8')
                 : decodeURIComponent(payload);
         }
         // Otherwise, if it is an HTTP resource:
-        else if (url.startsWith('http')) {
+        if (family === 'http') {
             // Fetch it outside the page, where the cross-origin rule does not apply.
             const response = await page.request.get(url, { timeout: (0, config_1.applyMultiplier)(5000) });
-            if (!response.ok()) {
-                return null;
-            }
-            text = await response.text();
+            return response.ok() ? await response.text() : null;
         }
-        else {
-            return null;
-        }
-        // Count its own material rules in a sheet constructed by the page, whose rules are readable.
+        return null;
+    }
+    catch (error) {
+        return null;
+    }
+};
+/*
+  Counts the material rules in the text of a stylesheet that page scripts cannot read, plus
+  those of the stylesheets it validly imports, fetched relative to its URL. Each import rule
+  counts as 1, as it does for page scripts. An import is followed only if its URL is a data URL
+  or has the scheme family (file or http) of the sheet at the root of the import chain, as a
+  browser would not let a web page import a local file; otherwise only its rule is counted.
+  Returns null if the rules of any followed import cannot be counted.
+*/
+const countTextRules = async (page, text, url, visited = []) => {
+    try {
+        // Count the sheet’s own material rules in a sheet constructed by the page, whose rules are readable.
         const ownCount = await page.evaluate(text => {
             const countRules = (rules) => {
                 let count = 0;
@@ -171,6 +186,7 @@ const countFetchedRules = async (page, url, visited = []) => {
         let count = ownCount + importHrefs.length;
         // Guard against circular imports.
         const visitedNext = [...visited, url];
+        const rootFamily = getSchemeFamily(visitedNext[0]);
         for (const href of importHrefs) {
             let importURL;
             try {
@@ -179,9 +195,18 @@ const countFetchedRules = async (page, url, visited = []) => {
             catch (error) {
                 continue;
             }
-            if (!visitedNext.includes(importURL)) {
-                const importCount = await countFetchedRules(page, importURL, visitedNext);
-                count += importCount ?? 0;
+            const importFamily = getSchemeFamily(importURL);
+            const isFollowable = importFamily === 'data' || importFamily === rootFamily;
+            if (isFollowable && !visitedNext.includes(importURL)) {
+                const importText = await getSheetText(page, importURL);
+                const importCount = importText === null
+                    ? null
+                    : await countTextRules(page, importText, importURL, visitedNext);
+                // If the rules of the imported sheet cannot be counted, neither can those of this sheet.
+                if (importCount === null) {
+                    return null;
+                }
+                count += importCount;
             }
         }
         return count;
@@ -223,7 +248,8 @@ const getStyleLosses = async (page, alfaSheets) => {
     });
     // For each sheet that page scripts cannot read:
     for (const url of unreadableURLs) {
-        const ruleCount = await countFetchedRules(page, url);
+        const text = await getSheetText(page, url);
+        const ruleCount = text === null ? null : await countTextRules(page, text, url);
         // If it has material rules or they could not be counted, report it.
         if (ruleCount !== 0) {
             losses.push({ sheet: url, reason: 'unreadable', ruleCount });
@@ -231,10 +257,14 @@ const getStyleLosses = async (page, alfaSheets) => {
     }
     // For each cross-origin sheet that seems empty:
     for (const url of emptyCrossOriginURLs) {
-        const ruleCount = await countFetchedRules(page, url);
-        // If its text has material rules, report it.
-        if (ruleCount) {
-            losses.push({ sheet: url, reason: 'unloaded', ruleCount });
+        const text = await getSheetText(page, url);
+        // If its text is available:
+        if (text !== null) {
+            const ruleCount = await countTextRules(page, text, url);
+            // If it has material rules or rules of its imports could not be counted, report it.
+            if (ruleCount !== 0) {
+                losses.push({ sheet: url, reason: 'unloaded', ruleCount });
+            }
         }
     }
     return losses;
