@@ -5,6 +5,14 @@ interface StyleLoss {
     reason: 'unloaded' | 'unreadable' | 'unserialized';
     ruleCount: number | null;
 }
+interface SheetCopy {
+    index: number;
+    kind: 'dom' | 'adopted';
+    copyOf: string;
+    rules: number;
+    omitted: string[];
+    failedImports: string[];
+}
 interface AlfaEvalItem {
     diagnostic?: {
         errors?: {
@@ -42,6 +50,7 @@ export declare const reporter: (page: Page, report: Report, actIndex: number) =>
         prevented?: boolean;
         error?: string;
         styleLosses?: StyleLoss[];
+        sheetCopies?: Omit<SheetCopy, "index">[];
     };
     result: {
         nativeResult: AlfaNativeResult;
