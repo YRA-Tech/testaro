@@ -1,0 +1,65 @@
+{
+  "rule": "alfaStyles",
+  "timeLimit": 30,
+  "acts": [
+    {
+      "type": "launch",
+      "target": {
+        "url": "file://validation/tests/targets/alfaStyles/index.html",
+        "what": "page with a stylesheet that Alfa cannot use"
+      }
+    },
+    {
+      "type": "test",
+      "which": "alfa",
+      "reckless": true,
+      "expect": [
+        [
+          "standardResult.prevented",
+          "=",
+          false
+        ],
+        [
+          "data.styleLosses.length",
+          "=",
+          3
+        ],
+        [
+          "data.styleLosses.0.sheet",
+          "=",
+          "inline sheet 1"
+        ],
+        [
+          "data.styleLosses.0.reason",
+          "=",
+          "unserialized"
+        ],
+        [
+          "data.styleLosses.0.ruleCount",
+          "=",
+          2
+        ],
+        [
+          "data.styleLosses.1.reason",
+          "=",
+          "unreadable"
+        ],
+        [
+          "data.styleLosses.1.ruleCount",
+          "=",
+          3
+        ],
+        [
+          "data.styleLosses.2.reason",
+          "=",
+          "unreadable"
+        ],
+        [
+          "data.styleLosses.2.ruleCount",
+          "=",
+          3
+        ]
+      ]
+    }
+  ]
+}

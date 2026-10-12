@@ -55,6 +55,10 @@ The validity criterion named in item 2 may be any of these:
 - `'isWaitable'`: is `'url'`, `'title'`, or `'body'`
 - `'areStrings'`: is an array of strings
 
+## alfa tool
+
+The `tools.alfa` object has a `reckless` property. By default, an `alfa` test act is prevented if Alfa lacks style rules of the page (see the Alfa section of `README.md`), and the act’s `data.styleLosses` lists the affected stylesheets. If the act’s `reckless` property is `true`, the act still records `data.styleLosses`, but Alfa tests the page anyway.
+
 ## qualWeb tool
 
 QualWeb runs in the page under test (as the page is after launch and any earlier acts), with that page's styles and scripts, not in a browser of its own. A rule that throws is excluded and its section rerun; the act's `data.rulePreventions` records such rules (and any section that failed as a whole). The `stealth` and `adBlock` properties a `qualWeb` test act may still have are accepted and ignored: they configured the separate browser QualWeb used to launch.
