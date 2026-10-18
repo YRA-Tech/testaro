@@ -39,7 +39,7 @@
         [
           "standardResult.instances.0.what",
           "i",
-          "links with the text “basque information” have 2 different destinations"
+          "links with the accessible name “basque information” have 2 different destinations"
         ],
         [
           "standardResult.instances.0.ordinalSeverity",
@@ -112,7 +112,7 @@
         [
           "standardResult.instances.0.what",
           "i",
-          "Links have the same text but different destinations"
+          "Links have the same accessible name but different destinations"
         ]
       ],
       "rules": [

@@ -202,15 +202,6 @@ const allRules = [
         defaultOn: true
     },
     {
-        id: 'linkAmb',
-        what: 'links with identical texts but different destinations',
-        contaminates: false,
-        needsAccessibleName: false,
-        local: false,
-        timeOut: 20,
-        defaultOn: true
-    },
-    {
         id: 'linkExt',
         what: 'links that automatically open new windows',
         contaminates: false,
@@ -391,6 +382,15 @@ const allRules = [
         needsAccessibleName: true,
         local: true,
         timeOut: 5,
+        defaultOn: true
+    },
+    {
+        id: 'linkAmb',
+        what: 'links with identical accessible names but different destinations',
+        contaminates: false,
+        needsAccessibleName: true,
+        local: false,
+        timeOut: 20,
         defaultOn: true
     },
     {
