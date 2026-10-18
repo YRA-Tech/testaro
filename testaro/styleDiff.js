@@ -87,7 +87,6 @@ const reporter = async (page, report, _, withItems) => {
         // Identify the settable style properties to be compared for all tag names.
         const mainStyles = [
             'fontStyle',
-            'fontWeight',
             'opacity',
             'textDecorationLine',
             'textDecorationStyle',
