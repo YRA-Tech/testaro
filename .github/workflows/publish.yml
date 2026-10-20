@@ -6,8 +6,11 @@
 # SPDX-License-Identifier: MIT
 
 # Publishes the package to npm when a GitHub release is published (the release tag must equal
-# v<package.json version>), or on manual dispatch. Authenticates with the NPM_TOKEN repository
-# secret, a granular access token with publish permission for the testaro package.
+# v<package.json version>), or on manual dispatch. Authenticates by npm trusted publishing:
+# the job's GitHub OIDC token (permissions.id-token: write) identifies this repository and
+# workflow file to npm, which is configured on npmjs.com (package testaro, trusted publisher
+# GitHub Actions, YRA-Tech/testaro, publish.yml) to accept publishes from it. No npm token is
+# involved; a NODE_AUTH_TOKEN would take precedence over OIDC, so none is set.
 # prepublishOnly regenerates the rule registry and the emitted TypeScript, and the version
 # check refuses a release tag that does not match.
 
@@ -45,5 +48,3 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
