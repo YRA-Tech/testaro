@@ -33,3 +33,9 @@ export function getScroll(report: unknown): boolean;
 export const ruleLaunchRetries: number;
 // Defaults for the qualWeb tool's browser.
 export const qualWebDefaults: {stealth: boolean; adBlock: boolean};
+// Launch options routing a browser through the outbound proxy (TESTARO_PROXY), or {} if none.
+export function getProxyLaunchOptions(browserID: string): {
+  proxy?: {server: string; username?: string; password?: string};
+  args?: string[];
+  firefoxUserPrefs?: Record<string, boolean>;
+};

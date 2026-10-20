@@ -34,8 +34,8 @@ const playwrightExtra = require('playwright-extra');
 const {isBrowserID, isDeviceID, isURL, isValidJob} = require('./job');
 // The in-page script defining window.getXPath.
 const {getXPathSource} = require('./xPathScript');
-// Deployment options (navigation, scanner identity, pre-scan scroll).
-const {getNavigation, getScannerId, getScroll, waitStates} = require('./config');
+// Deployment options (navigation, scanner identity, pre-scan scroll, outbound proxy).
+const {getNavigation, getProxyLaunchOptions, getScannerId, getScroll, waitStates} = require('./config');
 
 // CONSTANTS
 
@@ -465,6 +465,10 @@ const launchOnce = async opts => {
       // Disable the sandbox.
       browserOptions.chromiumSandbox = false;
     }
+    // Route the browser through the outbound proxy, if one is configured.
+    const {args: proxyArgs = [], ...proxyOptions} = getProxyLaunchOptions(browserID);
+    browserOptionArgs.push(...proxyArgs);
+    Object.assign(browserOptions, proxyOptions);
     // If the job specifies a branded Chromium channel (chrome or msedge), run that installed
     // browser instead of the bundled Chromium build; bundled or absent keeps the default.
     const {browserChannel} = report;

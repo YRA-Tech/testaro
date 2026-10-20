@@ -79,3 +79,39 @@ exports.qualWebDefaults = {
   stealth: envFlag('QUALWEB_STEALTH', true),
   adBlock: envFlag('QUALWEB_ADBLOCK', true)
 };
+// Returns the launch options that route a browser of the specified type through the outbound
+// proxy (TESTARO_PROXY: an http, https, or socks5 URL, with any credentials), so that tested
+// sites see the proxy's address rather than the host's; or {} if none is configured. Applies
+// to every browser Testaro launches, including the qualWeb tool's. A malformed value throws
+// instead of falling back to a direct connection that would expose the host's address. The
+// browser's WebRTC traffic is confined to the proxy where the browser permits (Chromium and
+// Firefox; WebKit has no such launch option), since WebRTC UDP bypasses an HTTP proxy.
+exports.getProxyLaunchOptions = browserID => {
+  const value = (process.env.TESTARO_PROXY || '').trim();
+  if (! value) {
+    return {};
+  }
+  let url;
+  try {
+    url = new URL(value);
+  }
+  // The value is not quoted in errors, because it may contain credentials.
+  catch {
+    throw new Error('TESTARO_PROXY is not a URL');
+  }
+  if (! ['http:', 'https:', 'socks5:'].includes(url.protocol) || ! url.hostname) {
+    throw new Error('TESTARO_PROXY is not an http, https, or socks5 URL with a host');
+  }
+  const proxy = {server: `${url.protocol}//${url.host}`};
+  if (url.username) {
+    proxy.username = decodeURIComponent(url.username);
+    proxy.password = decodeURIComponent(url.password);
+  }
+  if (browserID === 'chromium') {
+    return {proxy, args: ['--force-webrtc-ip-handling-policy=disable_non_proxied_udp']};
+  }
+  if (browserID === 'firefox') {
+    return {proxy, firefoxUserPrefs: {'media.peerconnection.ice.proxy_only': true}};
+  }
+  return {proxy};
+};
