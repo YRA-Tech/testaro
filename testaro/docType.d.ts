@@ -2,7 +2,7 @@ import type { Page } from 'playwright';
 import type { Report } from '../types';
 export declare const reporter: (page: Page, report: Report) => Promise<{
     data: {
-        docHasType: boolean | "";
+        docHasType: "" | boolean;
     };
     totals: number[];
     standardInstances: {

@@ -36,11 +36,11 @@
   },
   "homepage": "https://github.com/YRA-Tech/testaro#readme",
   "dependencies": {
-    "@ghostery/adblocker-playwright": "^2.18.2",
     "@qualweb/act-rules": "^0.8.5",
     "@qualweb/best-practices": "^0.7.13",
-    "@qualweb/core": "^0.9.5",
-    "@qualweb/playwright-driver": "^1.0.1",
+    "@qualweb/locale": "^0.2.3",
+    "@qualweb/qw-page": "^0.3.8",
+    "@qualweb/util": "^0.7.4",
     "@qualweb/wcag-techniques": "^0.4.8",
     "@siteimprove/alfa-act": "^0.119.0",
     "@siteimprove/alfa-playwright": "^0.84.2",
@@ -49,25 +49,23 @@
     "aria-query": "^5.3.2",
     "aslint-testaro": "^1.0.1",
     "axe-playwright": "^2.2.2",
-    "diff": "^8.0.4",
-    "dotenv": "^17.4.2",
-    "pixelmatch": "^7.2.0",
-    "playwright": "^1.62.1",
-    "playwright-dompath": "^0.0.7",
+    "diff": "^9.0.0",
+    "dotenv": "^18.0.8",
+    "pixelmatch": "^8.0.0",
+    "playwright": "^1.64.1",
     "playwright-extra": "^4.3.6",
-    "playwright-extra-plugin-stealth": "^0.0.1",
     "pngjs": "^7.0.0",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "vnu-jar": "^26.8.15"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@types/node": "^20.0.0",
+    "@types/node": "^24.19.2",
     "dom-accessibility-api": "^0.7.1",
     "esbuild": "^0.28.2",
-    "eslint": "^10.8.1",
-    "globals": "^17.12.0",
-    "typescript": "^5.6.0"
+    "eslint": "^10.13.0",
+    "globals": "^17.13.0",
+    "typescript": "^7.0.2"
   },
   "overrides": {
     "adm-zip": "^0.6.0"
