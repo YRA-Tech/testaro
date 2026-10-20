@@ -407,7 +407,7 @@ In some cases no catalog entry can be found. The reasons may include:
 
 #### `images`
 
-Testaro inserts an `images` array property if necessary to store page images in the report. If the job has an `imageColor` property with `0`, `2`, `4`, or `6` as its value and Testaro will insert a `catalog` property, then Testaro also creates a page image with that color type and makes its base64-encoded PNG the first item in the `images` array. The first item is always captured at CSS-pixel scale (one image pixel per CSS pixel), so the `motion` test of the `testaro` tool can compare it with its own CSS-pixel screenshot.
+Testaro inserts an `images` array property if necessary to store page images in the report. If the job has an `imageColor` property with `0`, `2`, `4`, or `6` as its value and Testaro will insert a `catalog` property, then Testaro also creates a page image with that color type and makes its base64-encoded PNG the first item in the `images` array. The first item is always captured at CSS-pixel scale (one image pixel per CSS pixel).
 
 If the job also has an `imageScale` property with a number greater than 1 as its value, then the catalog page is rendered at that device scale factor, and Testaro captures a second page image at device-pixel scale and makes it the second item in the `images` array. That image has `imageScale` times the pixels of the CSS layout in each dimension, for crisp display on high-resolution screens. The `boxID` properties of the catalog remain in CSS pixels; consumers can map them onto the second image by multiplying the coordinates by `imageScale`. Fractional values (such as a device's native `2.625`) are valid. A natural choice is the emulated device's own `deviceScaleFactor`, which also makes the catalog page select the same `srcset`/`image-set` resources as the test pages. If `imageScale` is omitted, `1`, or invalid, the behavior is identical to that before this property existed.
 
@@ -482,6 +482,20 @@ Checkpoint acts are optional. A job without one behaves as before: every test ac
 ## Rule-engine details
 
 The rule engines whose tests Testaro performs have particularities described below.
+
+### Alfa
+
+Alfa does not use the styles that the browser computes. It reads the page’s stylesheets by running a script in the page and computes styles itself. It silently treats some style rules as absent:
+
+- All rules of a stylesheet loaded from another origin without CORS, because browsers do not let page scripts read such rules
+- All rules of a stylesheet containing a rule type that Alfa does not support, such as `@property` or `@container`, and all rules of an `@media` block containing such a rule
+- Rules nested in other style rules (CSS nesting)
+
+Alfa then tests the page as if those rules did not exist, and its verdicts can be wrong, not only for color contrast but for any rule that depends on styles, including visibility. For example, if Alfa cannot read a stylesheet that makes a heading’s text white, it reports a contrast failure for text that is actually white.
+
+To reduce such losses, Testaro uses Alfa’s `enforceAnonymousCrossOrigin` option, which reloads each cross-origin stylesheet with CORS so that its rules become readable. A stylesheet whose server refuses CORS then fails to load, and the page as well as Alfa loses its rules. The option changes the page: it replaces every `link` element lacking a `crossorigin` attribute with a copy that has one. Under `page` isolation, where later acts test the same page, Testaro therefore does not use the option, and Alfa only reads the page; an `alfa` test act is then prevented on a page whose cross-origin stylesheets lack CORS, unless it is `reckless`. To let Alfa test such pages, use `process` or `browser` isolation.
+
+Testaro then compares the style rules of each stylesheet, as page scripts see them, with those Alfa received, and inspects the text of any stylesheet whose rules page scripts cannot read. Rules that cannot affect how the page is shown on screen (`@font-face` and `@page` rules) are disregarded. If Alfa lacks any other rules, the act’s `data.styleLosses` lists each affected stylesheet with a reason (`unreadable`, `unloaded`, or `unserialized`) and a count of the rules Alfa lacks (`null` if they cannot be counted, as when a stylesheet it imports cannot be fetched), and the act is reported as prevented. In counting the rules of a stylesheet, Testaro follows its imports of data URLs and of URLs with the scheme (file or HTTP) of the stylesheet, but not imports of local files by a web stylesheet or the reverse. An `alfa` test act with the property `reckless: true` records `data.styleLosses` but lets Alfa test the page anyway. Stylesheets in shadow roots are not inspected. Since browsers treat each file URL as an origin of its own, an `alfa` test act on a page loaded from a file URL is prevented if the page links to any stylesheet with material rules.
 
 ### ASLint
 
@@ -594,6 +608,7 @@ The Testaro rules are classified by an `allRules` array defined in the `tests/te
 - `id`: the rule ID.
 - `what`: a description of the rule.
 - `contaminates`: whether the test for the rule modifies the page, requiring the next test to launch a new browser for test isolation
+- `concurrent` (optional): whether the test for the rule runs concurrently with the tests for the other rules, on a page that it launches itself, instead of in their sequence. Concurrent tests start before the other tests and end before the act ends, and their results are recorded in the order of `allRules`. Currently only `motion` is concurrent: it waits between page images, and running concurrently keeps that waiting from lengthening the act.
 - `needsAccessibleName`: whether the rule requires an added script adding an accessible-name computation method to `window`
 - `timeOut`: the maximum time in seconds allowed for a test of the rule
 - `defaultOn`: whether the rule is to be tested for by default
@@ -604,11 +619,13 @@ The optional `rules` argument for a `testaro` test act is an array whose first i
 
 The `testaro` rule engine (like the `ibm` rule engine) has a `withItems` property. If you set it to `false`, the `standardResult` object will contain an `instances` property with summaries that identify issues and instance counts. If you set it to `true`, some of the instances will be itemized.
 
-Unlike any other rule engine, the `testaro` rule engine requires a `stopOnFail` property, which specifies whether a failure to conform to any rule (i.e. any value of `totals` other than `[0, 0, 0, 0]`) should terminate the execution of tests for the remaining rules.
+Unlike any other rule engine, the `testaro` rule engine requires a `stopOnFail` property, which specifies whether a failure to conform to any rule (i.e. any value of `totals` other than `[0, 0, 0, 0]`) should terminate the execution of tests for the remaining rules. A failure does not terminate a concurrent test, and a concurrent test does not terminate other tests.
+
+The `motion` rule tests a page during one visit. On a page of its own, with a viewport 8 device screens tall (capped at 16,000 device pixels) so that motion below the fold is in view, it waits for a grace period (1.5 seconds by default) after the page loads (or after a checkpoint’s acts are replayed), then makes three images after two unequal, non-integer intervals (5.3 and 3.8 seconds by default), so that motion with a regular period is unlikely to coincide with both intervals and look still. Any change after the grace period is reported: a change between the second and third images as continuing motion, and a change only between the first and second as a one-time change after loading. The ordinal severity depends on the changed area, measured as a fraction of one device screen, and is one level higher for continuing motion. Changes smaller than 0.01% of a screen are disregarded as noise. Because motion can be invisible to an automated browser (a video service may refuse to play for bots, or a browser type may be unable to decode a video), the rule also reports, after the third image, each rendered element that the page instructs to play automatically: a `video` element with `autoplay` (or playing after a script started it), an embedded YouTube, Vimeo, Wistia, or Dailymotion player whose URL requests autoplay, and a Lottie player with `autoplay`. The instruction suffices for a violation (outcome `failed`), whether or not the motion appears in the images. An iframe that only permits autoplay (`allow="autoplay"`) is not reported. A `testaro` act may override the grace period and intervals, in milliseconds, with `args: {motion: [graceMs, firstIntervalMs, secondIntervalMs]}`. The rule’s `data` records the timing, viewport, changed areas, and elements instructed to play automatically.
 
 Tests of the `testaro` tests (i.e. _validation_) could previously be performed as documented in the `VALIDATION.md` file. This functionality has broken and its redesign is planned.
 
-One Testaro rule, `allCaps`, is currently being tested for in part with the assistance of the Claude Haiku artificial intelligence (AI) model. To obtain that assistance, you need an Anthropic API key, and its value must be assigned to the `ANTHROPIC_API_KEY` environment variable in the `.env` file. If no valid API key is set there, the rule will be tested for, but without AI assistance.
+One Testaro rule, `allCaps`, is currently being tested for in part with the assistance of the Claude Haiku artificial intelligence (AI) model. To obtain that assistance, you need an Anthropic API key, and its value must be assigned to the `ANTHROPIC_API_KEY` environment variable in the `.env` file. If no valid API key is set there, the rule will be tested for, but without AI assistance. The rule examines the live page, so it tests the page state of the act’s checkpoint and, in an act with `scope: 'changed'`, only the changed subtrees. It considers only literal capitals, i.e. the characters of text nodes: capitals produced by styles (`text-transform: uppercase`) are the subject of the `allCapStyle` rule, which is tested for by default. A run of capitals is attributed to the element whose own text contains it. Validation of the rule does not use the API: its validator scripts the responses of a local mock of the service (`validation/aiMock.js`), including failures, so no API key is needed for validation.
 
 ### WAVE
 

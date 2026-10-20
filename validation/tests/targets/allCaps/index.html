@@ -21,14 +21,42 @@
   </head>
   <body>
     <main>
-      <h1>Page with entirely upper-case text contents</h1>
+      <h1>Page with upper-case text</h1>
       <p>This text is normal.</p>
+      <!-- Upper-case by style only: not candidates (see allCapStyle). -->
       <p class="uc">This text is transformed by its style to upper-case.</p>
       <p>This text is transformed <span class="uc">only in part</span>.</p>
+      <!-- Literal upper-case: candidates. -->
       <p>This text is PARTLY UPPER-CASE.</p>
       <p id="allUC">THIS TEXT IS ENTIRELY UPPER-CASE.</p>
       <p>SHORT</p>
-      <p>Qualifying text nodes: 4</p>
+      <!-- A run in the paragraph's own text, beside a link: the paragraph is the candidate. -->
+      <p id="mixed">WARNING: read <a href="#terms">the terms</a> first.</p>
+      <!-- A run split by inline markup: the paragraph and the b element are candidates. -->
+      <p id="split">This is <b>VERY</b> LOUD.</p>
+      <!-- An intrinsically upper-case acronym. -->
+      <p id="acronym">NASA launched a rocket.</p>
+      <!-- Capitals within words: candidates. -->
+      <p id="infix">They are not antidepressants; they are antiCOAGULANTs!</p>
+      <p id="prefix">He was the DECISIONmaker behind this catastrophe, not some cog in a machine.</p>
+      <p id="fab">The performance was FABulous.</p>
+      <!-- Capitals within words that are intrinsic: candidates, for classification as intrinsic. -->
+      <p id="pdfs">Download the PDFs.</p>
+      <p id="mhz">The clock runs at 3 MHz.</p>
+      <!-- Text directly in an open shadow root: the host is the candidate. -->
+      <div id="host"></div>
+      <!-- Identical runs in identical contexts: classified once. -->
+      <ul>
+        <li>SAVE NOW</li>
+        <li>SAVE NOW</li>
+      </ul>
+      <!-- Not rendered: not candidates. -->
+      <p hidden>HIDDEN CAPITALS</p>
+      <script>
+        const NOTE = 'SCRIPT CAPITALS';
+        document.getElementById('host').attachShadow({mode: 'open'}).textContent = 'SHADOW CAPITALS here';
+      </script>
+      <p>The candidate elements number fifteen, of which fourteen are distinct.</p>
     </main>
   </body>
 </html>

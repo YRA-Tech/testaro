@@ -79,7 +79,8 @@ prevents the test act with `checkpoint replay failed at act N (…)` and is not 
   in two states maps to two entries. Pruning keeps only cited entries, as before.
 - `report.images`: `images[0]` (and `[1]` at `imageScale > 1`) keep meaning checkpoint 0;
   later checkpoints' images are indexed by `checkpoints[k].imageIndexes`. The testaro `motion`
-  rule compares against its checkpoint's image.
+  rule does not use them: it makes its own images of the checkpoint's page state during one
+  visit (after replaying the checkpoint's acts).
 - `jobData.catalogData.checkpoints[k]`: element and entry counts per checkpoint.
 - `report.flow` (two or more checkpoints): `{checkpoints: [{index, name, kind, url, actIndex,
   testActs, tools, issueCount}], deltas: [{from, to, tools, notObserved, added, persisted,
@@ -109,7 +110,8 @@ pauses, and pass-to-pass comparisons between modalities are designed to slot in 
   default): `process` (the default: a child process and browser per test act), `browser`
   (one browser shared by the job's launches, a fresh context per test act, replay), `page`
   (tools run in sequence in the job's process on the live checkpoint page, no replay;
-  contaminating testaro rules still get a fresh context with replay). `procs/testAct.js`
+  contaminating testaro rules still get a fresh context with replay; alfa skips its CORS
+  reload of stylesheets, which would change the page). `procs/testAct.js`
   performs a test act for both the child process and the in-process levels; the launcher
   keeps the shared browser and prepares a live page (XPath script or attributes, accessible
   names) without changing its DOM. Recorded in `jobData.isolation`. Only `process` can kill a

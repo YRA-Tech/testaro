@@ -38,7 +38,7 @@ Testaro is an ensemble accessibility test runner. It integrates 12 external tool
 
 1. A caller provides a **job** — a plain JS/JSON object with a `target` URL, `browserID`, optional `device`, and an `acts` array.
 2. `run.js` exports `doJob(job)`, which validates the job (`procs/job.js`), builds a DOM **catalog** (`procs/catalog.ts`) as checkpoint 0, then delegates to `procs/doActs.js`.
-3. `doActs.js` iterates the acts array. For `test` acts it forks a child process running `procs/doTestAct.js` (one per tool invocation) and enforces per-tool time limits. Non-test acts (browser interactions) execute in the parent through `procs/actDo.js`. A `checkpoint` act snapshots the live page (`procs/checkpoint.js`) as a page state that later test acts observe: the child's launcher replays the recorded interaction acts before the tool runs (`docs/checkpoint-scanning.md`).
+3. `doActs.js` iterates the acts array. For `test` acts it delegates to `procs/testAct.js`, which runs in a forked child process (`procs/doTestAct.js`, one per tool invocation) under the job's default `process` isolation, or in the job's process under `browser` isolation (fresh context per act) or `page` isolation (the checkpoint's shared live page, where alfa skips its CORS reload of stylesheets so as not to change the page). Per-tool time limits are enforced, but only `process` isolation kills an overrunning tool. Non-test acts (browser interactions) execute in the parent through `procs/actDo.js`. A `checkpoint` act snapshots the live page (`procs/checkpoint.js`) as a page state that later test acts observe: the act's launcher replays the recorded interaction acts before the tool runs (`docs/checkpoint-scanning.md`).
 4. Each tool's test module lives in `tests/<toolID>.ts` (compiled to a committed `tests/<toolID>.js`). It calls the tool's library and converts the native result to the **standard result** shape (`prevented`, `totals[4]`, `outcomeTotals`, `instances[]`) using the helpers in `procs/standard.ts`. Every instance carries an `outcome` (`failed` or `cantTell`) that is the authoritative certainty signal; `ordinalSeverity` still encodes certainty per tool until it is redefined as impact only (see `docs/standard-result-outcome.md`).
 5. `doJob` returns the job object with `jobData` and `catalog` added at the top level and `result` added inside each `test` act. The job's `standard` property controls what `result` contains: `'no'` → `nativeResult` only; `'only'` → `standardResult` only; `'also'` → both.
 
@@ -50,7 +50,7 @@ Each file exports a `reporter(page, catalog, withItems)` async function. Rules a
 
 The default order in `allRules` reflects a two-phase execution strategy: non-contaminating rules (`contaminates: false`) come first and all share a single page load; contaminating rules (`contaminates: true`) follow, each tested on a freshly loaded copy of the page.
 
-The `motion` rule is atypical: it takes its own screenshot and compares it with the page image of the checkpoint being tested (`report.images`, made when the catalog was built), so that visible page change is detected without waiting between two screenshots of its own.
+A rule with `concurrent: true` (currently only `motion`) is taken out of that sequence: it starts before the serial rules, launches and closes its own page, receives no page and an `AbortSignal` that fires on timeout, and is awaited after the serial rules end. All rule results are recorded in `allRules` order. The `motion` rule uses this so that its waiting costs no act time: on a tall-viewport page it waits a grace period after loading, makes three images at intervals, and compares consecutive images.
 
 Two implementation patterns exist:
 
@@ -106,10 +106,11 @@ Long comments are not broken into multiple lines per paragraph.
 | ---- | ------- |
 | `run.js` | `doJob()` — the main entry point |
 | `call.js` | CLI wrapper for `run`, `dirWatch`, `netWatch` |
-| `procs/doActs.js` | Iterates acts; forks child for each tool; assigns test acts to checkpoints |
+| `procs/doActs.js` | Iterates acts; assigns test acts to checkpoints; runs them via `procs/testAct.js` |
 | `procs/actDo.js` | Performs the acts that operate on a live page; replays a checkpoint's acts |
 | `procs/checkpoint.js` | Snapshots a live page as a checkpoint |
-| `procs/doTestAct.js` | Child-process entry point for tool invocations |
+| `procs/doTestAct.js` | Child-process entry point for test acts under `process` isolation |
+| `procs/testAct.js` | Performs a test act (prepares or launches a page, runs the tool's reporter) at all isolation levels |
 | `procs/testaro.js` | `doTest` / `getBasicResult` helpers for Testaro rules |
 | `procs/launch.js` | Browser lifecycle (launch, goTo, nonce, wait) |
 | `procs/catalog.ts` | Builds the element catalog from the DOM (checkpoint 0, and any live page for later checkpoints) |
