@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<!--
+  © 2026 Jonathan Robert Pool.
+
+  Licensed under the MIT License. See LICENSE file at the project root or
+  https://opensource.org/license/mit/ for details.
+
+  SPDX-License-Identifier: MIT
+-->
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <title>Page with standard horizontal button menu navigation</title>
+    <meta name="description" content="tester">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="style.css">
+    <script src="horizontalGood.js" defer></script>
+  </head>
+  <body>
+    <main>
+      <h1>Page with standard horizontal button menu navigation</h1>
+      <button
+        id="hButton"
+        type="button"
+        tabindex="0"
+        aria-haspopup="true"
+        aria-expanded="false"
+        aria-controls="hMenu"
+      >
+        Open horizontal menu
+      </button>
+      <ul id="hMenu" role="menubar" class="shut" aria-labelledby="hButton">
+        <li role="none">
+          <button id="hOne" role="menuitem" type="button" tabindex="-1">
+            One
+          </button>
+        </li>
+        <li role="none">
+          <button id="hTwo" role="menuitem" type="button" tabindex="-1">
+            Two
+          </button>
+        </li>
+      </ul>
+    </main>
+  </body>
+</html>
