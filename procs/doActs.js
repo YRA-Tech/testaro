@@ -384,7 +384,7 @@ exports.doActs = async (report, opts = {}) => {
         // Assign the act to the current checkpoint (0, the launch page, unless checkpoint acts
         // have created later ones), which the child reads as report.activeCheckpoint.
         if (tempReport.checkpoints) {
-          const ownTarget = Boolean(act.launch?.target?.url || act.target?.url);
+          const ownTarget = Boolean(act.launch?.target?.url);
           // If interaction acts have run since the last checkpoint:
           if (dirtySince.length) {
             // In checkpoint mode, make an implicit checkpoint so the act tests the current state.
