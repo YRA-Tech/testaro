@@ -1,7 +1,6 @@
 {
   "rule": "motion",
-  "timeLimit": 20,
-  "imageColor": 2,
+  "timeLimit": 150,
   "acts": [
     {
       "type": "launch",
@@ -12,8 +11,15 @@
     },
     {
       "type": "test",
+      "launch": {
+        "target": {
+          "url": "file://validation/tests/targets/motion/bad.html",
+          "what": "page with motion at the top"
+        }
+      },
       "which": "testaro",
-      "stopOnFail": true,
+      "stopOnFail": false,
+      "withItems": true,
       "expect": [
         [
           "standardResult.instances.length",
@@ -28,18 +34,237 @@
         [
           "standardResult.instances.0.what",
           "i",
-          "changes spontaneously"
+          "changes spontaneously and continually"
+        ],
+        [
+          "standardResult.instances.0.outcome",
+          "=",
+          "failed"
         ],
         [
           "standardResult.instances.0.ordinalSeverity",
           ">",
-          -1
+          0
         ]
       ],
+      "rules": [
+        "y",
+        "motion"
+      ]
+    },
+    {
+      "type": "test",
+      "launch": {
+        "target": {
+          "url": "file://validation/tests/targets/motion/good.html",
+          "what": "page without motion"
+        }
+      },
+      "which": "testaro",
+      "stopOnFail": false,
+      "withItems": true,
+      "expect": [
+        [
+          "standardResult.instances.length",
+          "=",
+          0
+        ],
+        [
+          "standardResult.prevented",
+          "=",
+          false
+        ]
+      ],
+      "rules": [
+        "y",
+        "motion"
+      ]
+    },
+    {
+      "type": "test",
+      "launch": {
+        "target": {
+          "url": "file://validation/tests/targets/motion/late.html",
+          "what": "page with a late change"
+        }
+      },
+      "which": "testaro",
+      "stopOnFail": false,
+      "withItems": true,
+      "expect": [
+        [
+          "standardResult.instances.length",
+          "=",
+          1
+        ],
+        [
+          "standardResult.instances.0.ruleID",
+          "=",
+          "motion"
+        ],
+        [
+          "standardResult.instances.0.what",
+          "i",
+          "changes spontaneously after loading"
+        ],
+        [
+          "standardResult.instances.0.outcome",
+          "=",
+          "failed"
+        ],
+        [
+          "standardResult.instances.0.ordinalSeverity",
+          ">",
+          0
+        ]
+      ],
+      "rules": [
+        "y",
+        "motion"
+      ]
+    },
+    {
+      "type": "test",
+      "launch": {
+        "target": {
+          "url": "file://validation/tests/targets/motion/belowFold.html",
+          "what": "page with motion below the fold"
+        }
+      },
+      "which": "testaro",
+      "stopOnFail": false,
+      "withItems": true,
+      "expect": [
+        [
+          "standardResult.instances.length",
+          "=",
+          1
+        ],
+        [
+          "standardResult.instances.0.ruleID",
+          "=",
+          "motion"
+        ],
+        [
+          "standardResult.instances.0.what",
+          "i",
+          "changes spontaneously and continually"
+        ],
+        [
+          "standardResult.instances.0.outcome",
+          "=",
+          "failed"
+        ],
+        [
+          "standardResult.instances.0.ordinalSeverity",
+          ">",
+          0
+        ]
+      ],
+      "rules": [
+        "y",
+        "motion"
+      ]
+    },
+    {
+      "type": "test",
+      "launch": {
+        "target": {
+          "url": "file://validation/tests/targets/motion/observed.html",
+          "what": "page with motion that starts when seen"
+        }
+      },
+      "which": "testaro",
+      "stopOnFail": false,
+      "withItems": true,
+      "expect": [
+        [
+          "standardResult.instances.length",
+          "=",
+          1
+        ],
+        [
+          "standardResult.instances.0.ruleID",
+          "=",
+          "motion"
+        ],
+        [
+          "standardResult.instances.0.what",
+          "i",
+          "changes spontaneously and continually"
+        ],
+        [
+          "standardResult.instances.0.outcome",
+          "=",
+          "failed"
+        ],
+        [
+          "standardResult.instances.0.ordinalSeverity",
+          ">",
+          0
+        ]
+      ],
+      "rules": [
+        "y",
+        "motion"
+      ]
+    },
+    {
+      "type": "test",
+      "launch": {
+        "target": {
+          "url": "file://validation/tests/targets/motion/autoplay.html",
+          "what": "page with instructions to play automatically"
+        }
+      },
+      "which": "testaro",
+      "stopOnFail": false,
       "withItems": true,
       "rules": [
         "y",
         "motion"
+      ],
+      "expect": [
+        [
+          "standardResult.instances.length",
+          "=",
+          2
+        ],
+        [
+          "standardResult.instances.0.what",
+          "i",
+          "video with autoplay, not muted"
+        ],
+        [
+          "standardResult.instances.0.outcome",
+          "=",
+          "failed"
+        ],
+        [
+          "standardResult.instances.0.tagName",
+          "=",
+          "VIDEO"
+        ],
+        [
+          "standardResult.instances.1.what",
+          "i",
+          "YouTube player with autoplay;"
+        ],
+        [
+          "standardResult.instances.1.outcome",
+          "=",
+          "failed"
+        ],
+        [
+          "standardResult.instances.1.ordinalSeverity",
+          "=",
+          3
+        ],
+        [
+          "standardResult.instances.1.tagName",
+          "=",
+          "IFRAME"
+        ]
       ]
     }
   ]

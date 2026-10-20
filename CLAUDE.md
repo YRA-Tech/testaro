@@ -50,7 +50,7 @@ Each file exports a `reporter(page, catalog, withItems)` async function. Rules a
 
 The default order in `allRules` reflects a two-phase execution strategy: non-contaminating rules (`contaminates: false`) come first and all share a single page load; contaminating rules (`contaminates: true`) follow, each tested on a freshly loaded copy of the page.
 
-The `motion` rule is atypical: it takes its own screenshot and compares it with the page image of the checkpoint being tested (`report.images`, made when the catalog was built), so that visible page change is detected without waiting between two screenshots of its own.
+A rule with `concurrent: true` (currently only `motion`) is taken out of that sequence: it starts before the serial rules, launches and closes its own page, receives no page and an `AbortSignal` that fires on timeout, and is awaited after the serial rules end. All rule results are recorded in `allRules` order. The `motion` rule uses this so that its waiting costs no act time: on a tall-viewport page it waits a grace period after loading, makes three images at intervals, and compares consecutive images.
 
 Two implementation patterns exist:
 
