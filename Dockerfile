@@ -10,7 +10,7 @@
 # The base-image tag must match the version of the playwright package in
 # package-lock.json, so that the browsers baked into the image are the ones
 # the installed Playwright expects.
-FROM mcr.microsoft.com/playwright:v1.62.1-noble
+FROM mcr.microsoft.com/playwright:v1.64.1-noble
 
 # Install a headless Java runtime for the nuVnu test (vnu-jar); baking it in
 # prevents vnu-jar from downloading a Temurin runtime over the network on
@@ -24,10 +24,11 @@ RUN apt-get update \
 USER pwuser
 WORKDIR /home/pwuser/testaro
 
-# Install the dependencies first, for build-layer caching. QualWeb's
-# Puppeteer downloads its own Chromium during this step (into
-# ~/.cache/puppeteer), so that browser is also baked into the image, pinned
-# by package-lock.json. Playwright's browsers are already in the base image.
+# Install the dependencies first, for build-layer caching. The Puppeteer
+# that accessibility-checker depends on downloads its own Chromium during
+# this step (into ~/.cache/puppeteer), so that browser is also baked into
+# the image, pinned by package-lock.json. Playwright's browsers are already
+# in the base image.
 COPY --chown=pwuser:pwuser package.json package-lock.json ./
 RUN npm ci
 
@@ -42,7 +43,7 @@ RUN mkdir -p watch/jobs/todo watch/jobs/done watch/reports/raw
 
 # Chromium's sandbox requires unprivileged user-namespace cloning, which the
 # default Docker seccomp policy blocks. This default disables the sandbox
-# (for Playwright's Chromium and QualWeb's). To keep the sandbox instead,
+# for Playwright's Chromium. To keep the sandbox instead,
 # run the container with a seccomp profile that permits user-namespace
 # cloning and set this variable to false. See CONTAINERS.md.
 ENV TESTARO_CHROMIUM_NO_SANDBOX=true
