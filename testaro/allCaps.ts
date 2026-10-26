@@ -9,6 +9,7 @@
 
 // IMPORTS
 
+import * as http from 'http';
 import * as https from 'https';
 // Function to build a standard instance.
 import {getInstance} from '../procs/standard';
@@ -36,7 +37,7 @@ interface Violation {
 /*
   allCaps
   Related to Tenon rule 153.
-  This test reports elements whose text contains upper-case strings that are not intrinsically upper-case (i.e., not acronyms, abbreviations, or terms whose standard form is all-capitals). Claude Haiku classifies qualifying catalog entries and estimates the probability of a rule violation. If the AI call fails, the test falls back to a rule-based check for 8+ consecutive upper-case letters.
+  This test reports elements whose text contains upper-case strings that are not intrinsically upper-case (i.e., not acronyms, abbreviations, or terms whose standard form is all-capitals). Claude Haiku classifies qualifying catalog entries and estimates the probability of a rule violation. If the AI call fails, the test falls back to a rule-based check for 8+ consecutive upper-case letters. Violations are reported in catalog order. The API is reached at ANTHROPIC_BASE_URL if set (as by the validation mock), else at https://api.anthropic.com.
   Compiled to allCaps.js by tsc (issue #73); edit this file, not the emitted one.
 */
 
@@ -64,6 +65,28 @@ const getContext = (text: string) => {
   return text.slice(start, end).slice(0, MAX_TOTAL);
 };
 
+// Returns violations sorted by catalog index.
+const sortViolations = (violations: Violation[]) => violations.sort(
+  (a, b) => Number(a.catalogIndex) - Number(b.catalogIndex)
+);
+// Returns the classifications in the text of an AI response, i.e. its JSON array, keeping only those of entries that were sent; throws if there is no parsable array.
+const getClassifications = (text: string, entries: QualifyingEntry[]): Classification[] => {
+  const arrayText = text.slice(text.indexOf('['), text.lastIndexOf(']') + 1);
+  const items: unknown = JSON.parse(arrayText);
+  if (! Array.isArray(items)) {
+    throw new Error('No classification array');
+  }
+  const sentIndexes = new Set(entries.map(entry => entry.index));
+  return items
+  .filter(item =>
+    item
+    && sentIndexes.has(item.index)
+    && typeof item.confidence === 'number'
+    && item.confidence >= 0
+    && item.confidence <= 1
+  )
+  .map(({index, confidence}) => ({index, confidence: Math.round(confidence * 10) / 10}));
+};
 // Returns violations using the rule-based fallback (8+ consecutive uppercase letters).
 const getRuleBasedViolations = (catalog: Catalog): Violation[] =>
   Object.entries(catalog)
@@ -94,9 +117,14 @@ const classifyWithAI = (entries: QualifyingEntry[]) => new Promise<{
     max_tokens: 2048,
     messages: [{role: 'user', content: prompt}]
   });
+  // Get the URL of the API, which a validator may replace with that of a mock.
+  const apiURL = new URL(
+    `${(process.env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com').replace(/\/$/, '')}/v1/messages`
+  );
   const options = {
-    hostname: 'api.anthropic.com',
-    path: '/v1/messages',
+    hostname: apiURL.hostname,
+    port: apiURL.port || undefined,
+    path: apiURL.pathname,
     method: 'POST',
     headers: {
       'x-api-key': apiKey,
@@ -105,7 +133,8 @@ const classifyWithAI = (entries: QualifyingEntry[]) => new Promise<{
       'content-length': Buffer.byteLength(payload)
     }
   };
-  const req = https.request(options, res => {
+  const request = apiURL.protocol === 'http:' ? http.request : https.request;
+  const req = request(options, res => {
     let body = '';
     res.on('data', chunk => { body += chunk; });
     res.on('end', () => {
@@ -115,12 +144,7 @@ const classifyWithAI = (entries: QualifyingEntry[]) => new Promise<{
           reject(new Error(parsed.error.message));
           return;
         }
-        const text = parsed.content[0].text;
-        const classifications = [...(text as string).matchAll(/\{"index":\s*\d+,\s*"confidence":\s*[01]\.\d{1,2}\}/g)]
-        .map(m => {
-          const {index, confidence} = JSON.parse(m[0]);
-          return {index, confidence: Math.round(confidence * 10) / 10};
-        });
+        const classifications = getClassifications(parsed.content[0].text as string, entries);
         const {input_tokens, output_tokens} = parsed.usage;
         resolve({classifications, aiModelUsage: {inputTokens: input_tokens, outputTokens: output_tokens}});
       }
@@ -195,6 +219,8 @@ export const reporter = async (_0: unknown, report: Report, _1: unknown, withIte
     data.aiError = (error as Error).message;
     violations = getRuleBasedViolations(report.catalog as Catalog);
   }
+  // Report the violations in catalog order, not in the random order of the sample.
+  sortViolations(violations);
   const estimatedLeftOut = data.leftOut?.estimatedViolations ?? 0;
   // Add the estimated violation count to the totals.
   totals[0] = violations.length + estimatedLeftOut;

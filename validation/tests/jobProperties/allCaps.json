@@ -1,6 +1,70 @@
 {
   "rule": "allCaps",
-  "timeLimit": 20,
+  "timeLimit": 120,
+  "aiMock": [
+    {
+      "confidences": [
+        [
+          "TRANSFORMED BY ITS STYLE",
+          0.8
+        ],
+        [
+          "ENTIRELY",
+          0.9
+        ],
+        [
+          "PARTLY",
+          1
+        ],
+        [
+          "transformed ONLY",
+          0.2
+        ],
+        [
+          "ONLY IN PART",
+          0.7
+        ]
+      ]
+    },
+    {
+      "confidences": [
+        [
+          "TRANSFORMED BY ITS STYLE",
+          0.8
+        ],
+        [
+          "ENTIRELY",
+          0.9
+        ],
+        [
+          "PARTLY",
+          1
+        ],
+        [
+          "transformed ONLY",
+          0.2
+        ],
+        [
+          "ONLY IN PART",
+          0.7
+        ]
+      ],
+      "format": "pretty"
+    },
+    {
+      "error": "Your credit balance is too low to access the Anthropic API."
+    },
+    {
+      "malformed": true
+    },
+    {
+      "disconnect": true
+    },
+    {
+      "confidences": [],
+      "default": 0.5
+    }
+  ],
   "acts": [
     {
       "type": "launch",
@@ -13,32 +77,26 @@
       "type": "test",
       "which": "testaro",
       "withItems": true,
-      "stopOnFail": true,
+      "stopOnFail": false,
+      "rules": [
+        "y",
+        "allCaps"
+      ],
       "expect": [
         [
           "standardResult.totals.0",
           "=",
-          4
+          3
         ],
         [
-          "standardResult.totals.2",
+          "standardResult.instances.length",
           "=",
-          0
+          3
         ],
         [
           "standardResult.instances.0.ruleID",
           "=",
           "allCaps"
-        ],
-        [
-          "standardResult.instances.0.what",
-          "i",
-          "Element contains"
-        ],
-        [
-          "standardResult.instances.0.tagName",
-          "=",
-          "P"
         ],
         [
           "standardResult.instances.0.ordinalSeverity",
@@ -56,71 +114,74 @@
           "judgement-required"
         ],
         [
-          "standardResult.outcomeTotals.cantTell",
+          "standardResult.instances.0.what",
+          "i",
+          "80% confidence"
+        ],
+        [
+          "standardResult.instances.0.tagName",
           "=",
-          4
+          "P"
         ],
         [
-          "standardResult.instances.1.tagName",
-          "=",
-          "SPAN"
+          "standardResult.instances.1.what",
+          "i",
+          "100% confidence"
         ],
         [
-          "standardResult.instances.1.location.type",
-          "=",
-          "box"
+          "standardResult.instances.2.what",
+          "i",
+          "90% confidence"
         ],
         [
-          "standardResult.instances.1.location.spec.x",
-          ">",
-          0
-        ],
-        [
-          "standardResult.instances.1.location.spec.width",
-          ">",
-          0
-        ],
-        [
-          "standardResult.instances.3.id",
+          "standardResult.instances.2.id",
           "=",
           "allUC"
         ],
         [
-          "standardResult.instances.3.location.type",
+          "standardResult.instances.2.location.type",
           "=",
           "selector"
         ],
         [
-          "standardResult.instances.3.location.spec",
+          "standardResult.instances.2.location.spec",
           "=",
           "#allUC"
         ],
         [
-          "standardResult.instances.3.excerpt",
-          "i",
-          "ENTIRELY"
+          "standardResult.outcomeTotals.cantTell",
+          "=",
+          3
+        ],
+        [
+          "standardResult.outcomeTotals.failed",
+          "=",
+          0
+        ],
+        [
+          "data.ruleData.allCaps.aiError"
         ]
-      ],
-      "rules": [
-        "y",
-        "allCaps"
       ]
     },
     {
       "type": "test",
       "which": "testaro",
       "withItems": false,
-      "stopOnFail": true,
+      "stopOnFail": false,
+      "rules": [
+        "y",
+        "allCaps"
+      ],
       "expect": [
         [
           "standardResult.totals.0",
           "=",
-          4
+          3
         ],
         [
-          "standardResult.totals.1",
+          "standardResult.instances.length",
           "=",
-          0
+          1
         ],
         [
           "standardResult.instances.0.ruleID",
@@ -138,24 +199,189 @@
           "cantTell"
         ],
         [
-          "standardResult.outcomeTotals.failed",
+          "standardResult.instances.0.uncertainty",
           "=",
-          0
+          "judgement-required"
         ],
         [
           "standardResult.instances.0.what",
           "i",
-          "Elements contain"
+          "Elements have all-capital text"
         ],
         [
           "standardResult.instances.0.count",
           "=",
-          4
+          3
+        ],
+        [
+          "data.ruleData.allCaps.aiError"
         ]
-      ],
+      ]
+    },
+    {
+      "type": "test",
+      "which": "testaro",
+      "withItems": true,
+      "stopOnFail": false,
       "rules": [
         "y",
         "allCaps"
+      ],
+      "expect": [
+        [
+          "standardResult.totals.0",
+          "=",
+          2
+        ],
+        [
+          "standardResult.instances.length",
+          "=",
+          2
+        ],
+        [
+          "standardResult.instances.0.what",
+          "i",
+          "[No AI available]"
+        ],
+        [
+          "standardResult.instances.0.tagName",
+          "=",
+          "P"
+        ],
+        [
+          "standardResult.instances.1.id",
+          "=",
+          "allUC"
+        ],
+        [
+          "standardResult.outcomeTotals.cantTell",
+          "=",
+          2
+        ],
+        [
+          "data.ruleData.allCaps.aiError",
+          "i",
+          "credit balance is too low"
+        ]
+      ]
+    },
+    {
+      "type": "test",
+      "which": "testaro",
+      "withItems": true,
+      "stopOnFail": false,
+      "rules": [
+        "y",
+        "allCaps"
+      ],
+      "expect": [
+        [
+          "standardResult.totals.0",
+          "=",
+          2
+        ],
+        [
+          "standardResult.instances.length",
+          "=",
+          2
+        ],
+        [
+          "standardResult.instances.0.what",
+          "i",
+          "[No AI available]"
+        ],
+        [
+          "standardResult.instances.0.tagName",
+          "=",
+          "P"
+        ],
+        [
+          "standardResult.instances.1.id",
+          "=",
+          "allUC"
+        ],
+        [
+          "standardResult.outcomeTotals.cantTell",
+          "=",
+          2
+        ],
+        [
+          "data.ruleData.allCaps.aiError",
+          "i",
+          "Haiku response error"
+        ]
+      ]
+    },
+    {
+      "type": "test",
+      "which": "testaro",
+      "withItems": true,
+      "stopOnFail": false,
+      "rules": [
+        "y",
+        "allCaps"
+      ],
+      "expect": [
+        [
+          "standardResult.totals.0",
+          "=",
+          2
+        ],
+        [
+          "standardResult.instances.length",
+          "=",
+          2
+        ],
+        [
+          "standardResult.instances.0.what",
+          "i",
+          "[No AI available]"
+        ],
+        [
+          "standardResult.instances.0.tagName",
+          "=",
+          "P"
+        ],
+        [
+          "standardResult.instances.1.id",
+          "=",
+          "allUC"
+        ],
+        [
+          "standardResult.outcomeTotals.cantTell",
+          "=",
+          2
+        ],
+        [
+          "data.ruleData.allCaps.aiError",
+          "i",
+          ""
+        ]
+      ]
+    },
+    {
+      "type": "test",
+      "which": "testaro",
+      "withItems": true,
+      "stopOnFail": false,
+      "rules": [
+        "y",
+        "allCaps"
+      ],
+      "expect": [
+        [
+          "standardResult.totals.0",
+          "=",
+          0
+        ],
+        [
+          "standardResult.instances.length",
+          "=",
+          0
+        ],
+        [
+          "data.ruleData.allCaps.aiError"
+        ]
       ]
     }
   ]
