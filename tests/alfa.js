@@ -648,10 +648,6 @@ const injectCopies = (page, plans) => page.evaluate((args) => {
         const owner = document.styleSheets[spec.index]?.ownerNode;
         if (owner && owner.parentNode) {
             owner.after(element);
-            // Mark the original as compensated, since its name is index-based and can shift.
-            if (owner instanceof Element) {
-                owner.setAttribute('data-testaro-alfa-compensated', spec.copyOf);
-            }
         }
         else {
             document.head.appendChild(element);
@@ -659,16 +655,26 @@ const injectCopies = (page, plans) => page.evaluate((args) => {
         if (element.sheet) {
             element.sheet.disabled = spec.disabled;
         }
-        elements.push({ element, spec });
+        elements.push({
+            element,
+            spec,
+            owner: owner instanceof Element ? owner : null
+        });
     });
-    // Sanitize each copy and record it if it received any rules (CSP can block style elements).
+    /*
+      Sanitize each copy and record it if it received any rules (CSP can block style
+      elements). Only a surviving copy marks its original as compensated, since the name
+      of the original is index-based and can shift; a mark without a copy would hide a
+      real loss. A copy that never materialized is removed again.
+    */
     const allSheets = () => [
         ...Array.from(document.styleSheets),
         ...Array.from(document.adoptedStyleSheets ?? [])
     ];
-    for (const { element, spec } of elements) {
+    for (const { element, spec, owner } of elements) {
         const { sheet } = element;
         if (!sheet || !spec.text.trim()) {
+            element.remove();
             continue;
         }
         const omitted = new Set();
@@ -679,6 +685,9 @@ const injectCopies = (page, plans) => page.evaluate((args) => {
         if (!sheet.cssRules.length) {
             element.remove();
             continue;
+        }
+        if (owner) {
+            owner.setAttribute('data-testaro-alfa-compensated', spec.copyOf);
         }
         copies.push({
             index: allSheets().indexOf(sheet),
