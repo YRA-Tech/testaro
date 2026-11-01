@@ -527,6 +527,12 @@ const resolveSheetText = async (
   let rest = text.replace(/\/\*[\s\S]*?\*\//g, ' ');
   const blocks: string[] = [];
   /*
+    An import is followed only if its URL is a data URL or has the scheme family of the
+    sheet at the root of the import chain, as in countTextRules: a web page cannot
+    import a local file.
+  */
+  const rootFamily = getSchemeFamily(visited[0] ?? url);
+  /*
     An import rule is valid only before all other rules except charset rules and layer
     statements. Scan the leading statements and stop at the first other rule, as in
     getImportHrefs.
@@ -546,16 +552,26 @@ const resolveSheetText = async (
       catch (error) {}
       // If the import can be fetched and is not circular, inline it, else report it.
       if (importURL && ! visited.includes(importURL)) {
-        const imported = await getSheetText(fetcher, importURL);
-        if (imported === null) {
-          failedImports.push(importURL);
+        if (
+          getSchemeFamily(importURL) === 'data'
+          || getSchemeFamily(importURL) === rootFamily
+        ) {
+          const imported = await getSheetText(fetcher, importURL);
+          if (imported === null) {
+            failedImports.push(importURL);
+          }
+          else {
+            const resolved = await resolveSheetText(
+              fetcher, imported, importURL, [...visited, url]
+            );
+            failedImports.push(...resolved.failedImports);
+            blocks.push(wrapImport(resolved.text, importMatch[3] ?? ''));
+          }
         }
+        // Otherwise the browser would keep the rule but not follow it; do the same.
         else {
-          const resolved = await resolveSheetText(
-            fetcher, imported, importURL, [...visited, url]
-          );
-          failedImports.push(...resolved.failedImports);
-          blocks.push(wrapImport(resolved.text, importMatch[3] ?? ''));
+          const tail = (importMatch[3] ?? '').trim();
+          blocks.push(`@import url("${importURL}")${tail ? ` ${tail}` : ''};`);
         }
       }
       else if (! importURL) {
@@ -828,11 +844,17 @@ const injectCopies = (page: Page, plans: (SheetCopyPlan & {text: string})[]): Pr
 const injectSheetCopies = async (page: Page, fetcher: APIRequestContext): Promise<SheetCopy[]> => {
   const plans = await getCopyPlans(page);
   const specs: (SheetCopyPlan & {text: string; failedImports: string[]})[] = [];
+  // The scheme family of the page, for confining file reads to local roots.
+  const pageFamily = getSchemeFamily(page.url());
   for (const plan of plans) {
     // Get the text of the sheet: its serialized rules, or a fetch of its URL.
     let text = plan.text;
     if (text === null) {
-      if (! plan.href) {
+      // A non-file page cannot have a file sheet, so a file URL is never read for one.
+      if (
+        ! plan.href
+        || (getSchemeFamily(plan.href) === 'file' && pageFamily !== 'file')
+      ) {
         continue;
       }
       text = await getSheetText(fetcher, plan.href);
@@ -938,8 +960,13 @@ const getStyleLosses = async (
     }
     unreadableURLs.push(...unreadableImports);
   });
+  // A non-file page cannot have a file sheet, so a file URL is never followed for one.
+  const pageFamily = getSchemeFamily(page.url());
   // For each sheet that page scripts cannot read:
   for (const url of unreadableURLs) {
+    if (getSchemeFamily(url) === 'file' && pageFamily !== 'file') {
+      continue;
+    }
     const text = await getSheetText(fetcher, url);
     const ruleCount = text === null ? null : await countTextRules(page, fetcher, text, url);
     // If it has material rules or they could not be counted, report it.
@@ -949,6 +976,9 @@ const getStyleLosses = async (
   }
   // For each cross-origin sheet that seems empty:
   for (const url of emptyCrossOriginURLs) {
+    if (getSchemeFamily(url) === 'file' && pageFamily !== 'file') {
+      continue;
+    }
     const text = await getSheetText(fetcher, url);
     // If its text is available:
     if (text !== null) {
