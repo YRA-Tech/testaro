@@ -171,10 +171,10 @@ const trimActReport = (
           delete item.value;
         });
       }
-      // Return the act report, trimmed.
+      // Return the act report, trimmed, with items only if itemization is required (otherwise they are undefined).
       return {
         totals,
-        items: actReport.items
+        items: withItems ? actReport.items : []
       };
     }
     // Otherwise, i.e. if it excludes totals:
@@ -238,9 +238,8 @@ export const reporter = async (page: Page, report: Report, actIndex: number) => 
       if (standard) {
         // Populate the totals of the standard result.
         standardResult.totals = [totals!.recommendation, 0, totals!.violation, 0];
-        // For each item of the native result (without itemization, items is
-        // undefined and this throws, caught below; verbatim from the original):
-        nativeResult.items!.forEach(item => {
+        // For each item of the native result (none without itemization):
+        (nativeResult.items ?? []).forEach(item => {
           // Populate a standard instance. Potential violations, potential recommendations, and
           // manual checks are engine-flagged uncertainty.
           const standardItem: StandardInstance = {

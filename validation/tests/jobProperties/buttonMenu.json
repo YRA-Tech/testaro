@@ -1,6 +1,6 @@
 {
   "rule": "buttonMenu",
-  "timeLimit": 20,
+  "timeLimit": 60,
   "acts": [
     {
       "type": "launch",
@@ -201,6 +201,11 @@
       "what": "page with standard menu navigation"
     },
     {
+      "type": "checkpoint",
+      "which": "good",
+      "what": "the page with standard menu navigation"
+    },
+    {
       "type": "test",
       "which": "testaro",
       "withItems": true,
@@ -220,6 +225,56 @@
           "standardResult.instances.length",
           "=",
           0
+        ],
+        [
+          "data.rulePreventions.buttonMenu"
+        ]
+      ],
+      "rules": [
+        "y",
+        "buttonMenu"
+      ]
+    },
+    {
+      "type": "url",
+      "which": "file://validation/tests/targets/buttonMenu/horizontalGood.html",
+      "what": "page with standard horizontal button menu navigation"
+    },
+    {
+      "type": "checkpoint",
+      "which": "horizontalGood",
+      "what": "the page with standard horizontal button menu navigation"
+    },
+    {
+      "type": "test",
+      "which": "testaro",
+      "withItems": true,
+      "args": {
+        "buttonMenu": [
+          [
+            "+"
+          ]
+        ]
+      },
+      "stopOnFail": true,
+      "expect": [
+        [
+          "standardResult.totals.1",
+          "=",
+          0
+        ],
+        [
+          "standardResult.totals.2",
+          "=",
+          0
+        ],
+        [
+          "standardResult.instances.length",
+          "=",
+          0
+        ],
+        [
+          "data.rulePreventions.buttonMenu"
         ]
       ],
       "rules": [

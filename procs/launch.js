@@ -34,8 +34,8 @@ const playwrightExtra = require('playwright-extra');
 const {isBrowserID, isDeviceID, isURL, isValidJob} = require('./job');
 // The in-page script defining window.getXPath.
 const {getXPathSource} = require('./xPathScript');
-// Deployment options (navigation, scanner identity, pre-scan scroll).
-const {getNavigation, getScannerId, getScroll, waitStates} = require('./config');
+// Deployment options (navigation, scanner identity, pre-scan scroll, outbound proxy).
+const {getNavigation, getProxyLaunchOptions, getScannerId, getScroll, waitStates} = require('./config');
 
 // CONSTANTS
 
@@ -401,8 +401,10 @@ const launchOnce = async opts => {
   let page;
   // If the specified browser and device types and URL are valid:
   if (isBrowserID(browserID) && isDeviceID(deviceID) && isURL(url)) {
-    // Replace the report target URL with the specified URL.
-    report.target.url = url;
+    // Unless the launch is for a test act, whose target applies only to that act, replace the report target URL with the specified URL.
+    if (act.type !== 'test') {
+      report.target.url = url;
+    }
     // Resolve whether to run with stealth evasions. Defaults to true (the
     // historical behavior). `report.stealth === false` opts out — useful
     // for sites whose anti-bot heuristics react badly to stealth's patches,
@@ -465,6 +467,10 @@ const launchOnce = async opts => {
       // Disable the sandbox.
       browserOptions.chromiumSandbox = false;
     }
+    // Route the browser through the outbound proxy, if one is configured.
+    const {args: proxyArgs = [], ...proxyOptions} = getProxyLaunchOptions(browserID);
+    browserOptionArgs.push(...proxyArgs);
+    Object.assign(browserOptions, proxyOptions);
     // If the job specifies a branded Chromium channel (chrome or msedge), run that installed
     // browser instead of the bundled Chromium build; bundled or absent keeps the default.
     const {browserChannel} = report;
@@ -720,6 +726,9 @@ exports.launch = async (opts = {}) => {
     // belongs to the rule, not to the act or the job.
     reportFailure = true
   } = opts;
+  // Get whether the launch is for a test act with its own browser type.
+  const launchAct = actIndex === null ? null : report.acts?.[actIndex];
+  const actOverridesBrowser = launchAct?.type === 'test' && Boolean(launchAct.launch?.browserID);
   // If the launch is for a test act at a later checkpoint, navigate to that checkpoint's
   // origin: its URL if navigation reached it, else the URL its replayed acts start from.
   const checkpoint = report.checkpoints?.[report.activeCheckpoint];
@@ -821,11 +830,16 @@ exports.launch = async (opts = {}) => {
           if (tempBrowserID && unusedBrowserIDs.length && ! retriesLeft) {
             // Change the browser type.
             tempBrowserID = unusedBrowserIDs.shift();
-            console.log(
-              `NOTICE: Changing ${reportFailure ? 'job ' : ''}browser type to ${tempBrowserID}`
-            );
-            if (reportFailure) {
+            // Unless the browser type is a test act's own, which applies only to that act, change the job browser type too.
+            if (reportFailure && ! actOverridesBrowser) {
+              console.log(`NOTICE: Changing job browser type to ${tempBrowserID}`);
               report.browserID = tempBrowserID;
+            }
+            else if (actOverridesBrowser) {
+              console.log(`NOTICE: Changing browser type of act ${actIndex} to ${tempBrowserID}`);
+            }
+            else {
+              console.log(`NOTICE: Changing browser type to ${tempBrowserID}`);
             }
             // Reset the retries.
             retriesLeft = retries;

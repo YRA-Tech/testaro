@@ -42,7 +42,6 @@ Testaro uses:
 
 - [Playwright](https://playwright.dev/) to launch browsers, perform user actions in them, and perform tests
 - [playwright-extra](https://www.npmjs.com/package/playwright-extra) and [puppeteer-extra-plugin-stealth](https://www.npmjs.com/package/puppeteer-extra-plugin-stealth) to make a Playwright-controlled browser more indistinguishable from a human-operated browser and thus make its requests more likely to succeed
-- [playwright-dompath](https://www.npmjs.com/package/playwright-dompath) to retrieve XPaths of elements
 - [pixelmatch](https://www.npmjs.com/package/pixelmatch) to measure motion
 - [dotenv](https://www.npmjs.com/package/dotenv) to load environment variables
 
@@ -128,6 +127,14 @@ git checkout package-lock.json
 git pull
 (p)npm run deps
 ```
+
+This takes the newest versions of the dependencies that `package.json` allows, which suits development. A deployed instance, such as a worker polling a server for jobs, usually needs instead the exact dependency versions of the committed `package-lock.json`, so that its results are reproducible and match those of other instances. To renew such an instance, stop any running watcher (because its dependencies are replaced) and execute:
+
+```bash
+(p)npm run renew
+```
+
+This makes the instance match the remote branch it tracks exactly, even if that branch has been rebuilt and force-pushed, discarding any local changes to tracked files (but not untracked files such as `.env`). It then installs the dependencies of the lock file with `npm ci`, installs the Playwright browsers, and builds. To move an instance to another branch first, check that branch out (for example, `git switch main`).
 
 ## Environment configuration
 
@@ -713,6 +720,8 @@ These notes cover versions from 73.0.0 (May 2026) onward. The date of each versi
 
 ### 78
 
+- **78.7.0** (21 October 2026). Dependency refresh (#176): Playwright 1.64.1 (the CI container and the Dockerfile base image move to `v1.64.1-noble` with it), diff 9, dotenv 18, pixelmatch 8, TypeScript 7 (`moduleResolution` becomes `nodenext`; the emitted JavaScript is unchanged). pixelmatch 8 compares colours in OKLab instead of YIQ, so the `motion` rule's changed-pixel percentages can shift slightly at the same threshold. The unused `@qualweb/core`, `@qualweb/playwright-driver`, `@ghostery/adblocker-playwright`, `playwright-extra-plugin-stealth`, and `playwright-dompath` dependencies are dropped (nothing has required them since 78.5.0), and the QualWeb bundles the `qualWeb` tool reads (`@qualweb/qw-page`, `@qualweb/util`, `@qualweb/locale`) become direct dependencies; 278 packages leave the lockfile.
+- **78.6.0** (20 October 2026). An outbound proxy for every browser Testaro launches: `TESTARO_PROXY` (an http, https, or socks5 URL, with any credentials) routes the browsers' traffic through that proxy, so tested sites see its address rather than the host's. WebRTC is confined to the proxy in Chromium and Firefox. A malformed value stops launches instead of connecting directly. Nothing changes when the variable is unset (#173).
 - **78.5.0** (24 September 2026). The `qualWeb` tool runs in the page under test. It used to give QualWeb the serialized page, which QualWeb loaded into a blank page of its own browser, where relative stylesheet links resolved nowhere, so it tested an unstyled page. CSS-dependent rules (contrast `QW-ACT-R37` and `QW-ACT-R76`, zoomed-text clipping `QW-ACT-R40`, the colour techniques) now see the page's real styles, and their counts change accordingly. A QualWeb rule that throws is excluded and recorded in the act's `data.rulePreventions` instead of failing its whole section (for example `QW-ACT-R76` on `lab()`, `oklab()`, `color()` and `color-mix()` colours, qualweb/qualweb#352). A `qualWeb` act's `stealth` and `adBlock` properties, and `QUALWEB_STEALTH` and `QUALWEB_ADBLOCK`, no longer have any effect. The `ibm` tool's rule engine is selectable with `IBM_ENGINE` (`archive`, the default, or `package`). The ACT validation harness (`validation/act/`) records rule-level outcomes and per-page element snapshots.
 - **78.4.0** (2 September 2026). The first npm publication since 78.0.8; it includes the changes of the unpublished versions 78.1.0 through 78.3.0. Deployment options, each a job property when set, else an environment variable, else the earlier behavior: the load state, time limit, and fail-fast-on-4xx policy of navigation (`navigation`; `NAV_WAIT_UNTIL`, `NAV_TIMEOUT`, `NAV_FAIL_FAST_4XX`), a scanner identity request header (`scannerId`; `SCANNER_ID`), a full-page scroll before testing (`scroll`; `PRESCAN_SCROLL`), a branded Chromium channel (`browserChannel`), launch retries per rule of the `testaro` tool (act `retries`; `TESTARO_RULE_RETRIES`), and stealth and ad blocking for the `qualWeb` tool (act `stealth` and `adBlock`; `QUALWEB_STEALTH`, `QUALWEB_ADBLOCK`), which the QualWeb driver had ignored and which are now provided by `playwright-extra` and `@ghostery/adblocker-playwright`. A GitHub Actions workflow publishes the package to npm when a GitHub release is created whose tag matches the package version.
 - **78.3.0** (2 September 2026, unpublished). Checkpoints (see [Checkpoints](#checkpoints) and `docs/checkpoint-scanning.md`): a `checkpoint` act snapshots a page state reached by the acts of a job, and test acts test the latest checkpoint, reaching it by replaying the recorded interaction acts; an `isolation` job property (`process`, `browser`, or `page`) governs how test acts are isolated; when a job has two or more checkpoints, the report gains a `flow` property listing the issues added, persisted, removed, and not retested between consecutive checkpoints, with catalog-structure and ARIA-snapshot diffs; a test act may have `scope: 'changed'` to test only the subtrees changed since the previous checkpoint; interaction acts may identify elements by a Playwright `selector`; catalog entries not cited by any test act are pruned incrementally; `procs/userPath.js` converts recorded user paths into acts. Repairs to the act loop (`next`, failed launches, `url`, `state`).
