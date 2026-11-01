@@ -2,8 +2,8 @@
   "compilerOptions": {
     "strict": true,
     "target": "es2022",
-    "module": "commonjs",
-    "moduleResolution": "node10",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
     "lib": ["es2022", "es2023.array", "dom", "dom.iterable"],
     "types": ["node"],
     "esModuleInterop": true,
