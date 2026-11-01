@@ -215,6 +215,7 @@ const reporter = async (_page, report, actIndex, _withItems, signal, graceMs = d
             tempURL: url,
             xPathNeed: report.activeCheckpoint ? 'script' : 'none',
             contextOverrides: { viewport },
+            signal,
             // A failure of this launch is the rule's alone, not the act's or the job's.
             reportFailure: false,
             retries: Number.isInteger(act.retries) && act.retries >= 0

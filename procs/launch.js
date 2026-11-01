@@ -77,11 +77,23 @@ const chromiumNoSandbox = process.env.TESTARO_CHROMIUM_NO_SANDBOX === 'true';
 // FUNCTIONS
 
 // Waits.
-const wait = exports.wait = ms => {
+const wait = exports.wait = (ms, signal) => {
   return new Promise(resolve => {
-    setTimeout(() => {
+    if (signal?.aborted) {
+      resolve('');
+      return;
+    }
+    let timer;
+    const onAbort = () => {
+      clearTimeout(timer);
+      signal.removeEventListener('abort', onAbort);
+      resolve('');
+    };
+    timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort);
       resolve('');
     }, ms);
+    signal?.addEventListener('abort', onAbort, {once: true});
   });
 };
 // Removes any trailing slashes from a URL, for redirection comparison.
@@ -391,7 +403,8 @@ const launchOnce = async opts => {
     // images), spread last so they win over the defaults.
     contextOverrides = {},
     // Whether to replay the active checkpoint's acts after navigating (test-act launches).
-    replay = true
+    replay = true,
+    signal
   } = opts;
   const act = report.acts[actIndex] ?? {};
   const {device} = report;
@@ -399,6 +412,35 @@ const launchOnce = async opts => {
   const browserID = tempBrowserID || report.browserID || '';
   const url = normalizeURL(tempURL || report.target?.url || '');
   let page;
+  let browser, browserContext;
+  let closedPage, closedContext, closedBrowser;
+  let cleanupPromise = Promise.resolve();
+  const cleanupResources = () => {
+    cleanupPromise = cleanupPromise.catch(() => {}).then(async () => {
+      if (page && page !== closedPage) {
+        await browserClose(page);
+        closedPage = page;
+        closedContext = browserContext;
+        if (browser !== sharedBrowser) {
+          closedBrowser = browser;
+        }
+      }
+      else {
+        if (browserContext && browserContext !== closedContext) {
+          await settleWithin(browserContext.close());
+          closedContext = browserContext;
+        }
+        if (browser && browser !== sharedBrowser && browser !== closedBrowser) {
+          await settleWithin(browser.close());
+          closedBrowser = browser;
+        }
+      }
+    });
+    return cleanupPromise;
+  };
+  const onAbort = () => {
+    cleanupResources().catch(() => {});
+  };
   // If the specified browser and device types and URL are valid:
   if (isBrowserID(browserID) && isDeviceID(deviceID) && isURL(url)) {
     // Unless the launch is for a test act, whose target applies only to that act, replace the report target URL with the specified URL.
@@ -477,8 +519,11 @@ const launchOnce = async opts => {
     if (browserID === 'chromium' && browserChannel && browserChannel !== 'bundled') {
       browserOptions.channel = browserChannel;
     }
-    let browser, browserContext;
+    signal?.addEventListener('abort', onAbort, {once: true});
     try {
+      if (signal?.aborted) {
+        throw new Error('Aborted');
+      }
       // Use the job's shared browser if it exists and is of the specified type; otherwise
       // create a browser of the specified type, and share it if the job shares browsers.
       if (sharedBrowser && sharedBrowserID === browserID && sharedBrowser.isConnected()) {
@@ -493,6 +538,9 @@ const launchOnce = async opts => {
           sharedBrowser = browser;
           sharedBrowserID = browserID;
         }
+      }
+      if (signal?.aborted) {
+        throw new Error('Aborted');
       }
       // Create a context (i.e. window) for it.
       const contextOptions = {
@@ -515,6 +563,9 @@ const launchOnce = async opts => {
         ...contextOverrides
       };
       browserContext = await browser.newContext(contextOptions);
+      if (signal?.aborted) {
+        throw new Error('Aborted');
+      }
       // Prevent default timeouts.
       browserContext.setDefaultTimeout(0);
       // When a page (i.e. tab) is added to the browser context (i.e. window):
@@ -564,6 +615,9 @@ const launchOnce = async opts => {
       });
       // Create a page (tab) of the context (window).
       page = await browserContext.newPage();
+      if (signal?.aborted) {
+        throw new Error('Aborted');
+      }
       // Add a script to the page to mask automation detection.
       await page.addInitScript(() => {
         Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
@@ -600,6 +654,9 @@ const launchOnce = async opts => {
       }
       // Navigate to the specified URL and wait for the stability required by the next action.
       const navResult = await goTo(report, page, url, navigation.timeout, waitUntil);
+      if (signal?.aborted) {
+        throw new Error('Aborted');
+      }
       // If the navigation succeeded:
       if (navResult.success) {
         // If the job asks for a full-height scroll (job scroll property or PRESCAN_SCROLL), scroll
@@ -682,14 +739,24 @@ const launchOnce = async opts => {
     }
     // If the browser and page creation and navigation threw an error:
     catch(error) {
-      // Close the browser and its context, if they exist.
-      await browserClose(page);
+      signal?.removeEventListener('abort', onAbort);
+      // Close any browser resources created by this launch.
+      await cleanupResources();
       // Return the error.
       return {
         success: false,
         error: error.message
       };
     }
+    if (signal?.aborted) {
+      await cleanupResources();
+      signal.removeEventListener('abort', onAbort);
+      return {
+        success: false,
+        error: 'Aborted'
+      };
+    }
+    signal?.removeEventListener('abort', onAbort);
   }
   // Otherwise, i.e. if the specified browser or device type or URL is invalid:
   else {
@@ -715,6 +782,7 @@ exports.launch = async (opts = {}) => {
     xPathNeed = 'script',
     needsAccessibleName = false,
     retries = 2,
+    signal,
     // Extra Playwright context options, passed through to launchOnce.
     contextOverrides = {},
     // Whether a test-act launch replays the active checkpoint's acts (launches for
@@ -751,9 +819,14 @@ exports.launch = async (opts = {}) => {
         xPathNeed,
         needsAccessibleName,
         contextOverrides,
-        replay
+        replay,
+        signal
       }
     );
+    if (signal?.aborted) {
+      await browserClose(launchResult.page);
+      return null;
+    }
     // If the launch and navigation succeeded:
     if (launchResult.success) {
       // Return the page.
@@ -779,6 +852,10 @@ exports.launch = async (opts = {}) => {
       }
       // As long as retries remain, decrement the allowed retry count and:
       while (retriesLeft) {
+        if (signal?.aborted) {
+          await browserClose(launchResult.page);
+          return null;
+        }
         // Prepare to wait 1 second before a retry.
         let waitSeconds = 1;
         // If the error was a visit failure due to rate limiting:
@@ -795,7 +872,10 @@ exports.launch = async (opts = {}) => {
           `WARNING: Waiting ${waitSeconds} sec. before retrying (retries left: ${retriesLeft--})`
         );
         // Wait as specified.
-        await wait(1000 * waitSeconds);
+        await wait(1000 * waitSeconds, signal);
+        if (signal?.aborted) {
+          return null;
+        }
         // Retry the launch and navigation.
         launchResult = await launchOnce(
           {
@@ -808,9 +888,14 @@ exports.launch = async (opts = {}) => {
             xPathNeed,
             needsAccessibleName,
             contextOverrides,
-            replay
+            replay,
+            signal
           }
         );
+        if (signal?.aborted) {
+          await browserClose(launchResult.page);
+          return null;
+        }
         // If the launch and navigation succeeded:
         if (launchResult.success) {
           // Return the page.

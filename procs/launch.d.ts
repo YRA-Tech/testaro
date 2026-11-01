@@ -25,6 +25,7 @@ export interface LaunchOptions {
   xPathNeed?: string;
   needsAccessibleName?: boolean;
   retries?: number;
+  signal?: AbortSignal;
   contextOverrides?: Record<string, unknown>;
   // Whether a launch failure is recorded on the act and job (default true). A
   // concurrent rule passes false, because its own launch failure is the rule's alone.
