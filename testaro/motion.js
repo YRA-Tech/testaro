@@ -79,6 +79,7 @@ const describeArea = (fraction) => fraction >= 1
 // Returns the rendered elements of a page that the page instructs to play automatically.
 const getAutoplayers = (page) => page.evaluate(() => {
     const players = [];
+    const userStartedVideos = window.__testaroUserStartedVideos;
     // Adds an element to the players if it is rendered with a nonzero area.
     const addIfRendered = (element, kind, muted) => {
         const box = element.getBoundingClientRect();
@@ -95,7 +96,8 @@ const getAutoplayers = (page) => page.evaluate(() => {
         if (video.srcObject || video.currentSrc || video.getAttribute('src') || video.querySelector('source[src]')) {
             // If it is to play automatically, or a script has started it:
             const isPlaying = !video.paused && video.currentTime > 0;
-            if (video.autoplay || isPlaying) {
+            const startedByUser = userStartedVideos?.has(video) ?? false;
+            if (video.autoplay || (isPlaying && !startedByUser)) {
                 const kind = video.autoplay ? 'video with autoplay' : 'video started by a script';
                 addIfRendered(video, kind, video.muted);
             }
@@ -154,8 +156,11 @@ const getAutoplayers = (page) => page.evaluate(() => {
 });
 // Returns the time in milliseconds since the anchor of the grace period, i.e. the load event or the launch, waiting for the load event if necessary.
 const getSinceAnchor = async (page, report, launchedAt) => {
-    // At a later checkpoint, the anchor is the end of the replay, i.e. the launch.
-    if (report.activeCheckpoint) {
+    // At an interaction checkpoint, the anchor is the end of the replay, i.e. the launch.
+    const checkpoint = report.activeCheckpoint === null || report.activeCheckpoint === undefined
+        ? undefined
+        : report.checkpoints?.[report.activeCheckpoint];
+    if (checkpoint?.kind === 'interaction') {
         return { sinceAnchor: Date.now() - launchedAt, loadMs: null };
     }
     // Gets the end of the load event and the current time in the page.
@@ -196,6 +201,7 @@ const reporter = async (_page, report, actIndex, _withItems, signal, graceMs = d
     data.viewport = viewport;
     // The area of one screen of the device, the unit of changed areas.
     const screenArea = deviceViewport.width * deviceViewport.height;
+    const autoplayTotals = [0, 0, 0, 0];
     const act = report.acts[actIndex];
     const launchReport = { ...report, jobData: { ...report.jobData } };
     // Get the target URL and browser type of the act's launch property (see actSpecs.js), if any, else those of the job.
@@ -217,6 +223,25 @@ const reporter = async (_page, report, actIndex, _withItems, signal, graceMs = d
             xPathNeed: report.activeCheckpoint ? 'script' : 'none',
             contextOverrides: { viewport },
             signal,
+            beforeReplay: (page) => page.evaluate(() => {
+                const userStartedVideos = new WeakSet();
+                let lastUserAction = -Infinity;
+                ['click', 'keydown'].forEach(type => {
+                    document.addEventListener(type, event => {
+                        if (event.isTrusted) {
+                            lastUserAction = performance.now();
+                        }
+                    }, true);
+                });
+                document.addEventListener('play', event => {
+                    const video = event.target;
+                    if (video instanceof HTMLVideoElement
+                        && performance.now() - lastUserAction < 1000) {
+                        userStartedVideos.add(video);
+                    }
+                }, true);
+                window.__testaroUserStartedVideos = userStartedVideos;
+            }),
             // A failure of this launch is the rule's alone, not the act's or the job's.
             reportFailure: false,
             independentBrowser: true,
@@ -308,15 +333,32 @@ const reporter = async (_page, report, actIndex, _withItems, signal, graceMs = d
             const mutedNote = muted === false ? ', not muted' : '';
             // Add to the totals.
             totals[severity]++;
-            // Get a standard instance.
-            standardInstances.push({
-                ruleID: 'motion',
-                what: `Element is instructed to play automatically (${kind}${mutedNote}; area ${describeArea(fraction)})`,
-                ordinalSeverity: severity,
-                count: 1,
-                catalogIndex: (0, xPath_1.getXPathCatalogIndex)(report, xPath)
-            });
+            autoplayTotals[severity]++;
+            // If itemization is required:
+            if (_withItems) {
+                // Get a standard instance.
+                standardInstances.push({
+                    ruleID: 'motion',
+                    what: `Element is instructed to play automatically (${kind}${mutedNote}; area ${describeArea(fraction)})`,
+                    ordinalSeverity: severity,
+                    count: 1,
+                    catalogIndex: (0, xPath_1.getXPathCatalogIndex)(report, xPath)
+                });
+            }
         });
+        // If itemization is not required, summarize the autoplay instances by severity.
+        if (!_withItems) {
+            autoplayTotals.forEach((count, ordinalSeverity) => {
+                if (count) {
+                    standardInstances.push({
+                        ruleID: 'motion',
+                        what: 'Elements are instructed to play automatically',
+                        ordinalSeverity: ordinalSeverity,
+                        count
+                    });
+                }
+            });
+        }
         data.autoplayers = autoplayers.map(({ kind, muted }) => ({ kind, muted }));
     }
     finally {

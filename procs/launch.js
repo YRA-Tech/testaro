@@ -404,6 +404,8 @@ const launchOnce = async opts => {
     contextOverrides = {},
     // Whether to replay the active checkpoint's acts after navigating (test-act launches).
     replay = true,
+    // An optional hook to prepare the page before replaying checkpoint interactions.
+    beforeReplay,
     // Whether this launch owns a browser and must not use or replace the job's shared browser.
     independentBrowser = false,
     signal
@@ -691,6 +693,9 @@ const launchOnce = async opts => {
         // If the launch is for a test act at a checkpoint reached by interaction:
         const checkpoint = report.checkpoints?.[report.activeCheckpoint];
         if (checkpoint && checkpoint.kind === 'interaction' && replay) {
+          if (beforeReplay) {
+            await beforeReplay(page);
+          }
           // Re-enact the acts that reached the checkpoint, before any XPath stamping, so that
           // elements the acts reveal or create are stamped like the rest. A failure closes
           // the page and reports the act, so launch() can retry or give up.
@@ -793,6 +798,7 @@ exports.launch = async (opts = {}) => {
     // Whether a test-act launch replays the active checkpoint's acts (launches for
     // interaction acts and for the catalog pass do not).
     replay = actIndex !== null,
+    beforeReplay,
     // Whether a failure of this launch is recorded on the act and, if so configured,
     // the job (addError), and the browser-type fallback may change the job browser.
     // False for a launch that a concurrent rule makes for its own visit: its failure
@@ -827,6 +833,7 @@ exports.launch = async (opts = {}) => {
         needsAccessibleName,
         contextOverrides,
         replay,
+        beforeReplay,
         independentBrowser,
         signal
       }
@@ -897,6 +904,7 @@ exports.launch = async (opts = {}) => {
             needsAccessibleName,
             contextOverrides,
             replay,
+            beforeReplay,
             independentBrowser,
             signal
           }
