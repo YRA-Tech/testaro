@@ -877,6 +877,11 @@ export const reporter = async (page: Page | undefined, report: Report, actIndex:
     }
     // Wait for the tests of the concurrent rules to end and add them to the tests.
     ruleTests.push(... await Promise.all(concurrentTests));
+    if (ruleTests.length && ruleTests.every(test => test.ruleResult.prevented)) {
+      data.prevented = true;
+      standardResult.prevented = true;
+      data.error ||= 'All attempted Testaro rules were prevented';
+    }
     // Record the tests in the order of the rules.
     ruleTests
     .sort((a, b) => jobRules.indexOf(a.rule) - jobRules.indexOf(b.rule))
