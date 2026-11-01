@@ -69,17 +69,16 @@ exports.validateTest = async testID => {
   if (jobProperties.isolation) {
     job.isolation = jobProperties.isolation;
   }
-  // Rules that compare a page with its catalog image (motion) need one to be made.
+  // A validator may ask for a catalog page image to be made.
   if (jobProperties.imageColor !== undefined) {
     job.imageColor = jobProperties.imageColor;
   }
   job.what = `validate Testaro test ${jobProperties.rule}`;
   job.acts = jobProperties.acts;
   /*
-    Make the job target the page that the job launches. The catalog, and the page
-    image that the motion rule compares its own screenshot with, are made on the
-    job target before the first act, so leaving the target at its default made
-    every validation catalog a catalog of an unrelated page.
+    Make the job target the page that the job launches. The catalog, and any page
+    image, are made on the job target before the first act, so leaving the target
+    at its default made every validation catalog a catalog of an unrelated page.
   */
   const launchAct = jobProperties.acts.find(act => act.type === 'launch');
   if (launchAct && launchAct.target && launchAct.target.url) {

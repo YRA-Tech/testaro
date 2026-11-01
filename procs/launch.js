@@ -77,11 +77,23 @@ const chromiumNoSandbox = process.env.TESTARO_CHROMIUM_NO_SANDBOX === 'true';
 // FUNCTIONS
 
 // Waits.
-const wait = exports.wait = ms => {
+const wait = exports.wait = (ms, signal) => {
   return new Promise(resolve => {
-    setTimeout(() => {
+    if (signal?.aborted) {
+      resolve('');
+      return;
+    }
+    let timer;
+    const onAbort = () => {
+      clearTimeout(timer);
+      signal.removeEventListener('abort', onAbort);
+      resolve('');
+    };
+    timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort);
       resolve('');
     }, ms);
+    signal?.addEventListener('abort', onAbort, {once: true});
   });
 };
 // Removes any trailing slashes from a URL, for redirection comparison.
@@ -391,7 +403,12 @@ const launchOnce = async opts => {
     // images), spread last so they win over the defaults.
     contextOverrides = {},
     // Whether to replay the active checkpoint's acts after navigating (test-act launches).
-    replay = true
+    replay = true,
+    // An optional hook to prepare the page before replaying checkpoint interactions.
+    beforeReplay,
+    // Whether this launch owns a browser and must not use or replace the job's shared browser.
+    independentBrowser = false,
+    signal
   } = opts;
   const act = report.acts[actIndex] ?? {};
   const {device} = report;
@@ -399,6 +416,35 @@ const launchOnce = async opts => {
   const browserID = tempBrowserID || report.browserID || '';
   const url = normalizeURL(tempURL || report.target?.url || '');
   let page;
+  let browser, browserContext;
+  let closedPage, closedContext, closedBrowser;
+  let cleanupPromise = Promise.resolve();
+  const cleanupResources = () => {
+    cleanupPromise = cleanupPromise.catch(() => {}).then(async () => {
+      if (page && page !== closedPage) {
+        await browserClose(page);
+        closedPage = page;
+        closedContext = browserContext;
+        if (browser !== sharedBrowser) {
+          closedBrowser = browser;
+        }
+      }
+      else {
+        if (browserContext && browserContext !== closedContext) {
+          await settleWithin(browserContext.close());
+          closedContext = browserContext;
+        }
+        if (browser && browser !== sharedBrowser && browser !== closedBrowser) {
+          await settleWithin(browser.close());
+          closedBrowser = browser;
+        }
+      }
+    });
+    return cleanupPromise;
+  };
+  const onAbort = () => {
+    cleanupResources().catch(() => {});
+  };
   // If the specified browser and device types and URL are valid:
   if (isBrowserID(browserID) && isDeviceID(deviceID) && isURL(url)) {
     // Unless the launch is for a test act, whose target applies only to that act, replace the report target URL with the specified URL.
@@ -477,22 +523,31 @@ const launchOnce = async opts => {
     if (browserID === 'chromium' && browserChannel && browserChannel !== 'bundled') {
       browserOptions.channel = browserChannel;
     }
-    let browser, browserContext;
+    signal?.addEventListener('abort', onAbort, {once: true});
     try {
-      // Use the job's shared browser if it exists and is of the specified type; otherwise
-      // create a browser of the specified type, and share it if the job shares browsers.
-      if (sharedBrowser && sharedBrowserID === browserID && sharedBrowser.isConnected()) {
+      if (signal?.aborted) {
+        throw new Error('Aborted');
+      }
+      // Unless the launch owns its browser, use the job's shared browser if it exists and is of
+      // the specified type; otherwise create a browser and share it if the job shares browsers.
+      if (
+        ! independentBrowser && sharedBrowser && sharedBrowserID === browserID
+        && sharedBrowser.isConnected()
+      ) {
         browser = sharedBrowser;
       }
       else {
         browser = await browserType.launch(browserOptions);
-        if (report.jobData?.isolation && report.jobData.isolation !== 'process') {
+        if (! independentBrowser && report.jobData?.isolation && report.jobData.isolation !== 'process') {
           if (sharedBrowser) {
             await settleWithin(sharedBrowser.close());
           }
           sharedBrowser = browser;
           sharedBrowserID = browserID;
         }
+      }
+      if (signal?.aborted) {
+        throw new Error('Aborted');
       }
       // Create a context (i.e. window) for it.
       const contextOptions = {
@@ -515,6 +570,9 @@ const launchOnce = async opts => {
         ...contextOverrides
       };
       browserContext = await browser.newContext(contextOptions);
+      if (signal?.aborted) {
+        throw new Error('Aborted');
+      }
       // Prevent default timeouts.
       browserContext.setDefaultTimeout(0);
       // When a page (i.e. tab) is added to the browser context (i.e. window):
@@ -564,6 +622,9 @@ const launchOnce = async opts => {
       });
       // Create a page (tab) of the context (window).
       page = await browserContext.newPage();
+      if (signal?.aborted) {
+        throw new Error('Aborted');
+      }
       // Add a script to the page to mask automation detection.
       await page.addInitScript(() => {
         Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
@@ -600,6 +661,9 @@ const launchOnce = async opts => {
       }
       // Navigate to the specified URL and wait for the stability required by the next action.
       const navResult = await goTo(report, page, url, navigation.timeout, waitUntil);
+      if (signal?.aborted) {
+        throw new Error('Aborted');
+      }
       // If the navigation succeeded:
       if (navResult.success) {
         // If the job asks for a full-height scroll (job scroll property or PRESCAN_SCROLL), scroll
@@ -629,6 +693,9 @@ const launchOnce = async opts => {
         // If the launch is for a test act at a checkpoint reached by interaction:
         const checkpoint = report.checkpoints?.[report.activeCheckpoint];
         if (checkpoint && checkpoint.kind === 'interaction' && replay) {
+          if (beforeReplay) {
+            await beforeReplay(page);
+          }
           // Re-enact the acts that reached the checkpoint, before any XPath stamping, so that
           // elements the acts reveal or create are stamped like the rest. A failure closes
           // the page and reports the act, so launch() can retry or give up.
@@ -682,14 +749,24 @@ const launchOnce = async opts => {
     }
     // If the browser and page creation and navigation threw an error:
     catch(error) {
-      // Close the browser and its context, if they exist.
-      await browserClose(page);
+      signal?.removeEventListener('abort', onAbort);
+      // Close any browser resources created by this launch.
+      await cleanupResources();
       // Return the error.
       return {
         success: false,
         error: error.message
       };
     }
+    if (signal?.aborted) {
+      await cleanupResources();
+      signal.removeEventListener('abort', onAbort);
+      return {
+        success: false,
+        error: 'Aborted'
+      };
+    }
+    signal?.removeEventListener('abort', onAbort);
   }
   // Otherwise, i.e. if the specified browser or device type or URL is invalid:
   else {
@@ -715,11 +792,20 @@ exports.launch = async (opts = {}) => {
     xPathNeed = 'script',
     needsAccessibleName = false,
     retries = 2,
+    signal,
     // Extra Playwright context options, passed through to launchOnce.
     contextOverrides = {},
     // Whether a test-act launch replays the active checkpoint's acts (launches for
     // interaction acts and for the catalog pass do not).
-    replay = actIndex !== null
+    replay = actIndex !== null,
+    beforeReplay,
+    // Whether a failure of this launch is recorded on the act and, if so configured,
+    // the job (addError), and the browser-type fallback may change the job browser.
+    // False for a launch that a concurrent rule makes for its own visit: its failure
+    // belongs to the rule, not to the act or the job.
+    reportFailure = true,
+    // Whether this launch owns a browser and must not use or replace the job's shared browser.
+    independentBrowser = false
   } = opts;
   // Get whether the launch is for a test act with its own browser type.
   const launchAct = actIndex === null ? null : report.acts?.[actIndex];
@@ -746,9 +832,16 @@ exports.launch = async (opts = {}) => {
         xPathNeed,
         needsAccessibleName,
         contextOverrides,
-        replay
+        replay,
+        beforeReplay,
+        independentBrowser,
+        signal
       }
     );
+    if (signal?.aborted) {
+      await browserClose(launchResult.page);
+      return null;
+    }
     // If the launch and navigation succeeded:
     if (launchResult.success) {
       // Return the page.
@@ -774,6 +867,10 @@ exports.launch = async (opts = {}) => {
       }
       // As long as retries remain, decrement the allowed retry count and:
       while (retriesLeft) {
+        if (signal?.aborted) {
+          await browserClose(launchResult.page);
+          return null;
+        }
         // Prepare to wait 1 second before a retry.
         let waitSeconds = 1;
         // If the error was a visit failure due to rate limiting:
@@ -790,7 +887,10 @@ exports.launch = async (opts = {}) => {
           `WARNING: Waiting ${waitSeconds} sec. before retrying (retries left: ${retriesLeft--})`
         );
         // Wait as specified.
-        await wait(1000 * waitSeconds);
+        await wait(1000 * waitSeconds, signal);
+        if (signal?.aborted) {
+          return null;
+        }
         // Retry the launch and navigation.
         launchResult = await launchOnce(
           {
@@ -803,9 +903,16 @@ exports.launch = async (opts = {}) => {
             xPathNeed,
             needsAccessibleName,
             contextOverrides,
-            replay
+            replay,
+            beforeReplay,
+            independentBrowser,
+            signal
           }
         );
+        if (signal?.aborted) {
+          await browserClose(launchResult.page);
+          return null;
+        }
         // If the launch and navigation succeeded:
         if (launchResult.success) {
           // Return the page.
@@ -826,12 +933,15 @@ exports.launch = async (opts = {}) => {
             // Change the browser type.
             tempBrowserID = unusedBrowserIDs.shift();
             // Unless the browser type is a test act's own, which applies only to that act, change the job browser type too.
-            if (! actOverridesBrowser) {
+            if (reportFailure && ! actOverridesBrowser) {
               console.log(`NOTICE: Changing job browser type to ${tempBrowserID}`);
               report.browserID = tempBrowserID;
             }
-            else {
+            else if (actOverridesBrowser) {
               console.log(`NOTICE: Changing browser type of act ${actIndex} to ${tempBrowserID}`);
+            }
+            else {
+              console.log(`NOTICE: Changing browser type to ${tempBrowserID}`);
             }
             // Reset the retries.
             retriesLeft = retries;
@@ -840,14 +950,22 @@ exports.launch = async (opts = {}) => {
       }
       // If the retries were finally exhausted:
       if (! retriesLeft) {
-        // Report this and, if so configured, that the job was aborted.
-        addError(
-          true,
-          actIndex === null ? true : abortAssertively,
-          report,
-          actIndex,
-          `Launch or navigation failed; retries and browser types exhausted (${error})`
-        );
+        const message =
+          `Launch or navigation failed; retries and browser types exhausted (${error})`;
+        // If the launch serves the act, report this and, if so configured, that the job
+        // was aborted; otherwise only log it, so the caller can attribute the failure.
+        if (reportFailure) {
+          addError(
+            true,
+            actIndex === null ? true : abortAssertively,
+            report,
+            actIndex,
+            message
+          );
+        }
+        else {
+          console.log(`ERROR: ${message}`);
+        }
       }
       // Return a failure.
       return null;
@@ -855,14 +973,21 @@ exports.launch = async (opts = {}) => {
   }
   // Otherwise, i.e. if the report is invalid:
   else {
-    // Report this and that the job was aborted.
-    addError(
-      true,
-      true,
-      report,
-      actIndex,
-      `ERROR: Job invalid (${jobValidation.error})`
-    );
+    const message = `ERROR: Job invalid (${jobValidation.error})`;
+    // If the launch serves the act, report this and that the job was aborted;
+    // otherwise only log it, so the caller can attribute the failure.
+    if (reportFailure) {
+      addError(
+        true,
+        true,
+        report,
+        actIndex,
+        message
+      );
+    }
+    else {
+      console.log(message);
+    }
     // Return a failure.
     return null;
   }

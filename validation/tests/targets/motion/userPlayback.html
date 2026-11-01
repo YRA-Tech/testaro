@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<!--
+  © 2026 Jonathan Robert Pool.
+
+  Licensed under the MIT License. See LICENSE for details.
+
+  SPDX-License-Identifier: MIT
+-->
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <title>Page with user-requested playback</title>
+    <meta name="description" content="tester">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+  </head>
+  <body>
+    <main>
+      <h1>Page with user-requested playback</h1>
+      <button id="play" type="button">Play video</button>
+      <video id="video" src="missing.mp4" width="320" height="180"></video>
+      <script>
+        document.querySelector('#play').addEventListener('click', () => {
+          const video = document.querySelector('#video');
+          Object.defineProperty(video, 'paused', {value: false});
+          Object.defineProperty(video, 'currentTime', {value: 1});
+          video.dispatchEvent(new Event('play'));
+        });
+      </script>
+    </main>
+  </body>
+</html>
