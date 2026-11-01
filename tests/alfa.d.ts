@@ -50,7 +50,7 @@ export declare const reporter: (page: Page, report: Report, actIndex: number) =>
         prevented?: boolean;
         error?: string;
         styleLosses?: StyleLoss[];
-        sheetCopies?: Omit<SheetCopy, "index">[];
+        sheetCopies?: Omit<SheetCopy, 'index'>[];
     };
     result: {
         nativeResult: AlfaNativeResult;
