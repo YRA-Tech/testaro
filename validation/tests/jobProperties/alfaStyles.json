@@ -6,7 +6,7 @@
       "type": "launch",
       "target": {
         "url": "file://validation/tests/targets/alfaStyles/index.html",
-        "what": "page with a stylesheet that Alfa cannot use"
+        "what": "page with stylesheets that deny rules to Alfa"
       }
     },
     {
@@ -20,42 +20,40 @@
           false
         ],
         [
-          "data.styleLosses.length",
+          "data.styleLosses"
+        ],
+        [
+          "data.sheetCopies.length",
           "=",
           3
         ],
         [
-          "data.styleLosses.0.sheet",
-          "=",
-          "inline sheet 1"
+          "data.sheetCopies.0.copyOf",
+          "i",
+          "imports.css"
         ],
         [
-          "data.styleLosses.0.reason",
-          "=",
-          "unserialized"
-        ],
-        [
-          "data.styleLosses.0.ruleCount",
+          "data.sheetCopies.0.rules",
           "=",
           2
         ],
         [
-          "data.styleLosses.1.reason",
+          "data.sheetCopies.1.copyOf",
           "=",
-          "unreadable"
+          "inline sheet 1"
         ],
         [
-          "data.styleLosses.1.ruleCount",
+          "data.sheetCopies.1.rules",
           "=",
-          3
+          1
         ],
         [
-          "data.styleLosses.2.reason",
-          "=",
-          "unreadable"
+          "data.sheetCopies.2.copyOf",
+          "i",
+          "usable.css"
         ],
         [
-          "data.styleLosses.2.ruleCount",
+          "data.sheetCopies.2.rules",
           "=",
           3
         ]
