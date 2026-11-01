@@ -273,8 +273,13 @@ const getCopyPlans = (page) => page.evaluate(alfaTypes => {
             }
             if (rule instanceof CSSImportRule && rule.styleSheet) {
                 try {
-                    // Access throws for a cross-origin import not requested with CORS.
-                    void rule.styleSheet.cssRules;
+                    /*
+                      Access throws for a cross-origin import not requested with CORS, and a
+                      readable imported sheet can itself contain rules alfa cannot serialize.
+                    */
+                    if (deniesRules(rule.styleSheet.cssRules)) {
+                        return true;
+                    }
                 }
                 catch (error) {
                     return true;
