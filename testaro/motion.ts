@@ -242,6 +242,8 @@ export const reporter = async (
       tempURL: url,
       xPathNeed: report.activeCheckpoint ? 'script' : 'none',
       contextOverrides: {viewport},
+      // A failure of this launch is the rule's alone, not the act's or the job's.
+      reportFailure: false,
       retries: Number.isInteger(act.retries) && (act.retries as number) >= 0
         ? act.retries as number
         : ruleLaunchRetries
@@ -252,98 +254,94 @@ export const reporter = async (
     if (signal?.aborted) {
       throw new Error('Aborted');
     }
-    // If the launch failed:
+    // If the launch failed, throw, so the test records a rule prevention rather than a
+    // false pass on a page the rule never visited.
     if (! page) {
-      // Report this.
-      data.prevented = true;
-      data.error = 'Launch failed';
+      throw new Error('Launch or navigation failed');
     }
-    // Otherwise, if it succeeded:
-    else {
-      const {sinceAnchor, loadMs} = await getSinceAnchor(page, report, launchedAt);
-      data.loadMs = loadMs;
-      // Wait for the rest of the grace period.
-      await sleep(Math.max(0, graceMs - sinceAnchor), signal);
-      const firstShotAt = Date.now();
-      const shotTimes: number[] = [];
-      const changes: number[] = [];
-      let priorPNG: Buffer | null = null;
-      const intervals = [firstIntervalMs, secondIntervalMs];
-      // For each image:
-      for (let shotIndex = 0; shotIndex <= intervals.length; shotIndex++) {
-        // If it is not the first, wait for the interval before it.
-        if (shotIndex) {
-          await sleep(intervals[shotIndex - 1], signal);
-        }
-        // Make it.
-        const png: Buffer = await page.screenshot({
-          fullPage: false,
-          scale: 'css',
-          type: 'png',
-          timeout: applyMultiplier(10000)
-        });
-        shotTimes.push(Math.round(Date.now() - firstShotAt + Math.max(graceMs, sinceAnchor)));
-        // If it is not the first, compare it with the prior one.
-        if (priorPNG) {
-          changes.push(getChangeCount(priorPNG, png) / screenArea);
-        }
-        // Keep only it for the next comparison.
-        priorPNG = png;
+    const {sinceAnchor, loadMs} = await getSinceAnchor(page, report, launchedAt);
+    data.loadMs = loadMs;
+    // Wait for the rest of the grace period.
+    await sleep(Math.max(0, graceMs - sinceAnchor), signal);
+    const firstShotAt = Date.now();
+    const shotTimes: number[] = [];
+    const changes: number[] = [];
+    let priorPNG: Buffer | null = null;
+    const intervals = [firstIntervalMs, secondIntervalMs];
+    // For each image:
+    for (let shotIndex = 0; shotIndex <= intervals.length; shotIndex++) {
+      // If it is not the first, wait for the interval before it.
+      if (shotIndex) {
+        await sleep(intervals[shotIndex - 1], signal);
       }
-      priorPNG = null;
-      data.shotTimes = shotTimes;
-      // The changed areas between consecutive images, as fractions of a screen.
-      data.changes = changes;
-      // Disregard changes too small to be motion.
-      const [firstChange, secondChange] = changes.map(change => change < minChange ? 0 : change);
-      let violationWhat = '';
-      let ordinalSeverity = 0;
-      // If the page changed between the second and third images:
-      if (secondChange) {
-        // Describe continuing motion.
-        violationWhat = `Content changes spontaneously and continually (changed area between the last 2 images ${describeArea(secondChange)})`;
-        ordinalSeverity = Math.min(3, getSeverity(secondChange) + 1);
-      }
-      // Otherwise, if it changed only between the first and second images:
-      else if (firstChange) {
-        // Describe a one-time change.
-        violationWhat = `Content changes spontaneously after loading (changed area ${describeArea(firstChange)})`;
-        ordinalSeverity = getSeverity(firstChange);
-      }
-      // If there was a violation:
-      if (violationWhat) {
-        // Add to the totals.
-        totals[ordinalSeverity]++;
-        // Get a summary standard instance.
-        standardInstances.push({
-          ruleID: 'motion',
-          what: violationWhat,
-          ordinalSeverity: ordinalSeverity as StandardInstance['ordinalSeverity'],
-          count: 1,
-          catalogIndex: getXPathCatalogIndex(report, '/html/body')
-        });
-      }
-      // Get the rendered elements that the page instructs to play automatically.
-      await defineGetXPath(page);
-      const autoplayers = await getAutoplayers(page);
-      // For each of them:
-      autoplayers.forEach(({xPath, kind, muted, area}) => {
-        const fraction = area / screenArea;
-        const severity = Math.min(3, getSeverity(fraction) + 1) as StandardInstance['ordinalSeverity'];
-        const mutedNote = muted === false ? ', not muted' : '';
-        // Add to the totals.
-        totals[severity]++;
-        // Get a standard instance.
-        standardInstances.push({
-          ruleID: 'motion',
-          what: `Element is instructed to play automatically (${kind}${mutedNote}; area ${describeArea(fraction)})`,
-          ordinalSeverity: severity,
-          count: 1,
-          catalogIndex: getXPathCatalogIndex(report, xPath)
-        });
+      // Make it.
+      const png: Buffer = await page.screenshot({
+        fullPage: false,
+        scale: 'css',
+        type: 'png',
+        timeout: applyMultiplier(10000)
       });
-      data.autoplayers = autoplayers.map(({kind, muted}) => ({kind, muted}));
+      shotTimes.push(Math.round(Date.now() - firstShotAt + Math.max(graceMs, sinceAnchor)));
+      // If it is not the first, compare it with the prior one.
+      if (priorPNG) {
+        changes.push(getChangeCount(priorPNG, png) / screenArea);
+      }
+      // Keep only it for the next comparison.
+      priorPNG = png;
     }
+    priorPNG = null;
+    data.shotTimes = shotTimes;
+    // The changed areas between consecutive images, as fractions of a screen.
+    data.changes = changes;
+    // Disregard changes too small to be motion.
+    const [firstChange, secondChange] = changes.map(change => change < minChange ? 0 : change);
+    let violationWhat = '';
+    let ordinalSeverity = 0;
+    // If the page changed between the second and third images:
+    if (secondChange) {
+      // Describe continuing motion.
+      violationWhat = `Content changes spontaneously and continually (changed area between the last 2 images ${describeArea(secondChange)})`;
+      ordinalSeverity = Math.min(3, getSeverity(secondChange) + 1);
+    }
+    // Otherwise, if it changed only between the first and second images:
+    else if (firstChange) {
+      // Describe a one-time change.
+      violationWhat = `Content changes spontaneously after loading (changed area ${describeArea(firstChange)})`;
+      ordinalSeverity = getSeverity(firstChange);
+    }
+    // If there was a violation:
+    if (violationWhat) {
+      // Add to the totals.
+      totals[ordinalSeverity]++;
+      // Get a summary standard instance.
+      standardInstances.push({
+        ruleID: 'motion',
+        what: violationWhat,
+        ordinalSeverity: ordinalSeverity as StandardInstance['ordinalSeverity'],
+        count: 1,
+        catalogIndex: getXPathCatalogIndex(report, '/html/body')
+      });
+    }
+    // Get the rendered elements that the page instructs to play automatically.
+    await defineGetXPath(page);
+    const autoplayers = await getAutoplayers(page);
+    // For each of them:
+    autoplayers.forEach(({xPath, kind, muted, area}) => {
+      const fraction = area / screenArea;
+      const severity = Math.min(3, getSeverity(fraction) + 1) as StandardInstance['ordinalSeverity'];
+      const mutedNote = muted === false ? ', not muted' : '';
+      // Add to the totals.
+      totals[severity]++;
+      // Get a standard instance.
+      standardInstances.push({
+        ruleID: 'motion',
+        what: `Element is instructed to play automatically (${kind}${mutedNote}; area ${describeArea(fraction)})`,
+        ordinalSeverity: severity,
+        count: 1,
+        catalogIndex: getXPathCatalogIndex(report, xPath)
+      });
+    });
+    data.autoplayers = autoplayers.map(({kind, muted}) => ({kind, muted}));
   }
   finally {
     signal?.removeEventListener('abort', onAbort);

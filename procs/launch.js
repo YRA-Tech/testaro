@@ -713,7 +713,12 @@ exports.launch = async (opts = {}) => {
     contextOverrides = {},
     // Whether a test-act launch replays the active checkpoint's acts (launches for
     // interaction acts and for the catalog pass do not).
-    replay = actIndex !== null
+    replay = actIndex !== null,
+    // Whether a failure of this launch is recorded on the act and, if so configured,
+    // the job (addError), and the browser-type fallback may change the job browser.
+    // False for a launch that a concurrent rule makes for its own visit: its failure
+    // belongs to the rule, not to the act or the job.
+    reportFailure = true
   } = opts;
   // If the launch is for a test act at a later checkpoint, navigate to that checkpoint's
   // origin: its URL if navigation reached it, else the URL its replayed acts start from.
@@ -816,8 +821,12 @@ exports.launch = async (opts = {}) => {
           if (tempBrowserID && unusedBrowserIDs.length && ! retriesLeft) {
             // Change the browser type.
             tempBrowserID = unusedBrowserIDs.shift();
-            console.log(`NOTICE: Changing job browser type to ${tempBrowserID}`);
-            report.browserID = tempBrowserID;
+            console.log(
+              `NOTICE: Changing ${reportFailure ? 'job ' : ''}browser type to ${tempBrowserID}`
+            );
+            if (reportFailure) {
+              report.browserID = tempBrowserID;
+            }
             // Reset the retries.
             retriesLeft = retries;
           }
@@ -825,14 +834,22 @@ exports.launch = async (opts = {}) => {
       }
       // If the retries were finally exhausted:
       if (! retriesLeft) {
-        // Report this and, if so configured, that the job was aborted.
-        addError(
-          true,
-          actIndex === null ? true : abortAssertively,
-          report,
-          actIndex,
-          `Launch or navigation failed; retries and browser types exhausted (${error})`
-        );
+        const message =
+          `Launch or navigation failed; retries and browser types exhausted (${error})`;
+        // If the launch serves the act, report this and, if so configured, that the job
+        // was aborted; otherwise only log it, so the caller can attribute the failure.
+        if (reportFailure) {
+          addError(
+            true,
+            actIndex === null ? true : abortAssertively,
+            report,
+            actIndex,
+            message
+          );
+        }
+        else {
+          console.log(`ERROR: ${message}`);
+        }
       }
       // Return a failure.
       return null;
@@ -840,14 +857,21 @@ exports.launch = async (opts = {}) => {
   }
   // Otherwise, i.e. if the report is invalid:
   else {
-    // Report this and that the job was aborted.
-    addError(
-      true,
-      true,
-      report,
-      actIndex,
-      `ERROR: Job invalid (${jobValidation.error})`
-    );
+    const message = `ERROR: Job invalid (${jobValidation.error})`;
+    // If the launch serves the act, report this and that the job was aborted;
+    // otherwise only log it, so the caller can attribute the failure.
+    if (reportFailure) {
+      addError(
+        true,
+        true,
+        report,
+        actIndex,
+        message
+      );
+    }
+    else {
+      console.log(message);
+    }
     // Return a failure.
     return null;
   }

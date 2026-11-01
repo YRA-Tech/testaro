@@ -258,9 +258,7 @@ export const getCatalog = async (report: Report): Promise<Catalog> => {
           console.log(`ERROR: Expanding details elements failed (${error.message})`);
         });
         // Create one at CSS-pixel scale and add it to the report as images[0]. This
-        // scale is invariant to imageScale and to the context's deviceScaleFactor, so
-        // the testaro motion rule, which compares its own CSS-scale screenshot with
-        // images[0], is unaffected by the imageScale option.
+        // scale is invariant to imageScale and to the context's deviceScaleFactor.
         console.log('Creating page image');
         await shoot(page, report, {
           exclusionSelector: '',
