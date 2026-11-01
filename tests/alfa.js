@@ -888,6 +888,8 @@ const reporter = async (page, report, actIndex) => {
         const isolation = report.jobData?.isolation;
         const isPageShared = isolation === 'page';
         const canInject = (isolation ?? 'process') === 'process';
+        // Whether this job reloads cross-origin sheets with CORS (only browser isolation does).
+        const sheetsReloaded = isolation === 'browser';
         /*
           Fetch stylesheets with the page’s own request context, unless the page is shared, in which
           case use a separate context, so that cookies set by the responses do not reach the page.
@@ -915,12 +917,12 @@ const reporter = async (page, report, actIndex) => {
           reloaded with CORS; under process isolation the injected copies already provide them.
         */
         const alfaPage = await Playwright.toPage(doc, {
-            enforceAnonymousCrossOrigin: isolation === 'browser'
+            enforceAnonymousCrossOrigin: sheetsReloaded
         });
         let styleLosses;
         try {
             // Get the stylesheets whose material rules alfa did not receive.
-            styleLosses = await getStyleLosses(page, fetcher, Array.from(alfaPage.document.style), sheetCopies, canInject);
+            styleLosses = await getStyleLosses(page, fetcher, Array.from(alfaPage.document.style), sheetCopies, !sheetsReloaded);
         }
         finally {
             if (isPageShared) {
