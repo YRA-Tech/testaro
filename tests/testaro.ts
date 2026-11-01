@@ -606,6 +606,10 @@ const testRule = async (
     if (! ('timedOut' in raceReport)) {
       ruleReport = raceReport;
     }
+    // If an abortable rule timed out, wait for it to finish cleaning up its resources.
+    else if (onTimeout) {
+      await testReport.catch(() => {});
+    }
   }
   // If an error is thrown by the test:
   catch(error) {
