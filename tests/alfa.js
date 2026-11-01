@@ -301,8 +301,15 @@ const getCopyPlans = (page) => page.evaluate(alfaTypes => {
         catch (error) {
             readable = false;
         }
-        // If the sheet denies rules to alfa:
-        if (!readable || unserializable) {
+        /*
+          The page lacks the rules of a CORS-requested sheet that page scripts cannot read:
+          its load failed, since a successful CORS response would have made it readable.
+        */
+        const loadFailed = !readable
+            && sheet.ownerNode instanceof HTMLLinkElement
+            && sheet.ownerNode.hasAttribute('crossorigin');
+        // If the page has the sheet but it denies rules to alfa:
+        if (!loadFailed && (!readable || unserializable)) {
             plans.push({
                 copyOf: sheet.href || `inline sheet ${index}`,
                 kind: 'dom',
