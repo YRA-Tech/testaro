@@ -197,6 +197,7 @@ const reporter = async (_page, report, actIndex, _withItems, signal, graceMs = d
     // The area of one screen of the device, the unit of changed areas.
     const screenArea = deviceViewport.width * deviceViewport.height;
     const act = report.acts[actIndex];
+    const launchReport = { ...report, jobData: { ...report.jobData } };
     // Get the target URL and browser type of the act's launch property (see actSpecs.js), if any, else those of the job.
     const url = (act.launch?.target || report.target)?.url;
     const browserID = act.launch?.browserID || report.browserID;
@@ -209,7 +210,7 @@ const reporter = async (_page, report, actIndex, _withItems, signal, graceMs = d
     try {
         // Launch a browser with the tall viewport and visit the page, without the XPath script, which the test does not need. At a later checkpoint, use the script, so the wait suits the replay.
         const launchedPage = await (0, launch_1.launch)({
-            report,
+            report: launchReport,
             actIndex,
             tempBrowserID: browserID,
             tempURL: url,

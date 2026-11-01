@@ -224,6 +224,7 @@ export const reporter = async (
     retries?: number;
     launch?: {target?: {url: string}; browserID?: Report['browserID']};
   };
+  const launchReport = {...report, jobData: {...report.jobData}};
   // Get the target URL and browser type of the act's launch property (see actSpecs.js), if any, else those of the job.
   const url = (act.launch?.target || report.target)?.url;
   const browserID = act.launch?.browserID || report.browserID;
@@ -236,7 +237,7 @@ export const reporter = async (
   try {
     // Launch a browser with the tall viewport and visit the page, without the XPath script, which the test does not need. At a later checkpoint, use the script, so the wait suits the replay.
     const launchedPage = await launch({
-      report,
+      report: launchReport,
       actIndex,
       tempBrowserID: browserID,
       tempURL: url,
