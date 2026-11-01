@@ -30,6 +30,8 @@ export interface LaunchOptions {
   // Whether a launch failure is recorded on the act and job (default true). A
   // concurrent rule passes false, because its own launch failure is the rule's alone.
   reportFailure?: boolean;
+  // Whether the launch owns a browser rather than using or replacing the job's shared browser.
+  independentBrowser?: boolean;
 }
 
 // Launches a browser, navigates to a target, and returns the page, or undefined on failure.

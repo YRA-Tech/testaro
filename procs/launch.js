@@ -404,6 +404,8 @@ const launchOnce = async opts => {
     contextOverrides = {},
     // Whether to replay the active checkpoint's acts after navigating (test-act launches).
     replay = true,
+    // Whether this launch owns a browser and must not use or replace the job's shared browser.
+    independentBrowser = false,
     signal
   } = opts;
   const act = report.acts[actIndex] ?? {};
@@ -524,14 +526,17 @@ const launchOnce = async opts => {
       if (signal?.aborted) {
         throw new Error('Aborted');
       }
-      // Use the job's shared browser if it exists and is of the specified type; otherwise
-      // create a browser of the specified type, and share it if the job shares browsers.
-      if (sharedBrowser && sharedBrowserID === browserID && sharedBrowser.isConnected()) {
+      // Unless the launch owns its browser, use the job's shared browser if it exists and is of
+      // the specified type; otherwise create a browser and share it if the job shares browsers.
+      if (
+        ! independentBrowser && sharedBrowser && sharedBrowserID === browserID
+        && sharedBrowser.isConnected()
+      ) {
         browser = sharedBrowser;
       }
       else {
         browser = await browserType.launch(browserOptions);
-        if (report.jobData?.isolation && report.jobData.isolation !== 'process') {
+        if (! independentBrowser && report.jobData?.isolation && report.jobData.isolation !== 'process') {
           if (sharedBrowser) {
             await settleWithin(sharedBrowser.close());
           }
@@ -792,7 +797,9 @@ exports.launch = async (opts = {}) => {
     // the job (addError), and the browser-type fallback may change the job browser.
     // False for a launch that a concurrent rule makes for its own visit: its failure
     // belongs to the rule, not to the act or the job.
-    reportFailure = true
+    reportFailure = true,
+    // Whether this launch owns a browser and must not use or replace the job's shared browser.
+    independentBrowser = false
   } = opts;
   // Get whether the launch is for a test act with its own browser type.
   const launchAct = actIndex === null ? null : report.acts?.[actIndex];
@@ -820,6 +827,7 @@ exports.launch = async (opts = {}) => {
         needsAccessibleName,
         contextOverrides,
         replay,
+        independentBrowser,
         signal
       }
     );
@@ -889,6 +897,7 @@ exports.launch = async (opts = {}) => {
             needsAccessibleName,
             contextOverrides,
             replay,
+            independentBrowser,
             signal
           }
         );

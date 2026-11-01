@@ -245,6 +245,7 @@ export const reporter = async (
       signal,
       // A failure of this launch is the rule's alone, not the act's or the job's.
       reportFailure: false,
+      independentBrowser: true,
       retries: Number.isInteger(act.retries) && (act.retries as number) >= 0
         ? act.retries as number
         : ruleLaunchRetries
