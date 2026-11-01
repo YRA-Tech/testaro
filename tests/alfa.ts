@@ -993,10 +993,17 @@ const getStyleLosses = async (
       continue;
     }
     const text = await getSheetText(fetcher, url);
-    const ruleCount = text === null ? null : await countTextRules(page, fetcher, text, url);
-    // If it has material rules or they could not be counted, report it.
-    if (ruleCount !== 0) {
-      losses.push({sheet: url, reason: 'unreadable', ruleCount});
+    /*
+      If its text cannot be fetched either, the page presumably lacks its rules: a dead
+      link or unreachable host fails for the browser, too. It is then no loss of alfa’s,
+      rather than a loss whose size cannot be known.
+    */
+    if (text !== null) {
+      const ruleCount = await countTextRules(page, fetcher, text, url);
+      // If it has material rules or they could not be counted, report it.
+      if (ruleCount !== 0) {
+        losses.push({sheet: url, reason: 'unreadable', ruleCount});
+      }
     }
   }
   // For each cross-origin sheet that seems empty:
