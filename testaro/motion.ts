@@ -99,7 +99,7 @@ const getAutoplayers = (page: Page) => page.evaluate(() => {
   };
   // For each video element with a source:
   document.querySelectorAll('video').forEach(video => {
-    if (video.currentSrc || video.getAttribute('src') || video.querySelector('source[src]')) {
+    if (video.srcObject || video.currentSrc || video.getAttribute('src') || video.querySelector('source[src]')) {
       // If it is to play automatically, or a script has started it:
       const isPlaying = ! video.paused && video.currentTime > 0;
       if (video.autoplay || isPlaying) {
