@@ -188,6 +188,12 @@ exports.actSpecs = {
     ]
   },
   tools: {
+    alfa: [
+      'Perform Alfa tests',
+      {
+        reckless: [false, 'boolean', '', 'whether to test even if Alfa lacks style rules of the page (default false: report the act as prevented)']
+      }
+    ],
     axe: [
       'Perform Axe tests',
       {
