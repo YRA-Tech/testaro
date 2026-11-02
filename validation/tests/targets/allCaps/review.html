@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<!--
+  © 2026 Jonathan Robert Pool.
+
+  Licensed under the MIT License. See LICENSE file at the project root or
+  https://opensource.org/license/mit/ for details.
+
+  SPDX-License-Identifier: MIT
+-->
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <title>allCaps review regressions</title>
+  </head>
+  <body>
+    <main>
+      <p id="privacy"><span hidden>PRIVATE</span>WARNING visible</p>
+      <div id="parentOrder">ordinary <span id="childOrder">CHILD</span> PARENT</div>
+      <p id="lineBreak">UPPER<br>CASE</p>
+    </main>
+    <script>
+      const privacy = document.getElementById('privacy');
+      const script = document.createElement('script');
+      script.type = 'application/json';
+      script.textContent = '{"secret":"SCRIPTSECRET"}';
+      privacy.append(script);
+      const style = document.createElement('style');
+      style.textContent = '/* STYLESECRET */';
+      privacy.append(style);
+    </script>
+  </body>
+</html>

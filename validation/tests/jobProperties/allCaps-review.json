@@ -1,0 +1,54 @@
+{
+  "rule": "allCaps",
+  "timeLimit": 120,
+  "aiMock": [
+    {
+      "confidences": [
+        ["PRIVATE", 0.2],
+        ["SCRIPTSECRET", 0.2],
+        ["STYLESECRET", 0.2],
+        ["\"runs\":[\"WARNING\"]", 0.9],
+        ["\"runs\":[\"PARENT\"]", 0.9],
+        ["\"runs\":[\"CHILD\"]", 0.9]
+      ]
+    },
+    {
+      "error": "mock unavailable"
+    }
+  ],
+  "acts": [
+    {
+      "type": "launch",
+      "target": {
+        "url": "file://validation/tests/targets/allCaps/review.html",
+        "what": "page with allCaps review regressions"
+      }
+    },
+    {
+      "type": "test",
+      "which": "testaro",
+      "withItems": true,
+      "stopOnFail": false,
+      "rules": ["y", "allCaps"],
+      "expect": [
+        ["standardResult.totals.0", "=", 3],
+        ["standardResult.instances.length", "=", 3],
+        ["standardResult.instances.0.id", "=", "privacy"],
+        ["standardResult.instances.1.id", "=", "parentOrder"],
+        ["standardResult.instances.2.id", "=", "childOrder"]
+      ]
+    },
+    {
+      "type": "test",
+      "which": "testaro",
+      "withItems": true,
+      "stopOnFail": false,
+      "rules": ["y", "allCaps"],
+      "expect": [
+        ["standardResult.totals.0", "=", 0],
+        ["standardResult.instances.length", "=", 0],
+        ["data.ruleData.allCaps.aiError", "=", "mock unavailable"]
+      ]
+    }
+  ]
+}

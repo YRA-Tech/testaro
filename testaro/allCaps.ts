@@ -114,6 +114,7 @@ const getCandidates = (page: Page, scopeRoots: string[] | null) => page.evaluate
     };
     // Text nodes owned by each element in each document or shadow root.
     const ownTexts = new Map<Element, Map<Node, Text[]>>();
+    const elementOrder = new Map<Element, number>();
     // Returns whether a text node is rendered, including when its owner has no box.
     const isRendered = (node: Text, owner: Element) => {
       const range = document.createRange();
@@ -142,11 +143,75 @@ const getCandidates = (page: Page, scopeRoots: string[] | null) => page.evaluate
         || typeof owner.checkVisibility !== 'function'
         || owner.checkVisibility({visibilityProperty: true, opacityProperty: true});
     };
+    // Returns visible, non-excluded text and the offsets of its source nodes.
+    const getRenderedText = (root: Element | ShadowRoot) => {
+      let text = '';
+      const offsets = new Map<Text, TextSegment>();
+      const separate = () => {
+        if (text && ! text.endsWith('\n')) {
+          text += '\n';
+        }
+      };
+      const visit = (node: Node) => {
+        if (node.nodeType === Node.TEXT_NODE) {
+          const textNode = node as Text;
+          const parent = textNode.parentNode;
+          const owner = parent instanceof Element
+            ? parent
+            : parent instanceof ShadowRoot ? parent.host : null;
+          if (
+            ! owner
+            || excludedTags.has(owner.tagName)
+            || owner.closest('script, style, noscript, template, textarea')
+            || ! isRendered(textNode, owner)
+          ) {
+            return;
+          }
+          const start = text.length;
+          const value = textNode.nodeValue ?? '';
+          text += value;
+          offsets.set(textNode, {value, start, end: text.length});
+          return;
+        }
+        if (node.nodeType === Node.ELEMENT_NODE) {
+          const element = node as Element;
+          if (
+            excludedTags.has(element.tagName)
+            || element.closest('script, style, noscript, template, textarea')
+          ) {
+            return;
+          }
+          if (element.tagName === 'BR') {
+            separate();
+            return;
+          }
+          const isBlock = ! ['inline', 'contents'].includes(window.getComputedStyle(element).display);
+          if (isBlock) {
+            separate();
+          }
+          Array.from(element.childNodes).forEach(visit);
+          if (isBlock) {
+            separate();
+          }
+          return;
+        }
+        Array.from(node.childNodes).forEach(visit);
+      };
+      Array.from(root.childNodes).forEach(visit);
+      return {text, offsets};
+    };
     // Adds the qualifying text nodes in a tree, and in the open shadow roots within it.
     const collect = (root: Node) => {
+      if (root instanceof Element && ! elementOrder.has(root)) {
+        elementOrder.set(root, elementOrder.size);
+      }
       const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT);
       for (let node = walker.nextNode(); node; node = walker.nextNode()) {
         if (node.nodeType === Node.ELEMENT_NODE) {
+          const element = node as Element;
+          if (! elementOrder.has(element)) {
+            elementOrder.set(element, elementOrder.size);
+          }
           const {shadowRoot} = node as Element;
           if (shadowRoot) {
             collect(shadowRoot);
@@ -182,7 +247,7 @@ const getCandidates = (page: Page, scopeRoots: string[] | null) => page.evaluate
       }
     };
     collect(document.body);
-    const candidates: Candidate[] = [];
+    const orderedCandidates: {candidate: Candidate; order: number; sequence: number}[] = [];
     const getCatalogOwner = (element: Element) => {
       let catalogOwner = element;
       let rootNode = catalogOwner.getRootNode();
@@ -200,20 +265,15 @@ const getCandidates = (page: Page, scopeRoots: string[] | null) => page.evaluate
         const block = treeRoot instanceof ShadowRoot && owner === treeRoot.host
           ? treeRoot
           : getBlock(owner);
-        const blockText = block.textContent ?? '';
-        const range = document.createRange();
+        const {text: blockText, offsets} = getRenderedText(block);
         const sourceNodes = treeRoot instanceof ShadowRoot && owner === treeRoot.host
           ? treeRoot.childNodes
           : owner.childNodes;
         const textNodes = Array.from(sourceNodes)
         .filter((node): node is Text => node.nodeType === Node.TEXT_NODE);
-        const segments: TextSegment[] = textNodes.map(node => {
-          range.setStart(block, 0);
-          range.setEnd(node, 0);
-          const start = range.toString().length;
-          const value = node.nodeValue ?? '';
-          return {value, start, end: start + value.length};
-        }).filter(({value}) => value.length > 0);
+        const segments = textNodes
+        .map(node => offsets.get(node))
+        .filter((segment): segment is TextSegment => Boolean(segment?.value));
         const components: TextSegment[] = [];
         segments.forEach(segment => {
           const previous = components[components.length - 1];
@@ -249,16 +309,22 @@ const getCandidates = (page: Page, scopeRoots: string[] | null) => page.evaluate
           end++;
         }
         const catalogOwner = getCatalogOwner(owner);
-        candidates.push({
-          xPath: window.getXPath(catalogOwner) ?? '/html',
-          tagName: catalogOwner.tagName,
-          runs,
-          text: blockText.slice(start, end).trim().slice(0, maxTotal),
-          ownText
+        orderedCandidates.push({
+          candidate: {
+            xPath: window.getXPath(catalogOwner) ?? '/html',
+            tagName: catalogOwner.tagName,
+            runs,
+            text: blockText.slice(start, end).trim().slice(0, maxTotal),
+            ownText
+          },
+          order: elementOrder.get(owner) ?? Number.MAX_SAFE_INTEGER,
+          sequence: orderedCandidates.length
         });
       });
     });
-    return candidates;
+    return orderedCandidates
+    .sort((a, b) => a.order - b.order || a.sequence - b.sequence)
+    .map(({candidate}) => candidate);
   },
   {scopeRoots, maxMargin: MAX_MARGIN, maxTotal: MAX_TOTAL}
 );
@@ -376,7 +442,13 @@ export const reporter = async (page: Page, report: Report, _: unknown, withItems
   const groups = new Map<string, number[]>();
   candidates.forEach(({runs, text}, position) => {
     const key = JSON.stringify([runs, text]);
-    groups.set(key, [... (groups.get(key) ?? []), position]);
+    const positions = groups.get(key);
+    if (positions) {
+      positions.push(position);
+    }
+    else {
+      groups.set(key, [position]);
+    }
   });
   const distinct: {entry: QualifyingEntry; positions: number[]}[] = Array.from(groups.values())
   .map((positions, index) => {

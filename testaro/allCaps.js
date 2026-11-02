@@ -103,6 +103,7 @@ const getCandidates = (page, scopeRoots) => page.evaluate(({ scopeRoots, maxMarg
     };
     // Text nodes owned by each element in each document or shadow root.
     const ownTexts = new Map();
+    const elementOrder = new Map();
     // Returns whether a text node is rendered, including when its owner has no box.
     const isRendered = (node, owner) => {
         const range = document.createRange();
@@ -131,11 +132,71 @@ const getCandidates = (page, scopeRoots) => page.evaluate(({ scopeRoots, maxMarg
             || typeof owner.checkVisibility !== 'function'
             || owner.checkVisibility({ visibilityProperty: true, opacityProperty: true });
     };
+    // Returns visible, non-excluded text and the offsets of its source nodes.
+    const getRenderedText = (root) => {
+        let text = '';
+        const offsets = new Map();
+        const separate = () => {
+            if (text && !text.endsWith('\n')) {
+                text += '\n';
+            }
+        };
+        const visit = (node) => {
+            if (node.nodeType === Node.TEXT_NODE) {
+                const textNode = node;
+                const parent = textNode.parentNode;
+                const owner = parent instanceof Element
+                    ? parent
+                    : parent instanceof ShadowRoot ? parent.host : null;
+                if (!owner
+                    || excludedTags.has(owner.tagName)
+                    || owner.closest('script, style, noscript, template, textarea')
+                    || !isRendered(textNode, owner)) {
+                    return;
+                }
+                const start = text.length;
+                const value = textNode.nodeValue ?? '';
+                text += value;
+                offsets.set(textNode, { value, start, end: text.length });
+                return;
+            }
+            if (node.nodeType === Node.ELEMENT_NODE) {
+                const element = node;
+                if (excludedTags.has(element.tagName)
+                    || element.closest('script, style, noscript, template, textarea')) {
+                    return;
+                }
+                if (element.tagName === 'BR') {
+                    separate();
+                    return;
+                }
+                const isBlock = !['inline', 'contents'].includes(window.getComputedStyle(element).display);
+                if (isBlock) {
+                    separate();
+                }
+                Array.from(element.childNodes).forEach(visit);
+                if (isBlock) {
+                    separate();
+                }
+                return;
+            }
+            Array.from(node.childNodes).forEach(visit);
+        };
+        Array.from(root.childNodes).forEach(visit);
+        return { text, offsets };
+    };
     // Adds the qualifying text nodes in a tree, and in the open shadow roots within it.
     const collect = (root) => {
+        if (root instanceof Element && !elementOrder.has(root)) {
+            elementOrder.set(root, elementOrder.size);
+        }
         const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT);
         for (let node = walker.nextNode(); node; node = walker.nextNode()) {
             if (node.nodeType === Node.ELEMENT_NODE) {
+                const element = node;
+                if (!elementOrder.has(element)) {
+                    elementOrder.set(element, elementOrder.size);
+                }
                 const { shadowRoot } = node;
                 if (shadowRoot) {
                     collect(shadowRoot);
@@ -169,7 +230,7 @@ const getCandidates = (page, scopeRoots) => page.evaluate(({ scopeRoots, maxMarg
         }
     };
     collect(document.body);
-    const candidates = [];
+    const orderedCandidates = [];
     const getCatalogOwner = (element) => {
         let catalogOwner = element;
         let rootNode = catalogOwner.getRootNode();
@@ -187,20 +248,15 @@ const getCandidates = (page, scopeRoots) => page.evaluate(({ scopeRoots, maxMarg
             const block = treeRoot instanceof ShadowRoot && owner === treeRoot.host
                 ? treeRoot
                 : getBlock(owner);
-            const blockText = block.textContent ?? '';
-            const range = document.createRange();
+            const { text: blockText, offsets } = getRenderedText(block);
             const sourceNodes = treeRoot instanceof ShadowRoot && owner === treeRoot.host
                 ? treeRoot.childNodes
                 : owner.childNodes;
             const textNodes = Array.from(sourceNodes)
                 .filter((node) => node.nodeType === Node.TEXT_NODE);
-            const segments = textNodes.map(node => {
-                range.setStart(block, 0);
-                range.setEnd(node, 0);
-                const start = range.toString().length;
-                const value = node.nodeValue ?? '';
-                return { value, start, end: start + value.length };
-            }).filter(({ value }) => value.length > 0);
+            const segments = textNodes
+                .map(node => offsets.get(node))
+                .filter((segment) => Boolean(segment?.value));
             const components = [];
             segments.forEach(segment => {
                 const previous = components[components.length - 1];
@@ -234,16 +290,22 @@ const getCandidates = (page, scopeRoots) => page.evaluate(({ scopeRoots, maxMarg
                 end++;
             }
             const catalogOwner = getCatalogOwner(owner);
-            candidates.push({
-                xPath: window.getXPath(catalogOwner) ?? '/html',
-                tagName: catalogOwner.tagName,
-                runs,
-                text: blockText.slice(start, end).trim().slice(0, maxTotal),
-                ownText
+            orderedCandidates.push({
+                candidate: {
+                    xPath: window.getXPath(catalogOwner) ?? '/html',
+                    tagName: catalogOwner.tagName,
+                    runs,
+                    text: blockText.slice(start, end).trim().slice(0, maxTotal),
+                    ownText
+                },
+                order: elementOrder.get(owner) ?? Number.MAX_SAFE_INTEGER,
+                sequence: orderedCandidates.length
             });
         });
     });
-    return candidates;
+    return orderedCandidates
+        .sort((a, b) => a.order - b.order || a.sequence - b.sequence)
+        .map(({ candidate }) => candidate);
 }, { scopeRoots, maxMargin: MAX_MARGIN, maxTotal: MAX_TOTAL });
 // Returns the classifications in the text of an AI response, i.e. its JSON array, keeping only those of entries that were sent; throws if there is no parsable array.
 const getClassifications = (text, entries) => {
@@ -343,7 +405,13 @@ const reporter = async (page, report, _, withItems) => {
     const groups = new Map();
     candidates.forEach(({ runs, text }, position) => {
         const key = JSON.stringify([runs, text]);
-        groups.set(key, [...(groups.get(key) ?? []), position]);
+        const positions = groups.get(key);
+        if (positions) {
+            positions.push(position);
+        }
+        else {
+            groups.set(key, [position]);
+        }
     });
     const distinct = Array.from(groups.values())
         .map((positions, index) => {
