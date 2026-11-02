@@ -50,13 +50,21 @@
         <li>SAVE NOW</li>
         <li>SAVE NOW</li>
       </ul>
+      <p id="splitComment">N<!-- split -->O</p>
+      <p id="splitFallback">UPPER<!-- split -->CASE</p>
+      <p id="inlineContext">NASA <em>partners with</em> ESA</p>
+      <span id="contents" style="display: contents">PLEASE READ THIS</span>
+      <div id="shadowA"></div>
+      <div id="shadowB"></div>
       <!-- Not rendered: not candidates. -->
       <p hidden>HIDDEN CAPITALS</p>
       <script>
         const NOTE = 'SCRIPT CAPITALS';
         document.getElementById('host').attachShadow({mode: 'open'}).textContent = 'SHADOW CAPITALS here';
+        document.getElementById('shadowA').attachShadow({mode: 'open'}).innerHTML = '<p>SHADOW ROOT ALPHA</p>';
+        document.getElementById('shadowB').attachShadow({mode: 'open'}).innerHTML = '<p>SHADOW ROOT BETA</p>';
       </script>
-      <p>The candidate elements number fifteen, of which fourteen are distinct.</p>
+      <p>The candidate elements number twenty-one, of which twenty are distinct.</p>
     </main>
   </body>
 </html>

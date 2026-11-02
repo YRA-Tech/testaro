@@ -28,6 +28,11 @@ interface Candidate {
   text: string;
   ownText: string;
 }
+interface TextSegment {
+  value: string;
+  start: number;
+  end: number;
+}
 // One distinct candidate (runs and context) prepared for classification.
 interface QualifyingEntry {
   index: number;
@@ -74,8 +79,6 @@ const getCandidates = (page: Page, scopeRoots: string[] | null) => page.evaluate
     const excludedTags = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEMPLATE', 'TEXTAREA']);
     // A run: 2+ consecutive capitals, even within a word (as in DECISIONmaker or antiCOAGULANT), with any following words that are entirely capitals (so that in WCAG-EM Overview the run is WCAG-EM).
     const runPattern = /\p{Lu}{2,}(?:[\s\p{Pd}]+\p{Lu}+(?!\p{L}))*/gu;
-    // Returns text with its whitespace collapsed.
-    const tidy = (text: string) => text.replace(/\s+/g, ' ');
     const roots = (scopeRoots ?? [])
     .map(selector => {
       try {
@@ -109,8 +112,36 @@ const getCandidates = (page: Page, scopeRoots: string[] | null) => page.evaluate
       }
       return block;
     };
-    // Own texts of the owners, in document order.
-    const ownTexts = new Map<Element, string[]>();
+    // Text nodes owned by each element in each document or shadow root.
+    const ownTexts = new Map<Element, Map<Node, Text[]>>();
+    // Returns whether a text node is rendered, including when its owner has no box.
+    const isRendered = (node: Text, owner: Element) => {
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      if (! range.getClientRects().length) {
+        return false;
+      }
+      const style = window.getComputedStyle(owner);
+      if (['hidden', 'collapse'].includes(style.visibility)) {
+        return false;
+      }
+      let ancestor: Element | null = owner;
+      while (ancestor) {
+        if (Number(window.getComputedStyle(ancestor).opacity) === 0) {
+          return false;
+        }
+        if (ancestor.parentElement) {
+          ancestor = ancestor.parentElement;
+        }
+        else {
+          const rootNode = ancestor.getRootNode();
+          ancestor = rootNode instanceof ShadowRoot ? rootNode.host : null;
+        }
+      }
+      return style.display === 'contents'
+        || typeof owner.checkVisibility !== 'function'
+        || owner.checkVisibility({visibilityProperty: true, opacityProperty: true});
+    };
     // Adds the qualifying text nodes in a tree, and in the open shadow roots within it.
     const collect = (root: Node) => {
       const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT);
@@ -122,8 +153,7 @@ const getCandidates = (page: Page, scopeRoots: string[] | null) => page.evaluate
           }
           continue;
         }
-        const value = node.nodeValue ?? '';
-        if (! /\p{Lu}{2,}/u.test(value)) {
+        if (! /\p{Lu}/u.test(node.nodeValue ?? '')) {
           continue;
         }
         const parent = node.parentNode;
@@ -134,61 +164,98 @@ const getCandidates = (page: Page, scopeRoots: string[] | null) => page.evaluate
           ! owner
           || excludedTags.has(owner.tagName)
           || owner.closest('script, style, noscript, template, textarea')
-          || (typeof owner.checkVisibility === 'function'
-            && ! owner.checkVisibility({visibilityProperty: true, opacityProperty: true}))
+          || ! isRendered(node as Text, owner)
           || (roots.length && ! isInScope(owner))
           || (scopeRoots && scopeRoots.length && ! roots.length)
         ) {
           continue;
         }
+        const treeRoot = node.getRootNode();
         if (! ownTexts.has(owner)) {
-          ownTexts.set(owner, []);
+          ownTexts.set(owner, new Map());
         }
-        ownTexts.get(owner)!.push(value);
+        const trees = ownTexts.get(owner)!;
+        if (! trees.has(treeRoot)) {
+          trees.set(treeRoot, []);
+        }
+        trees.get(treeRoot)!.push(node as Text);
       }
     };
     collect(document.body);
     const candidates: Candidate[] = [];
-    ownTexts.forEach((texts, owner) => {
-      const ownText = tidy(texts.join(' ')).trim();
-      const allRuns = ownText.match(runPattern) ?? [];
-      const firstRun = allRuns[0];
-      const lastRun = allRuns[allRuns.length - 1];
-      if (! firstRun || ! lastRun) {
-        return;
+    const getCatalogOwner = (element: Element) => {
+      let catalogOwner = element;
+      let rootNode = catalogOwner.getRootNode();
+      while (rootNode instanceof ShadowRoot) {
+        catalogOwner = rootNode.host;
+        rootNode = catalogOwner.getRootNode();
       }
-      const runs = Array.from(new Set(allRuns));
-      // Get the literal text of the nearest block and the offset of the owner's text in it.
-      const block = getBlock(owner);
-      const blockText = tidy(block.textContent ?? '');
-      let ownerOffset = 0;
-      if (block !== owner) {
+      return catalogOwner;
+    };
+    ownTexts.forEach((trees, owner) => {
+      trees.forEach((nodes, treeRoot) => {
+        if (! nodes.length) {
+          return;
+        }
+        const block = treeRoot instanceof ShadowRoot && owner === treeRoot.host
+          ? treeRoot
+          : getBlock(owner);
+        const blockText = block.textContent ?? '';
         const range = document.createRange();
-        range.setStart(block, 0);
-        range.setEndBefore(owner);
-        ownerOffset = tidy(range.toString()).length;
-      }
-      // Get the context: the block text around the runs, starting from the owner's position, extended to whole words.
-      const first = blockText.indexOf(firstRun, Math.max(0, ownerOffset - 1));
-      const last = first > -1 ? blockText.lastIndexOf(lastRun, first + ownText.length) : -1;
-      let text = ownText;
-      if (first > -1 && last >= first) {
+        const sourceNodes = treeRoot instanceof ShadowRoot && owner === treeRoot.host
+          ? treeRoot.childNodes
+          : owner.childNodes;
+        const textNodes = Array.from(sourceNodes)
+        .filter((node): node is Text => node.nodeType === Node.TEXT_NODE);
+        const segments: TextSegment[] = textNodes.map(node => {
+          range.setStart(block, 0);
+          range.setEnd(node, 0);
+          const start = range.toString().length;
+          const value = node.nodeValue ?? '';
+          return {value, start, end: start + value.length};
+        }).filter(({value}) => value.length > 0);
+        const components: TextSegment[] = [];
+        segments.forEach(segment => {
+          const previous = components[components.length - 1];
+          if (previous && previous.end === segment.start) {
+            previous.value += segment.value;
+            previous.end = segment.end;
+          }
+          else {
+            components.push({...segment});
+          }
+        });
+        const matches = components.flatMap(component =>
+          Array.from(component.value.matchAll(runPattern), match => ({
+            run: match[0],
+            start: component.start + (match.index ?? 0),
+            end: component.start + (match.index ?? 0) + match[0].length
+          }))
+        );
+        if (! matches.length) {
+          return;
+        }
+        const runs = Array.from(new Set(matches.map(({run}) => run)));
+        const ownText = components.map(({value}) => value).join(' ');
+        // Get the real block context around the runs, using their source offsets.
+        const first = matches[0].start;
+        const last = matches[matches.length - 1].end;
         let start = Math.max(0, first - maxMargin);
-        let end = Math.min(blockText.length, last + lastRun.length + maxMargin);
+        let end = Math.min(blockText.length, last + maxMargin);
         while (start > 0 && /\S/.test(blockText[start - 1] ?? '')) {
           start--;
         }
         while (end < blockText.length && /\S/.test(blockText[end] ?? '')) {
           end++;
         }
-        text = blockText.slice(start, end).trim();
-      }
-      candidates.push({
-        xPath: window.getXPath(owner) ?? '/html',
-        tagName: owner.tagName,
-        runs,
-        text: text.slice(0, maxTotal),
-        ownText
+        const catalogOwner = getCatalogOwner(owner);
+        candidates.push({
+          xPath: window.getXPath(catalogOwner) ?? '/html',
+          tagName: catalogOwner.tagName,
+          runs,
+          text: blockText.slice(start, end).trim().slice(0, maxTotal),
+          ownText
+        });
       });
     });
     return candidates;
