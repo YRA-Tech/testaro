@@ -17,7 +17,7 @@ import {request} from 'playwright';
 import type {APIRequestContext, Page} from 'playwright';
 import {getNormalizedXPath, getXPathCatalogIndex} from '../procs/xPath';
 import {getStandardResult, addInstance} from '../procs/standard';
-import {applyMultiplier, getScannerId} from '../procs/config';
+import {applyMultiplier, getProxyLaunchOptions, getScannerId} from '../procs/config';
 import type {Act, Report, StandardInstance, StandardResult} from '../types';
 /*
   The alfa packages are pure ESM that Node loads via require(esm); their own
@@ -57,10 +57,9 @@ interface PageSheet {
   loadFailed?: boolean;
   // Whether the sheet was requested in CORS mode (its link has a crossorigin attribute).
   corsRequested?: boolean;
-  // The name of the sheet a copy compensates if this sheet is one, else null.
-  copyOf?: string | null;
-  // Whether the sheet is compensated by an injected copy.
-  compensated?: boolean;
+  // Whether the sheet is a document or adopted stylesheet, and its index in that list.
+  kind: 'dom' | 'adopted';
+  index: number;
 }
 // A plan for a copy of a stylesheet that would give alfa rules it cannot get from the sheet.
 interface SheetCopyPlan {
@@ -77,10 +76,12 @@ interface SheetCopyPlan {
   media: string;
   disabled: boolean;
 }
-// A stylesheet copy injected into the page to give alfa rules the sheet denies it.
+// A detached stylesheet copy exposed to alfa to give it rules the source denies.
 interface SheetCopy {
   // The index of the copy in alfa’s sheet order (document stylesheets, then adopted ones).
   index: number;
+  // The index of the original sheet in its own list.
+  originalIndex: number;
   // Whether the copy is a document stylesheet (DOM) or an adopted (constructed) one.
   kind: 'dom' | 'adopted';
   // The name of the sheet the copy compensates.
@@ -89,6 +90,8 @@ interface SheetCopy {
   rules: number;
   // Names of the rule types removed from the copy because alfa cannot serialize them.
   omitted: string[];
+  // Number of material rules removed from the copy because alfa cannot serialize them.
+  omittedRuleCount: number;
   // URLs of imported sheets whose texts could not be fetched for the copy.
   failedImports: string[];
 }
@@ -155,14 +158,42 @@ const countAlfaRules = (rules: AlfaRuleJSON[]): number => rules.reduce(
     : count + 1 + countAlfaRules(rule.rules ?? []),
   0
 );
+// Removes CSS comments without changing comment-like text inside strings.
+const stripCSSComments = (text: string): string => {
+  let result = '';
+  let quote = '';
+  for (let index = 0; index < text.length; index++) {
+    const char = text[index];
+    if (quote) {
+      result += char;
+      if (char === '\\') {
+        result += text[++index] ?? '';
+      }
+      else if (char === quote) {
+        quote = '';
+      }
+    }
+    else if (char === '"' || char === '\'') {
+      quote = char;
+      result += char;
+    }
+    else if (char === '/' && text[index + 1] === '*') {
+      const end = text.indexOf('*/', index + 2);
+      if (end === -1) {
+        result += ' ';
+        break;
+      }
+      result += ' ';
+      index = end + 1;
+    }
+    else {
+      result += char;
+    }
+  }
+  return result;
+};
 // Gets the document stylesheets of the page as page scripts see them, in alfa’s order.
 const getPageSheets = (page: Page): Promise<PageSheet[]> => page.evaluate(() => {
-  // Identifies an injected copy and a sheet compensated by one.
-  const copyOf = (sheet: StyleSheet): string | null => sheet.ownerNode instanceof HTMLStyleElement
-    ? sheet.ownerNode.dataset.testaroAlfaCopy ?? null
-    : null;
-  const compensated = (sheet: StyleSheet): boolean => sheet.ownerNode instanceof Element
-    && sheet.ownerNode.hasAttribute('data-testaro-alfa-compensated');
   // Counts the material rules in a list of rules, recording imports whose rules are unreadable.
   const countRules = (rules: CSSRuleList, unreadableImports: string[]): number => {
     let count = 0;
@@ -189,14 +220,18 @@ const getPageSheets = (page: Page): Promise<PageSheet[]> => page.evaluate(() => 
     return count;
   };
   // Alfa serializes the document sheets first and then the constructed (adopted) sheets.
-  const sheets = [...Array.from(document.styleSheets), ...(document.adoptedStyleSheets ?? [])];
+  const sheets = [
+    ...Array.from(document.styleSheets).map((sheet, index) => ({sheet, kind: 'dom' as const, index})),
+    ...Array.from(document.adoptedStyleSheets ?? [])
+      .map((sheet, index) => ({sheet, kind: 'adopted' as const, index}))
+  ];
   // Identify the sheets the browser failed to load, so losses are not claimed where the page itself lacks the rules.
   const failedLoads = new Set(
     (performance.getEntriesByType('resource') as PerformanceResourceTiming[])
       .filter(entry => ((entry as PerformanceResourceTiming & {responseStatus?: number}).responseStatus ?? 0) >= 400)
       .map(entry => entry.name)
   );
-  return sheets.map((sheet, index) => {
+  return sheets.map(({sheet, kind, index}) => {
     const unreadableImports: string[] = [];
     const sheetName = sheet.href
       || (sheet.ownerNode ? `inline sheet ${index}` : `constructed sheet ${index}`);
@@ -214,15 +249,15 @@ const getPageSheets = (page: Page): Promise<PageSheet[]> => page.evaluate(() => 
       loadFailed: !! sheet.href && failedLoads.has(sheet.href),
       corsRequested: sheet.ownerNode instanceof HTMLLinkElement
         && sheet.ownerNode.hasAttribute('crossorigin'),
-      copyOf: copyOf(sheet),
-      compensated: compensated(sheet)
+      kind,
+      index
     };
   });
 });
 // Returns the hrefs of the @import rules of a stylesheet text.
 const getImportHrefs = (text: string): string[] => {
   // Erase comments, which can contain import-like text.
-  let rest = text.replace(/\/\*[\s\S]*?\*\//g, ' ').trimStart();
+  let rest = stripCSSComments(text).trimStart();
   const hrefs: string[] = [];
   /*
     An import rule is valid only before all other rules except charset rules and layer
@@ -536,7 +571,7 @@ const resolveSheetText = async (
 ): Promise<{text: string; failedImports: string[]}> => {
   const failedImports: string[] = [];
   // Erase comments, which can contain import-like text.
-  let rest = text.replace(/\/\*[\s\S]*?\*\//g, ' ');
+  let rest = stripCSSComments(text);
   const blocks: string[] = [];
   /*
     An import is followed only if its URL is a data URL or has the scheme family of the
@@ -611,15 +646,68 @@ const resolveSheetText = async (
     failedImports
   };
 };
+// Whether a stylesheet can be copied without changing layer or nested-selector semantics.
+const isSafeCopy = (page: Page, text: string): Promise<boolean> => page.evaluate(text => {
+  const tag = (rule: CSSRule): string => rule.constructor?.name
+    || Object.prototype.toString.call(rule).replace(/^\[object (.+)\]$/, '$1');
+  const splitList = (selector: string): string[] => {
+    const parts: string[] = [];
+    let depth = 0;
+    let quote = '';
+    let start = 0;
+    for (let i = 0; i < selector.length; i++) {
+      const char = selector[i];
+      if (quote) {
+        if (char === quote) {
+          quote = '';
+        }
+      }
+      else if (char === '"' || char === '\'') {
+        quote = char;
+      }
+      else if (char === '(' || char === '[') {
+        depth++;
+      }
+      else if (char === ')' || char === ']') {
+        depth--;
+      }
+      else if (char === ',' && ! depth) {
+        parts.push(selector.slice(start, i));
+        start = i + 1;
+      }
+    }
+    parts.push(selector.slice(start));
+    return parts.filter(Boolean);
+  };
+  const hasUnsafeRules = (rules: CSSRuleList): boolean => Array.from(rules).some(rule => {
+    if (['CSSLayerBlockRule', 'CSSLayerStatementRule'].includes(tag(rule))) {
+      return true;
+    }
+    if (rule instanceof CSSStyleRule && rule.cssRules.length) {
+      if (splitList(rule.selectorText).length > 1 || hasUnsafeRules(rule.cssRules)) {
+        return true;
+      }
+    }
+    else if ('cssRules' in rule && hasUnsafeRules((rule as CSSGroupingRule).cssRules)) {
+      return true;
+    }
+    return false;
+  });
+  try {
+    const sheet = new CSSStyleSheet();
+    sheet.replaceSync(text);
+    return ! hasUnsafeRules(sheet.cssRules);
+  }
+  catch (error) {
+    return false;
+  }
+}, text);
 /*
-  Injects copies of the stylesheets named in the plans into the page, each immediately after
-  its original so the cascade order is preserved, then removes the rules alfa cannot
-  serialize and replaces rules nested in style rules with equivalent unnested rules. The
-  copies add rules to the page but remove none, so the presented page stays as it was.
-  Returns the injected copies, or rather the properties of theirs that loss checking needs.
+  Creates detached stylesheet copies and exposes them in temporary stylesheet-list views for
+  alfa. This preserves sheet order without changing the page’s DOM or applying duplicate rules.
 */
-const injectCopies = (page: Page, plans: (SheetCopyPlan & {text: string})[]): Promise<Omit<SheetCopy, 'failedImports'>[]> => page.evaluate((args: {
-  specs: (SheetCopyPlan & {text: string})[];
+const injectCopies = (page: Page, plans: (SheetCopyPlan & {text: string; failedImports: string[]})[]): Promise<SheetCopy[]> => page.evaluate((args: {
+  specs: (SheetCopyPlan & {text: string; failedImports: string[]})[];
   alfaTypes: string[];
 }) => {
   const {specs, alfaTypes} = args;
@@ -640,6 +728,17 @@ const injectCopies = (page: Page, plans: (SheetCopyPlan & {text: string})[]): Pr
       }
     }
     return count;
+  };
+  const countMaterialRules = (rule: CSSRule): number => {
+    if (rule instanceof CSSFontFaceRule || rule instanceof CSSPageRule) {
+      return 0;
+    }
+    return 1 + (
+      'cssRules' in rule
+        ? Array.from((rule as CSSGroupingRule).cssRules)
+          .reduce((count, child) => count + countMaterialRules(child), 0)
+        : 0
+    );
   };
   // Splits a selector list on commas not enclosed in parentheses, brackets, or quotes.
   const splitList = (selector: string): string[] => {
@@ -685,13 +784,14 @@ const injectCopies = (page: Page, plans: (SheetCopyPlan & {text: string})[]): Pr
     their headers; their contents are flattened recursively.
   */
   const flattenRule = (
-    rule: CSSRule, parents: string[], out: string[], omitted: Set<string>
+    rule: CSSRule, parents: string[], out: string[], omitted: Set<string>,
+    omittedRuleCount: {value: number}
   ): void => {
     if (rule instanceof CSSStyleRule) {
       const selectors = combine(parents, splitList(rule.selectorText));
       out.push(`${selectors.join(', ')} { ${rule.style.cssText} }`);
       for (const child of Array.from(rule.cssRules)) {
-        flattenRule(child, selectors, out, omitted);
+        flattenRule(child, selectors, out, omitted, omittedRuleCount);
       }
     }
     // A rule bearing declarations but no selector is a nested-declarations rule.
@@ -701,11 +801,12 @@ const injectCopies = (page: Page, plans: (SheetCopyPlan & {text: string})[]): Pr
     else if ('cssRules' in rule) {
       if (! supported.has(tag(rule))) {
         omitted.add(tag(rule));
+        omittedRuleCount.value += countMaterialRules(rule);
         return;
       }
       const inner: string[] = [];
       for (const child of Array.from((rule as CSSGroupingRule).cssRules)) {
-        flattenRule(child, parents, inner, omitted);
+        flattenRule(child, parents, inner, omitted, omittedRuleCount);
       }
       if (inner.length) {
         const header = rule.cssText.slice(0, rule.cssText.indexOf('{')).trim();
@@ -719,12 +820,14 @@ const injectCopies = (page: Page, plans: (SheetCopyPlan & {text: string})[]): Pr
     their rules in cascade order. Containers are sheets or grouping rules.
   */
   const sanitize = (
-    container: CSSStyleSheet | CSSGroupingRule, omitted: Set<string>
+    container: CSSStyleSheet | CSSGroupingRule, omitted: Set<string>,
+    omittedRuleCount: {value: number}
   ): void => {
     for (let i = container.cssRules.length - 1; i >= 0; i--) {
       const rule = container.cssRules[i];
       if (! supported.has(tag(rule))) {
         omitted.add(tag(rule));
+        omittedRuleCount.value += countMaterialRules(rule);
         container.deleteRule(i);
         continue;
       }
@@ -733,7 +836,7 @@ const injectCopies = (page: Page, plans: (SheetCopyPlan & {text: string})[]): Pr
           const emitted: string[] = [];
           const parents = splitList(rule.selectorText);
           for (const child of Array.from(rule.cssRules)) {
-            flattenRule(child, parents, emitted, omitted);
+            flattenRule(child, parents, emitted, omitted, omittedRuleCount);
           }
           // Insert the flattened rules immediately after their parent.
           emitted.reverse().forEach(text => {
@@ -753,118 +856,91 @@ const injectCopies = (page: Page, plans: (SheetCopyPlan & {text: string})[]): Pr
         continue;
       }
       if ('cssRules' in rule) {
-        sanitize(rule as CSSGroupingRule, omitted);
+        sanitize(rule as CSSGroupingRule, omitted, omittedRuleCount);
       }
     }
   };
-  const copies: Omit<SheetCopy, 'failedImports'>[] = [];
-  // Inject copies of adopted sheets in descending index order to keep the indexes valid.
-  const adoptedCopies: {sheet: CSSStyleSheet; spec: SheetCopyPlan & {text: string}}[] = [];
-  specs.filter(spec => spec.kind === 'adopted')
-    .sort((a, b) => b.index - a.index)
-    .forEach(spec => {
-      try {
-        const copy = new CSSStyleSheet();
-        copy.replaceSync(spec.text);
-        const adopted = Array.from(document.adoptedStyleSheets ?? []);
-        adopted.splice(spec.index + 1, 0, copy);
-        document.adoptedStyleSheets = adopted;
-        copy.disabled = spec.disabled;
-        adoptedCopies.push({sheet: copy, spec});
-      }
-      catch (error) {}
-    });
-  // Inject copies of document sheets in descending index order to keep the indexes valid.
-  const elements: {
-    element: HTMLStyleElement;
-    spec: SheetCopyPlan & {text: string};
-    owner: Element | null;
-  }[] = [];
-  specs.filter(spec => spec.kind === 'dom')
-    .sort((a, b) => b.index - a.index)
-    .forEach(spec => {
-      const element = document.createElement('style');
-      element.setAttribute('data-testaro-alfa-copy', spec.copyOf);
-      if (spec.media) {
-        element.media = spec.media;
-      }
-      element.textContent = spec.text;
-      const owner = document.styleSheets[spec.index]?.ownerNode;
-      if (owner && owner.parentNode) {
-        owner.after(element);
-      }
-      else {
-        document.head.appendChild(element);
-      }
-      if (element.sheet) {
-        element.sheet.disabled = spec.disabled;
-      }
-      elements.push({
-        element,
-        spec,
-        owner: owner instanceof Element ? owner : null
+  const originalDOMSheets = Array.from(document.styleSheets);
+  const originalAdoptedSheets = Array.from(document.adoptedStyleSheets ?? []);
+  const domCopies: {sheet: CSSStyleSheet; spec: SheetCopyPlan & {text: string; failedImports: string[]}; omitted: Set<string>; omittedRuleCount: number}[] = [];
+  const adoptedCopies: typeof domCopies = [];
+  for (const kind of ['dom', 'adopted'] as const) {
+    const destination = kind === 'dom' ? domCopies : adoptedCopies;
+    specs.filter(spec => spec.kind === kind)
+      .sort((a, b) => b.index - a.index)
+      .forEach(spec => {
+        try {
+          const copy = new CSSStyleSheet({media: spec.media});
+          copy.replaceSync(spec.text);
+          copy.disabled = spec.disabled;
+          const omitted = new Set<string>();
+          const omittedRuleCount = {value: 0};
+          sanitize(copy, omitted, omittedRuleCount);
+          if (copy.cssRules.length) {
+            destination.push({sheet: copy, spec, omitted, omittedRuleCount: omittedRuleCount.value});
+          }
+        }
+        catch (error) {}
       });
+  }
+  if (! domCopies.length && ! adoptedCopies.length) {
+    return [];
+  }
+  const domView = [...originalDOMSheets];
+  for (const {sheet, spec} of domCopies) {
+    domView.splice(spec.index + 1, 0, sheet);
+  }
+  const adoptedView = [...originalAdoptedSheets];
+  for (const {sheet, spec} of adoptedCopies) {
+    adoptedView.splice(spec.index + 1, 0, sheet);
+  }
+  const styleSheetsDescriptor = Object.getOwnPropertyDescriptor(document, 'styleSheets');
+  const adoptedStyleSheetsDescriptor = Object.getOwnPropertyDescriptor(document, 'adoptedStyleSheets');
+  const restore = (): void => {
+    if (styleSheetsDescriptor) {
+      Object.defineProperty(document, 'styleSheets', styleSheetsDescriptor);
+    }
+    else {
+      Reflect.deleteProperty(document, 'styleSheets');
+    }
+    if (adoptedStyleSheetsDescriptor) {
+      Object.defineProperty(document, 'adoptedStyleSheets', adoptedStyleSheetsDescriptor);
+    }
+    else {
+      Reflect.deleteProperty(document, 'adoptedStyleSheets');
+    }
+    Reflect.deleteProperty(document, '__testaroRestoreAlfaStyles');
+  };
+  try {
+    Object.defineProperty(document, 'styleSheets', {configurable: true, get: () => domView});
+    Object.defineProperty(document, 'adoptedStyleSheets', {configurable: true, get: () => adoptedView});
+    Object.defineProperty(document, '__testaroRestoreAlfaStyles', {
+      configurable: true,
+      value: restore
     });
-  /*
-    Sanitize each copy and record it if it received any rules (CSP can block style
-    elements). Only a surviving copy marks its original as compensated, since the name
-    of the original is index-based and can shift; a mark without a copy would hide a
-    real loss. A copy that never materialized is removed again.
-  */
-  const allSheets = () => [
-    ...Array.from(document.styleSheets),
-    ...Array.from(document.adoptedStyleSheets ?? [])
-  ];
-  for (const {element, spec, owner} of elements) {
-    const {sheet} = element;
-    if (! sheet || ! spec.text.trim()) {
-      element.remove();
-      continue;
-    }
-    const omitted = new Set<string>();
-    try {
-      sanitize(sheet as CSSStyleSheet, omitted);
-    }
-    catch (error) {}
-    if (! sheet.cssRules.length) {
-      element.remove();
-      continue;
-    }
-    if (owner) {
-      owner.setAttribute('data-testaro-alfa-compensated', spec.copyOf);
-    }
-    copies.push({
-      index: allSheets().indexOf(sheet),
-      kind: 'dom',
+  }
+  catch (error) {
+    restore();
+    throw error;
+  }
+  const allSheets = [...domView, ...adoptedView];
+  const copies: SheetCopy[] = [...domCopies, ...adoptedCopies].map(
+    ({sheet, spec, omitted, omittedRuleCount}) => ({
+      index: allSheets.indexOf(sheet),
+      originalIndex: spec.index,
+      kind: spec.kind,
       copyOf: spec.copyOf,
       rules: alfaView(sheet.cssRules),
-      omitted: Array.from(omitted)
-    });
-  }
-  // Sanitize and record each adopted copy that received any rules.
-  for (const {sheet: copy, spec} of adoptedCopies) {
-    const omitted = new Set<string>();
-    try {
-      sanitize(copy, omitted);
-    }
-    catch (error) {}
-    if (! copy.cssRules.length) {
-      continue;
-    }
-    copies.push({
-      index: allSheets().indexOf(copy),
-      kind: 'adopted',
-      copyOf: spec.copyOf,
-      rules: alfaView(copy.cssRules),
-      omitted: Array.from(omitted)
-    });
-  }
+      omitted: Array.from(omitted),
+      omittedRuleCount,
+      failedImports: spec.failedImports
+    })
+  );
   return copies;
 }, {specs: plans, alfaTypes: Array.from(ALFA_RULE_TYPES)});
 /*
-  Injects into the page a copy of each stylesheet that denies rules to alfa: each sheet that
-  page scripts cannot read or that contains rules alfa cannot serialize. The text of an
-  unreadable sheet is fetched outside the page. Copies leave the original sheets unchanged.
+  Prepares detached copies of sheets that deny rules to alfa. Unsafe layer and nested-selector
+  cases are left uncompensated so loss checking can prevent an incomplete audit.
 */
 const injectSheetCopies = async (page: Page, fetcher: APIRequestContext): Promise<SheetCopy[]> => {
   const plans = await getCopyPlans(page);
@@ -887,19 +963,16 @@ const injectSheetCopies = async (page: Page, fetcher: APIRequestContext): Promis
         continue;
       }
     }
-    // Prepare the text for injection, inlining its imports.
+    // Prepare the text for Alfa, inlining its imports.
     const resolved = await resolveSheetText(fetcher, text, plan.href ?? page.url());
-    specs.push({...plan, text: resolved.text, failedImports: resolved.failedImports});
+    if (await isSafeCopy(page, resolved.text)) {
+      specs.push({...plan, text: resolved.text, failedImports: resolved.failedImports});
+    }
   }
-  const copies = await injectCopies(page, specs);
-  // Add the failed imports of each plan to its copy.
-  return copies.map(copy => ({
-    ...copy,
-    failedImports: specs.find(spec => spec.copyOf === copy.copyOf)?.failedImports ?? []
-  }));
+  return injectCopies(page, specs);
 };
 /*
-  Alfa reads a page’s styles by running a script in the page. It silently treats a sheet as empty if page scripts cannot read its rules (a cross-origin sheet requested without CORS) or if the sheet contains a rule type alfa does not support (such as @property or @container); it treats a @media block containing such a rule as empty; and it omits rules nested in style rules (CSS nesting). Alfa then tests the page as if those rules did not exist. Its enforceAnonymousCrossOrigin option reloads cross-origin sheets with CORS, making them readable, but a sheet whose server refuses CORS then fails to load, and the page as well as alfa loses its rules: Chromium and WebKit leave the sheet unreadable, and Firefox leaves it empty. This function reports the stylesheets whose material rules alfa did not receive. Sheets compensated by injected copies, and the copies themselves unless alfa still misses some of their rules, are not losses. It does not inspect sheets in shadow roots.
+  Alfa reads a page’s styles by running a script in the page. It silently treats a sheet as empty if page scripts cannot read its rules (a cross-origin sheet requested without CORS) or if the sheet contains a rule type alfa does not support (such as @property or @container); it treats a @media block containing such a rule as empty; and it omits rules nested in style rules (CSS nesting). Alfa then tests the page as if those rules did not exist. Its enforceAnonymousCrossOrigin option reloads cross-origin sheets with CORS, making them readable, but a sheet whose server refuses CORS then fails to load, and the page as well as alfa loses its rules: Chromium and WebKit leave the sheet unreadable, and Firefox leaves it empty. This function reports the stylesheets whose material rules alfa did not receive. Sheets compensated by detached copies, and the copies themselves unless alfa still misses some of their rules, are not losses. It does not inspect sheets in shadow roots.
 */
 // Gets the stylesheets of the page whose material rules alfa did not receive.
 const getStyleLosses = async (
@@ -911,36 +984,25 @@ const getStyleLosses = async (
 ): Promise<StyleLoss[]> => {
   const losses: StyleLoss[] = [];
   const pageSheets = await getPageSheets(page);
-  const copyByName = new Map(copies.map(copy => [copy.copyOf, copy]));
-  // Adopted copies cannot mark their sheets, so they are recognized by index.
-  const adoptedCopyByIndex = new Map(
-    copies.filter(copy => copy.kind === 'adopted').map(copy => [copy.index, copy])
-  );
-  // Each adopted sheet with a copy sits immediately before its copy in sheet order.
-  const adoptedCompensated = new Set(
-    copies.filter(copy => copy.kind === 'adopted').map(copy => copy.index - 1)
-  );
   const unreadableURLs: string[] = [];
   const emptyCrossOriginURLs: string[] = [];
-  pageSheets.forEach((pageSheet, index) => {
-    const {sheet, isCrossOrigin, ruleCount, unreadableImports} = pageSheet;
-    // If the sheet is a copy, alfa should have received all its rules.
-    const copy = pageSheet.copyOf
-      ? copyByName.get(pageSheet.copyOf)
-      : adoptedCopyByIndex.get(index);
+  let alfaSheetIndex = 0;
+  pageSheets.forEach(pageSheet => {
+    const {sheet, isCrossOrigin, ruleCount, unreadableImports, kind, index} = pageSheet;
+    const sourceAlfaIndex = alfaSheetIndex++;
+    // If a detached copy is present, it follows its original in Alfa’s temporary sheet list.
+    const copy = copies.find(item => item.kind === kind && item.originalIndex === index);
     if (copy) {
-      const alfaSheet = alfaSheets[index];
+      alfaSheetIndex++;
+      const alfaSheet = alfaSheets[copy.index];
       const alfaCount = alfaSheet ? countAlfaRules(alfaSheet.toJSON().rules) : 0;
-      // If alfa received fewer material rules than the copy has, report a residual loss.
-      if (alfaCount < copy.rules) {
-        losses.push({sheet: copy.copyOf, reason: 'unserialized', ruleCount: copy.rules - alfaCount});
+      const missingRules = Math.max(0, copy.rules - alfaCount) + copy.omittedRuleCount;
+      // Include material rules removed during sanitizing and any residual serialization loss.
+      if (missingRules) {
+        losses.push({sheet: copy.copyOf, reason: 'unserialized', ruleCount: missingRules});
       }
       // Check any imports of the original sheet that the copy could not inline.
       unreadableURLs.push(...copy.failedImports);
-      return;
-    }
-    // If the sheet is compensated by a copy, it is no loss.
-    if (pageSheet.compensated || adoptedCompensated.has(index)) {
       return;
     }
     /*
@@ -976,7 +1038,7 @@ const getStyleLosses = async (
       }
     }
     else {
-      const alfaSheet = alfaSheets[index];
+      const alfaSheet = alfaSheets[sourceAlfaIndex];
       const alfaCount = alfaSheet ? countAlfaRules(alfaSheet.toJSON().rules) : 0;
       // If alfa received fewer material rules than the page has:
       if (alfaCount < ruleCount) {
@@ -1039,7 +1101,7 @@ export const reporter = async (page: Page, report: Report, actIndex: number) => 
     prevented?: boolean;
     error?: string;
     styleLosses?: StyleLoss[];
-    sheetCopies?: Omit<SheetCopy, 'index'>[];
+    sheetCopies?: Omit<SheetCopy, 'index' | 'originalIndex'>[];
   } = {};
   const result: {nativeResult: AlfaNativeResult; standardResult: StandardResult} = {
     nativeResult: {
@@ -1073,8 +1135,8 @@ export const reporter = async (page: Page, report: Report, actIndex: number) => 
       it replaces every link element lacking a crossorigin attribute with a clone that has one,
       so the browser reloads it, and a stylesheet whose server refuses CORS then loses its
       rules. Under browser isolation it is still used, since each act gets a fresh page. Under
-      process isolation, the default, stylesheet copies are injected instead: they give alfa
-      the rules without reloading anything, so the page loses no rules.
+      process isolation, the default, detached stylesheet copies are exposed to alfa instead:
+      they give alfa the rules without reloading or changing the page.
     */
     const isolation = report.jobData?.isolation;
     const isPageShared = isolation === 'page';
@@ -1085,10 +1147,13 @@ export const reporter = async (page: Page, report: Report, actIndex: number) => 
       Fetch stylesheets with the page’s own request context, unless the page is shared, in which
       case use a separate context, so that cookies set by the responses do not reach the page.
     */
+    const proxy = isPageShared ? getProxyLaunchOptions(report.browserID ?? '').proxy : undefined;
     const fetcher = isPageShared
       ? await request.newContext({
         userAgent: await page.evaluate(() => navigator.userAgent),
-        extraHTTPHeaders: getScannerId(report) ? {'X-YRA-Scanner': getScannerId(report)} : {}
+        extraHTTPHeaders: getScannerId(report) ? {'X-YRA-Scanner': getScannerId(report)} : {},
+        storageState: await page.context().storageState(),
+        ...(proxy ? {proxy} : {})
       })
       : page.request;
     let sheetCopies: SheetCopy[] = [];
@@ -1100,15 +1165,26 @@ export const reporter = async (page: Page, report: Report, actIndex: number) => 
     }
     catch (error) {
       console.log(`ERROR injecting stylesheet copies (${(error as Error).message})`);
+      await page.evaluate(() => {
+        (document as Document & {__testaroRestoreAlfaStyles?: () => void})
+          .__testaroRestoreAlfaStyles?.();
+      });
       sheetCopies = [];
     }
     const doc = await page.evaluateHandle('document');
     /*
       Get the alfa version of the page. Under browser isolation cross-origin sheets are first
-      reloaded with CORS; under process isolation the injected copies already provide them.
+      reloaded with CORS; under process isolation the detached copies already provide them.
     */
     const alfaPage = await Playwright.toPage(doc, {
       enforceAnonymousCrossOrigin: sheetsReloaded
+    }).finally(async () => {
+      if (sheetCopies.length) {
+        await page.evaluate(() => {
+          (document as Document & {__testaroRestoreAlfaStyles?: () => void})
+            .__testaroRestoreAlfaStyles?.();
+        });
+      }
     });
     let styleLosses: StyleLoss[];
     try {
@@ -1122,9 +1198,9 @@ export const reporter = async (page: Page, report: Report, actIndex: number) => 
         await fetcher.dispose();
       }
     }
-    // Report any injected copies, for transparency about what alfa was given.
+    // Report any detached copies, for transparency about what alfa was given.
     if (sheetCopies.length) {
-      data.sheetCopies = sheetCopies.map(({index, ...copy}) => copy);
+      data.sheetCopies = sheetCopies.map(({index, originalIndex, ...copy}) => copy);
     }
     // If there are any:
     if (styleLosses.length) {

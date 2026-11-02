@@ -20,7 +20,24 @@
           false
         ],
         [
-          "data.styleLosses"
+          "data.styleLosses.length",
+          "=",
+          1
+        ],
+        [
+          "data.styleLosses.0.sheet",
+          "=",
+          "inline sheet 1"
+        ],
+        [
+          "data.styleLosses.0.reason",
+          "=",
+          "unserialized"
+        ],
+        [
+          "data.styleLosses.0.ruleCount",
+          "=",
+          1
         ],
         [
           "data.sheetCopies.length",
@@ -44,6 +61,11 @@
         ],
         [
           "data.sheetCopies.1.rules",
+          "=",
+          1
+        ],
+        [
+          "data.sheetCopies.1.omittedRuleCount",
           "=",
           1
         ],

@@ -7,10 +7,12 @@ interface StyleLoss {
 }
 interface SheetCopy {
     index: number;
+    originalIndex: number;
     kind: 'dom' | 'adopted';
     copyOf: string;
     rules: number;
     omitted: string[];
+    omittedRuleCount: number;
     failedImports: string[];
 }
 interface AlfaEvalItem {
@@ -50,7 +52,7 @@ export declare const reporter: (page: Page, report: Report, actIndex: number) =>
         prevented?: boolean;
         error?: string;
         styleLosses?: StyleLoss[];
-        sheetCopies?: Omit<SheetCopy, 'index'>[];
+        sheetCopies?: Omit<SheetCopy, 'index' | 'originalIndex'>[];
     };
     result: {
         nativeResult: AlfaNativeResult;
