@@ -30,6 +30,10 @@ export interface LaunchOptions {
 
 // Launches a browser, navigates to a target, and returns the page, or undefined on failure.
 export function launch(opts?: LaunchOptions): Promise<Page | undefined>;
+// Prepares an already loaded page for a tool.
+export function preparePage(
+  page: Page, opts?: Pick<LaunchOptions, 'xPathNeed' | 'needsAccessibleName'>
+): Promise<void>;
 // Closes the browser of a page, with its context.
 export function browserClose(page: Page | null | undefined): Promise<void>;
 // Navigates a page to a URL.

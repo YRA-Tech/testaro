@@ -19,7 +19,7 @@
 // Shared configuration for timeout multiplier.
 import type {Page} from 'playwright';
 import {applyMultiplier, ruleLaunchRetries} from '../procs/config';
-import {browserClose, launch} from '../procs/launch';
+import {browserClose, launch, preparePage} from '../procs/launch';
 // Function to get an empty standard result.
 import {getStandardResult} from '../procs/standard';
 import {ruleModules} from '../testaro/registry';
@@ -676,6 +676,9 @@ export const reporter = async (page: Page | undefined, report: Report, actIndex:
             ? act.retries as number
             : ruleLaunchRetries
         });
+      }
+      else if (ruleIndex === 0 && givenPage && jobRules[ruleIndex].needsAccessibleName) {
+        await preparePage(page!, {xPathNeed: 'none', needsAccessibleName: true});
       }
       // If no page exists, the launch (or the replay of a checkpoint's acts) failed: the
       // target is unreachable, so prevent the act and stop testing rules.

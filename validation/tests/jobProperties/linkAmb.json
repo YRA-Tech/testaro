@@ -1,6 +1,7 @@
 {
   "rule": "linkAmb",
   "timeLimit": 20,
+  "isolation": "page",
   "acts": [
     {
       "type": "launch",

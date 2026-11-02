@@ -594,6 +594,9 @@ const reporter = async (page, report, actIndex) => {
                         : config_1.ruleLaunchRetries
                 });
             }
+            else if (ruleIndex === 0 && givenPage && jobRules[ruleIndex].needsAccessibleName) {
+                await (0, launch_1.preparePage)(page, { xPathNeed: 'none', needsAccessibleName: true });
+            }
             // If no page exists, the launch (or the replay of a checkpoint's acts) failed: the
             // target is unreachable, so prevent the act and stop testing rules.
             if (!page) {
