@@ -25,12 +25,12 @@
         [
           "standardResult.totals.2",
           "=",
-          4
+          6
         ],
         [
           "standardResult.instances.length",
           "=",
-          1
+          2
         ],
         [
           "standardResult.instances.0.ruleID",
@@ -70,7 +70,17 @@
         [
           "standardResult.instances.0.excerpt",
           "i",
-          "Basque information"
+          "Basque Country details"
+        ],
+        [
+          "standardResult.instances.1.what",
+          "i",
+          "links with the accessible name “shared accessible name” have 2 different destinations"
+        ],
+        [
+          "standardResult.instances.1.count",
+          "=",
+          2
         ]
       ],
       "rules": [
@@ -93,7 +103,7 @@
         [
           "standardResult.totals.2",
           "=",
-          4
+          6
         ],
         [
           "standardResult.instances.length",
@@ -108,7 +118,7 @@
         [
           "standardResult.instances.0.count",
           "=",
-          4
+          6
         ],
         [
           "standardResult.instances.0.what",
