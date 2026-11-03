@@ -11,16 +11,33 @@
 
 import * as http from 'http';
 import * as https from 'https';
+import type {Page} from 'playwright';
 // Function to build a standard instance.
 import {getInstance} from '../procs/standard';
-import type {Catalog, Report, StandardInstance} from '../types';
+import {getXPathCatalogIndex} from '../procs/xPath';
+import {defineGetXPath} from '../procs/xPathScript';
+import type {Report, StandardInstance} from '../types';
 
 // TYPES
 
-// One catalog entry prepared for classification.
+// An element whose own text contains literal upper-case runs, as found in the page.
+interface Candidate {
+  xPath: string;
+  tagName: string;
+  runs: string[];
+  text: string;
+  ownText: string;
+}
+interface TextSegment {
+  value: string;
+  start: number;
+  end: number;
+}
+// One distinct candidate (runs and context) prepared for classification.
 interface QualifyingEntry {
   index: number;
   tagName: string;
+  runs: string[];
   text: string;
 }
 // One classification decision.
@@ -28,16 +45,18 @@ interface Classification {
   index: number;
   confidence: number;
 }
-// One entry deemed a violation.
+// One element deemed a violator, by its position among the candidates.
 interface Violation {
-  catalogIndex: string;
+  position: number;
   what: string;
 }
 
 /*
   allCaps
   Related to Tenon rule 153.
-  This test reports elements whose text contains upper-case strings that are not intrinsically upper-case (i.e., not acronyms, abbreviations, or terms whose standard form is all-capitals). Claude Haiku classifies qualifying catalog entries and estimates the probability of a rule violation. If the AI call fails, the test falls back to a rule-based check for 8+ consecutive upper-case letters. Violations are reported in catalog order. The API is reached at ANTHROPIC_BASE_URL if set (as by the validation mock), else at https://api.anthropic.com.
+  This test reports elements whose own text contains literal upper-case strings that are not intrinsically upper-case (i.e., not acronyms, abbreviations, or terms whose standard form is all-capitals). Upper-case text produced by styles is the subject of the allCapStyle rule, so this rule reads the characters of text nodes, unaffected by styles.
+  The test examines the live page, so it tests the page state of the act's checkpoint, and, if the act's scope is changed, only the changed subtrees. A text node is owned by its parent element (or, directly in a shadow root, by the host). Each rendered element whose own text contains a run of 2 or more upper-case letters is a candidate, with the text of its nearest block ancestor around the runs as context. Candidates with identical runs and context are classified once. Claude Haiku estimates the probability that each violates the rule; up to 100 distinct candidates are classified, and violations among the others are estimated in proportion. If the AI call fails, the test falls back to a rule-based check for 8+ consecutive upper-case letters in an element's own text. Violations are reported in document order. The API is reached at ANTHROPIC_BASE_URL if set (as by the validation mock), else at https://api.anthropic.com.
+  Open shadow roots are examined, but closed shadow roots and frame documents are not, and slotted text is attributed to its light-DOM owner and document position, not to the slot that renders it.
   Compiled to allCaps.js by tsc (issue #73); edit this file, not the emitted one.
 */
 
@@ -47,6 +66,7 @@ const MIN_CONFIDENCE = 0.8;
 const MAX_MARGIN = 100;
 const MAX_TOTAL = 2000;
 const MAX_QUALIFYING = 100;
+const MAX_RUNS_TOTAL = 1000;
 
 // CONSTANTS
 
@@ -55,19 +75,300 @@ const whats = 'Elements have all-capital text';
 
 // FUNCTIONS
 
-// Returns text limited to MAX_MARGIN characters before the first and after the last uppercase match, capped at MAX_TOTAL characters.
-const getContext = (text: string) => {
-  const matches = [...text.matchAll(/\p{Lu}{2,}/gu)];
-  const first = matches[0];
-  const last = matches[matches.length - 1];
-  const start = Math.max(0, first.index - MAX_MARGIN);
-  const end = Math.min(text.length, last.index + last[0].length + MAX_MARGIN);
-  return text.slice(start, end).slice(0, MAX_TOTAL);
-};
-
-// Returns violations sorted by catalog index.
-const sortViolations = (violations: Violation[]) => violations.sort(
-  (a, b) => Number(a.catalogIndex) - Number(b.catalogIndex)
+// Returns the candidates of a page in document order, within the scope roots if any.
+const getCandidates = (page: Page, scopeRoots: string[] | null) => page.evaluate(
+  ({scopeRoots, maxMargin, maxTotal}): Candidate[] => {
+    const excludedTags = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEMPLATE', 'TEXTAREA']);
+    // A run: 2+ consecutive capitals, even within a word (as in DECISIONmaker or antiCOAGULANT), with any following words that are entirely capitals (so that in WCAG-EM Overview the run is WCAG-EM).
+    const runPattern = /\p{Lu}{2,}(?:[\s\p{Pd}]+\p{Lu}+(?!\p{L}))*/gu;
+    const roots = (scopeRoots ?? [])
+    .map(selector => {
+      try {
+        return document.querySelector(selector);
+      }
+      catch {
+        return null;
+      }
+    })
+    .filter((root): root is Element => Boolean(root));
+    // If a scope was specified but no scope root was found, nothing can qualify.
+    if (scopeRoots && scopeRoots.length && ! roots.length) {
+      return [];
+    }
+    // Returns whether an element is within a scope root, looking through shadow hosts.
+    const isInScope = (element: Element) => {
+      let node: Element | null = element;
+      while (node) {
+        if (roots.some(root => root.contains(node))) {
+          return true;
+        }
+        const rootNode = node.getRootNode();
+        node = rootNode instanceof ShadowRoot ? rootNode.host : null;
+      }
+      return false;
+    };
+    // Returns whether an element’s shadow tree may contain a rendered candidate in scope. (visibility is not checked: a descendant may override it.)
+    const mayHaveCandidates = (host: Element) => {
+      if (excludedTags.has(host.tagName) || host.closest('script, style, noscript, template, textarea')) {
+        return false;
+      }
+      const style = window.getComputedStyle(host);
+      if (style.display === 'none' || Number(style.opacity) === 0) {
+        return false;
+      }
+      return ! roots.length || isInScope(host);
+    };
+    // Returns the nearest ancestor of an element (or the element) that is not inline.
+    const getBlock = (element: Element) => {
+      let block: Element = element;
+      while (['inline', 'contents'].includes(window.getComputedStyle(block).display)) {
+        if (block.parentElement) {
+          block = block.parentElement;
+        }
+        else {
+          const rootNode = block.getRootNode();
+          return rootNode instanceof ShadowRoot ? rootNode : block;
+        }
+      }
+      return block;
+    };
+    // Text nodes owned by each element in each document or shadow root.
+    const ownTexts = new Map<Element, Map<Node, Text[]>>();
+    const elementOrder = new Map<Element, number>();
+    // Returns whether a text node is rendered, including when its owner has no box.
+    const isRendered = (node: Text, owner: Element) => {
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      if (! range.getClientRects().length) {
+        return false;
+      }
+      const style = window.getComputedStyle(owner);
+      if (['hidden', 'collapse'].includes(style.visibility)) {
+        return false;
+      }
+      let ancestor: Element | null = owner;
+      while (ancestor) {
+        if (Number(window.getComputedStyle(ancestor).opacity) === 0) {
+          return false;
+        }
+        if (ancestor.parentElement) {
+          ancestor = ancestor.parentElement;
+        }
+        else {
+          const rootNode = ancestor.getRootNode();
+          ancestor = rootNode instanceof ShadowRoot ? rootNode.host : null;
+        }
+      }
+      return style.display === 'contents'
+        || typeof owner.checkVisibility !== 'function'
+        || owner.checkVisibility({visibilityProperty: true, opacityProperty: true});
+    };
+    // Returns visible, non-excluded text and the offsets of its source nodes.
+    const getRenderedText = (root: Element | ShadowRoot) => {
+      let text = '';
+      const offsets = new Map<Text, TextSegment>();
+      const separate = () => {
+        if (text && ! text.endsWith('\n')) {
+          text += '\n';
+        }
+      };
+      const visit = (node: Node) => {
+        if (node.nodeType === Node.TEXT_NODE) {
+          const textNode = node as Text;
+          const parent = textNode.parentNode;
+          const owner = parent instanceof Element
+            ? parent
+            : parent instanceof ShadowRoot ? parent.host : null;
+          if (
+            ! owner
+            || excludedTags.has(owner.tagName)
+            || owner.closest('script, style, noscript, template, textarea')
+            || ! isRendered(textNode, owner)
+          ) {
+            return;
+          }
+          const start = text.length;
+          const value = textNode.nodeValue ?? '';
+          text += value;
+          offsets.set(textNode, {value, start, end: text.length});
+          return;
+        }
+        if (node.nodeType === Node.ELEMENT_NODE) {
+          const element = node as Element;
+          if (
+            excludedTags.has(element.tagName)
+            || element.closest('script, style, noscript, template, textarea')
+            || window.getComputedStyle(element).display === 'none'
+          ) {
+            return;
+          }
+          if (element.tagName === 'BR') {
+            separate();
+            return;
+          }
+          const isBlock = ! ['inline', 'contents'].includes(window.getComputedStyle(element).display);
+          if (isBlock) {
+            separate();
+          }
+          // A slot renders its assigned nodes at its position, or its fallback children if none are assigned. (An assigned slot resolves itself by recursion.)
+          const assigned = element instanceof HTMLSlotElement ? element.assignedNodes() : [];
+          Array.from(assigned.length ? assigned : element.childNodes).forEach(visit);
+          if (isBlock) {
+            separate();
+          }
+          return;
+        }
+        Array.from(node.childNodes).forEach(visit);
+      };
+      Array.from(root.childNodes).forEach(visit);
+      return {text, offsets};
+    };
+    // Adds the qualifying text nodes in a tree, and in the open shadow roots within it.
+    const collect = (root: Node) => {
+      if (root instanceof Element && ! elementOrder.has(root)) {
+        elementOrder.set(root, elementOrder.size);
+      }
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT);
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        if (node.nodeType === Node.ELEMENT_NODE) {
+          const element = node as Element;
+          if (! elementOrder.has(element)) {
+            elementOrder.set(element, elementOrder.size);
+          }
+          const {shadowRoot} = element;
+          // Recurse only into an open shadow root that may contain a rendered candidate in scope.
+          if (shadowRoot && mayHaveCandidates(element)) {
+            collect(shadowRoot);
+          }
+          continue;
+        }
+        if (! /\p{Lu}/u.test(node.nodeValue ?? '')) {
+          continue;
+        }
+        const parent = node.parentNode;
+        const owner = parent instanceof Element
+          ? parent
+          : parent instanceof ShadowRoot ? parent.host : null;
+        if (
+          ! owner
+          || excludedTags.has(owner.tagName)
+          || owner.closest('script, style, noscript, template, textarea')
+          || ! isRendered(node as Text, owner)
+          || (roots.length && ! isInScope(owner))
+        ) {
+          continue;
+        }
+        const treeRoot = node.getRootNode();
+        if (! ownTexts.has(owner)) {
+          ownTexts.set(owner, new Map());
+        }
+        const trees = ownTexts.get(owner)!;
+        if (! trees.has(treeRoot)) {
+          trees.set(treeRoot, []);
+        }
+        trees.get(treeRoot)!.push(node as Text);
+      }
+    };
+    collect(document.body);
+    const orderedCandidates: {candidate: Candidate; order: number; sequence: number}[] = [];
+    const getCatalogOwner = (element: Element) => {
+      let catalogOwner = element;
+      let rootNode = catalogOwner.getRootNode();
+      while (rootNode instanceof ShadowRoot) {
+        catalogOwner = rootNode.host;
+        rootNode = catalogOwner.getRootNode();
+      }
+      return catalogOwner;
+    };
+    const renderedTextByBlock = new WeakMap<
+      Element | ShadowRoot,
+      ReturnType<typeof getRenderedText>
+    >();
+    const getRenderedTextForBlock = (block: Element | ShadowRoot) => {
+      let renderedText = renderedTextByBlock.get(block);
+      if (! renderedText) {
+        renderedText = getRenderedText(block);
+        renderedTextByBlock.set(block, renderedText);
+      }
+      return renderedText;
+    };
+    ownTexts.forEach((trees, owner) => {
+      const allMatches: {run: string; start: number; end: number}[] = [];
+      const contextTexts: string[] = [];
+      const ownTextsByTree: string[] = [];
+      trees.forEach((nodes, treeRoot) => {
+        if (! nodes.length) {
+          return;
+        }
+        const block = treeRoot instanceof ShadowRoot && owner === treeRoot.host
+          ? treeRoot
+          : getBlock(owner);
+        const {text: blockText, offsets} = getRenderedTextForBlock(block);
+        const sourceNodes = treeRoot instanceof ShadowRoot && owner === treeRoot.host
+          ? treeRoot.childNodes
+          : owner.childNodes;
+        const textNodes = Array.from(sourceNodes)
+        .filter((node): node is Text => node.nodeType === Node.TEXT_NODE);
+        const segments = textNodes
+        .map(node => offsets.get(node))
+        .filter((segment): segment is TextSegment => Boolean(segment?.value));
+        const components: TextSegment[] = [];
+        segments.forEach(segment => {
+          const previous = components[components.length - 1];
+          if (previous && previous.end === segment.start) {
+            previous.value += segment.value;
+            previous.end = segment.end;
+          }
+          else {
+            components.push({...segment});
+          }
+        });
+        const matches = components.flatMap(component =>
+          Array.from(component.value.matchAll(runPattern), match => ({
+            run: match[0],
+            start: component.start + (match.index ?? 0),
+            end: component.start + (match.index ?? 0) + match[0].length
+          }))
+        );
+        if (! matches.length) {
+          return;
+        }
+        allMatches.push(...matches);
+        ownTextsByTree.push(components.map(({value}) => value).join(' '));
+        // Get the real block context around the runs, using their source offsets.
+        const first = matches[0].start;
+        const last = matches[matches.length - 1].end;
+        let start = Math.max(0, first - maxMargin);
+        let end = Math.min(blockText.length, last + maxMargin);
+        while (start > 0 && /\S/.test(blockText[start - 1] ?? '')) {
+          start--;
+        }
+        while (end < blockText.length && /\S/.test(blockText[end] ?? '')) {
+          end++;
+        }
+        contextTexts.push(blockText.slice(start, end).trim());
+      });
+      if (! allMatches.length) {
+        return;
+      }
+      const catalogOwner = getCatalogOwner(owner);
+      orderedCandidates.push({
+        candidate: {
+          xPath: window.getXPath(catalogOwner) ?? '/html',
+          tagName: catalogOwner.tagName,
+          runs: Array.from(new Set(allMatches.map(({run}) => run))),
+          text: contextTexts.join('\n').slice(0, maxTotal),
+          ownText: ownTextsByTree.join('\n')
+        },
+        order: elementOrder.get(owner) ?? Number.MAX_SAFE_INTEGER,
+        sequence: orderedCandidates.length
+      });
+    });
+    return orderedCandidates
+    .sort((a, b) => a.order - b.order || a.sequence - b.sequence)
+    .map(({candidate}) => candidate);
+  },
+  {scopeRoots, maxMargin: MAX_MARGIN, maxTotal: MAX_TOTAL}
 );
 // Returns the classifications in the text of an AI response, i.e. its JSON array, keeping only those of entries that were sent; throws if there is no parsable array.
 const getClassifications = (text: string, entries: QualifyingEntry[]): Classification[] => {
@@ -87,15 +388,28 @@ const getClassifications = (text: string, entries: QualifyingEntry[]): Classific
   )
   .map(({index, confidence}) => ({index, confidence: Math.round(confidence * 10) / 10}));
 };
-// Returns violations using the rule-based fallback (8+ consecutive uppercase letters).
-const getRuleBasedViolations = (catalog: Catalog): Violation[] =>
-  Object.entries(catalog)
-    .filter(([, entry]) => entry.text && /\p{Lu}{8,}/u.test(entry.text))
-    .map(([index]) => ({
-      catalogIndex: index,
-      what: '[No AI available] Element contains all-capital text'
-    }));
+// Returns violations using the rule-based fallback (8+ consecutive uppercase letters in an element's own text).
+const getRuleBasedViolations = (candidates: Candidate[]): Violation[] => candidates
+.map((candidate, position) => ({candidate, position}))
+.filter(({candidate}) => /\p{Lu}{8,}/u.test(candidate.ownText))
+.map(({position}) => ({
+  position,
+  what: '[No AI available] Element contains all-capital text'
+}));
 
+// Bounds the uppercase run data sent for each entry, leaving the full local fallback text intact.
+const getBoundedRuns = (runs: string[]) => {
+  let remaining = MAX_RUNS_TOTAL;
+  const bounded: string[] = [];
+  for (const run of runs) {
+    if (! remaining) {
+      break;
+    }
+    bounded.push(run.slice(0, remaining));
+    remaining -= Math.min(run.length, remaining);
+  }
+  return bounded;
+};
 // Sends qualifying entries to Claude Haiku and returns confidence scores.
 const classifyWithAI = (entries: QualifyingEntry[]) => new Promise<{
   classifications: Classification[];
@@ -107,8 +421,8 @@ const classifyWithAI = (entries: QualifyingEntry[]) => new Promise<{
     return;
   }
   const prompt =
-    'Classify HTML elements for an accessibility rule. All-capital text violates the rule UNLESS it is an acronym, abbreviation, or term whose standard form is all-capitals (NASA, WHO, etc.).\n\n'
-    + 'For each element, give a confidence score (0.0–1.0, rounded to one decimal place) for the probability that the element VIOLATES the rule (its all-caps text is NOT intrinsically all-caps).\n\n'
+    'Classify HTML elements for an accessibility rule. All-capital text violates the rule UNLESS it is an acronym, abbreviation, or term whose standard form is all-capitals (NASA, WHO, etc.). Only the literal characters matter: the texts below are unaffected by styles.\n\n'
+    + 'Each element has the runs of capitals in its own text and, as context, the text around them. For each element, give a confidence score (0.0–1.0, rounded to one decimal place) for the probability that the element VIOLATES the rule (its all-caps text is NOT intrinsically all-caps).\n\n'
     + 'Respond with ONLY a JSON array. Each element: {"index": <number>, "confidence": <number>}\n\n'
     + 'Elements:\n'
     + JSON.stringify(entries);
@@ -160,29 +474,45 @@ const classifyWithAI = (entries: QualifyingEntry[]) => new Promise<{
 });
 
 // Runs the test and returns the result.
-export const reporter = async (_0: unknown, report: Report, _1: unknown, withItems: boolean) => {
+export const reporter = async (page: Page, report: Report, _: unknown, withItems: boolean) => {
   const data: {
+    candidateCount?: number;
+    distinctCandidateCount?: number;
     aiModelUsage?: {inputTokens: number; outputTokens: number};
     leftOut?: {count: number; estimatedViolations: number};
     aiError?: string;
   } = {};
   const totals = [0, 0, 0, 0];
   const standardInstances: StandardInstance[] = [];
-  // Get data on the catalog entries whose text values contain 2+ consecutive capital letters.
-  const qualifying = Object.entries(report.catalog as Catalog)
-  .filter(([, entry]) => entry.text && /\p{Lu}{2,}/u.test(entry.text))
-  .map(([index, entry]) => ({
-    index: Number(index),
-    tagName: entry.tagName,
-    text: getContext(entry.text as string)
-  }));
+  // Get the candidates, within the scope roots if the act's scope is changed.
+  await defineGetXPath(page);
+  const candidates = await getCandidates(page, report.ruleScopeRoots ?? null);
+  data.candidateCount = candidates.length;
   // If there are none:
-  if (!qualifying.length) {
+  if (! candidates.length) {
     // Report this.
     return {data, totals, standardInstances};
   }
-  // Sort them, with unbiased (Fisher–Yates) randomization.
-  const sample = qualifying.slice();
+  // Group the candidates with identical runs and context, to be classified once.
+  const groups = new Map<string, number[]>();
+  candidates.forEach(({runs, text}, position) => {
+    const key = JSON.stringify([runs, text]);
+    const positions = groups.get(key);
+    if (positions) {
+      positions.push(position);
+    }
+    else {
+      groups.set(key, [position]);
+    }
+  });
+  const distinct: {entry: QualifyingEntry; positions: number[]}[] = Array.from(groups.values())
+  .map((positions, index) => {
+    const {tagName, runs, text} = candidates[positions[0]];
+    return {entry: {index, tagName, runs, text}, positions};
+  });
+  data.distinctCandidateCount = distinct.length;
+  // Sample them, with unbiased (Fisher–Yates) randomization.
+  const sample = distinct.slice();
   for (let i = sample.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [sample[i], sample[j]] = [sample[j], sample[i]];
@@ -195,20 +525,23 @@ export const reporter = async (_0: unknown, report: Report, _1: unknown, withIte
   let violations: Violation[];
   try {
     // Get AI estimates of the probabilities of their violating the rule.
-    const {classifications, aiModelUsage} = await classifyWithAI(sample);
+    const {classifications, aiModelUsage} = await classifyWithAI(
+      sample.map(({entry}) => ({...entry, runs: getBoundedRuns(entry.runs)}))
+    );
     data.aiModelUsage = aiModelUsage;
-    // Treat the entries with above-minimum violation confidence levels as violations.
+    // Treat the elements of the distinct candidates with above-minimum violation confidence levels as violations.
     violations = classifications
     .filter(({confidence}) => confidence >= MIN_CONFIDENCE)
-    .map(({index, confidence}) => ({
-      catalogIndex: String(index),
+    .flatMap(({index, confidence}) => distinct[index].positions.map(position => ({
+      position,
       what: `Claude Haiku has ${Math.round(confidence * 100)}% confidence that the element contains unnecessarily all-capital text`
-    }));
-    const evaluated = classifications.length;
-    const leftOut = qualifying.length - evaluated;
-    // If any entries were truncated out and any AI confidence levels were above-minimum:
+    })));
+    // Count the elements of the classified and unclassified candidates.
+    const evaluated = classifications.reduce((count, {index}) => count + distinct[index].positions.length, 0);
+    const leftOut = candidates.length - evaluated;
+    // If any elements were not classified and any were:
     if (leftOut > 0 && evaluated > 0) {
-      // Add data about the estimated violation rate among those entries.
+      // Add data about the estimated violation count among those not classified.
       data.leftOut = {
         count: leftOut,
         estimatedViolations: Math.round((violations.length / evaluated) * leftOut)
@@ -217,25 +550,26 @@ export const reporter = async (_0: unknown, report: Report, _1: unknown, withIte
   }
   catch(error) {
     data.aiError = (error as Error).message;
-    violations = getRuleBasedViolations(report.catalog as Catalog);
+    violations = getRuleBasedViolations(candidates);
   }
-  // Report the violations in catalog order, not in the random order of the sample.
-  sortViolations(violations);
+  // Report the violations in document order, not in the random order of the sample.
+  violations.sort((a, b) => a.position - b.position);
   const estimatedLeftOut = data.leftOut?.estimatedViolations ?? 0;
-  // Add the estimated violation count to the totals.
+  // Add the violation count, including the estimate, to the totals.
   totals[0] = violations.length + estimatedLeftOut;
   // The estimates are AI judgements, so every instance is uncertain.
   const certainty = {outcome: 'cantTell', uncertainty: 'judgement-required'} as const;
   // If itemization is required:
   if (withItems) {
-    // For each entry deemed a violation:
-    for (const {catalogIndex, what} of violations) {
+    // For each violation:
+    for (const {position, what} of violations) {
       // Add an instance to the standard instances.
+      const catalogIndex = getXPathCatalogIndex(report, candidates[position].xPath);
       standardInstances.push(
         getInstance({ruleID, what, ordinalSeverity: 0, catalogIndex, ... certainty})
       );
     }
-    // If any entries were truncated:
+    // If any elements were not classified:
     if (estimatedLeftOut) {
       // Add a summary instance for them.
       standardInstances.push(
