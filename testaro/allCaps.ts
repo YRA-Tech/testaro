@@ -65,6 +65,7 @@ const MIN_CONFIDENCE = 0.8;
 const MAX_MARGIN = 100;
 const MAX_TOTAL = 2000;
 const MAX_QUALIFYING = 100;
+const MAX_RUNS_TOTAL = 1000;
 
 // CONSTANTS
 
@@ -104,11 +105,14 @@ const getCandidates = (page: Page, scopeRoots: string[] | null) => page.evaluate
     // Returns the nearest ancestor of an element (or the element) that is not inline.
     const getBlock = (element: Element) => {
       let block: Element = element;
-      while (
-        block.parentElement
-        && ['inline', 'contents'].includes(window.getComputedStyle(block).display)
-      ) {
-        block = block.parentElement;
+      while (['inline', 'contents'].includes(window.getComputedStyle(block).display)) {
+        if (block.parentElement) {
+          block = block.parentElement;
+        }
+        else {
+          const rootNode = block.getRootNode();
+          return rootNode instanceof ShadowRoot ? rootNode : block;
+        }
       }
       return block;
     };
@@ -178,6 +182,7 @@ const getCandidates = (page: Page, scopeRoots: string[] | null) => page.evaluate
           if (
             excludedTags.has(element.tagName)
             || element.closest('script, style, noscript, template, textarea')
+            || window.getComputedStyle(element).display === 'none'
           ) {
             return;
           }
@@ -257,7 +262,22 @@ const getCandidates = (page: Page, scopeRoots: string[] | null) => page.evaluate
       }
       return catalogOwner;
     };
+    const renderedTextByBlock = new WeakMap<
+      Element | ShadowRoot,
+      ReturnType<typeof getRenderedText>
+    >();
+    const getRenderedTextForBlock = (block: Element | ShadowRoot) => {
+      let renderedText = renderedTextByBlock.get(block);
+      if (! renderedText) {
+        renderedText = getRenderedText(block);
+        renderedTextByBlock.set(block, renderedText);
+      }
+      return renderedText;
+    };
     ownTexts.forEach((trees, owner) => {
+      const allMatches: {run: string; start: number; end: number}[] = [];
+      const contextTexts: string[] = [];
+      const ownTextsByTree: string[] = [];
       trees.forEach((nodes, treeRoot) => {
         if (! nodes.length) {
           return;
@@ -265,7 +285,7 @@ const getCandidates = (page: Page, scopeRoots: string[] | null) => page.evaluate
         const block = treeRoot instanceof ShadowRoot && owner === treeRoot.host
           ? treeRoot
           : getBlock(owner);
-        const {text: blockText, offsets} = getRenderedText(block);
+        const {text: blockText, offsets} = getRenderedTextForBlock(block);
         const sourceNodes = treeRoot instanceof ShadowRoot && owner === treeRoot.host
           ? treeRoot.childNodes
           : owner.childNodes;
@@ -295,8 +315,8 @@ const getCandidates = (page: Page, scopeRoots: string[] | null) => page.evaluate
         if (! matches.length) {
           return;
         }
-        const runs = Array.from(new Set(matches.map(({run}) => run)));
-        const ownText = components.map(({value}) => value).join(' ');
+        allMatches.push(...matches);
+        ownTextsByTree.push(components.map(({value}) => value).join(' '));
         // Get the real block context around the runs, using their source offsets.
         const first = matches[0].start;
         const last = matches[matches.length - 1].end;
@@ -308,18 +328,22 @@ const getCandidates = (page: Page, scopeRoots: string[] | null) => page.evaluate
         while (end < blockText.length && /\S/.test(blockText[end] ?? '')) {
           end++;
         }
-        const catalogOwner = getCatalogOwner(owner);
-        orderedCandidates.push({
-          candidate: {
-            xPath: window.getXPath(catalogOwner) ?? '/html',
-            tagName: catalogOwner.tagName,
-            runs,
-            text: blockText.slice(start, end).trim().slice(0, maxTotal),
-            ownText
-          },
-          order: elementOrder.get(owner) ?? Number.MAX_SAFE_INTEGER,
-          sequence: orderedCandidates.length
-        });
+        contextTexts.push(blockText.slice(start, end).trim());
+      });
+      if (! allMatches.length) {
+        return;
+      }
+      const catalogOwner = getCatalogOwner(owner);
+      orderedCandidates.push({
+        candidate: {
+          xPath: window.getXPath(catalogOwner) ?? '/html',
+          tagName: catalogOwner.tagName,
+          runs: Array.from(new Set(allMatches.map(({run}) => run))),
+          text: contextTexts.join('\n').slice(0, maxTotal),
+          ownText: ownTextsByTree.join('\n')
+        },
+        order: elementOrder.get(owner) ?? Number.MAX_SAFE_INTEGER,
+        sequence: orderedCandidates.length
       });
     });
     return orderedCandidates
@@ -355,6 +379,19 @@ const getRuleBasedViolations = (candidates: Candidate[]): Violation[] => candida
   what: '[No AI available] Element contains all-capital text'
 }));
 
+// Bounds the uppercase run data sent for each entry, leaving the full local fallback text intact.
+const getBoundedRuns = (runs: string[]) => {
+  let remaining = MAX_RUNS_TOTAL;
+  const bounded: string[] = [];
+  for (const run of runs) {
+    if (! remaining) {
+      break;
+    }
+    bounded.push(run.slice(0, remaining));
+    remaining -= Math.min(run.length, remaining);
+  }
+  return bounded;
+};
 // Sends qualifying entries to Claude Haiku and returns confidence scores.
 const classifyWithAI = (entries: QualifyingEntry[]) => new Promise<{
   classifications: Classification[];
@@ -470,7 +507,9 @@ export const reporter = async (page: Page, report: Report, _: unknown, withItems
   let violations: Violation[];
   try {
     // Get AI estimates of the probabilities of their violating the rule.
-    const {classifications, aiModelUsage} = await classifyWithAI(sample.map(({entry}) => entry));
+    const {classifications, aiModelUsage} = await classifyWithAI(
+      sample.map(({entry}) => ({...entry, runs: getBoundedRuns(entry.runs)}))
+    );
     data.aiModelUsage = aiModelUsage;
     // Treat the elements of the distinct candidates with above-minimum violation confidence levels as violations.
     violations = classifications

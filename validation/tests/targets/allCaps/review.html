@@ -15,8 +15,13 @@
   <body>
     <main>
       <p id="privacy"><span hidden>PRIVATE</span>WARNING visible</p>
+      <p id="hiddenJoin">N<span hidden>SECRET</span>O</p>
+      <p id="hiddenBreak">UPPER<br hidden>CASE</p>
       <div id="parentOrder">ordinary <span id="childOrder">CHILD</span> PARENT</div>
       <p id="lineBreak">UPPER<br>CASE</p>
+      <p id="longRun"></p>
+      <div id="contextHost"></div>
+      <div id="sharedHost">LIGHT CAPITALS <span>ordinary details</span></div>
     </main>
     <script>
       const privacy = document.getElementById('privacy');
@@ -27,6 +32,11 @@
       const style = document.createElement('style');
       style.textContent = '/* STYLESECRET */';
       privacy.append(style);
+      document.getElementById('longRun').textContent = 'A'.repeat(3000);
+      document.getElementById('contextHost').attachShadow({mode: 'open'}).innerHTML =
+        'Are you <span>WARNING</span> with that?';
+      document.getElementById('sharedHost').attachShadow({mode: 'open'}).innerHTML =
+        'SHADOW CAPITALS <slot></slot>';
     </script>
   </body>
 </html>
