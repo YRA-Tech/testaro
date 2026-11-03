@@ -210,7 +210,9 @@ const getCandidates = (page: Page, scopeRoots: string[] | null) => page.evaluate
           if (isBlock) {
             separate();
           }
-          Array.from(element.childNodes).forEach(visit);
+          // A slot renders its assigned nodes at its position, or its fallback children if none are assigned. (An assigned slot resolves itself by recursion.)
+          const assigned = element instanceof HTMLSlotElement ? element.assignedNodes() : [];
+          Array.from(assigned.length ? assigned : element.childNodes).forEach(visit);
           if (isBlock) {
             separate();
           }
