@@ -90,6 +90,10 @@ const getCandidates = (page: Page, scopeRoots: string[] | null) => page.evaluate
       }
     })
     .filter((root): root is Element => Boolean(root));
+    // If a scope was specified but no scope root was found, nothing can qualify.
+    if (scopeRoots && scopeRoots.length && ! roots.length) {
+      return [];
+    }
     // Returns whether an element is within a scope root, looking through shadow hosts.
     const isInScope = (element: Element) => {
       let node: Element | null = element;
@@ -101,6 +105,17 @@ const getCandidates = (page: Page, scopeRoots: string[] | null) => page.evaluate
         node = rootNode instanceof ShadowRoot ? rootNode.host : null;
       }
       return false;
+    };
+    // Returns whether an element’s shadow tree may contain a rendered candidate in scope. (visibility is not checked: a descendant may override it.)
+    const mayHaveCandidates = (host: Element) => {
+      if (excludedTags.has(host.tagName) || host.closest('script, style, noscript, template, textarea')) {
+        return false;
+      }
+      const style = window.getComputedStyle(host);
+      if (style.display === 'none' || Number(style.opacity) === 0) {
+        return false;
+      }
+      return ! roots.length || isInScope(host);
     };
     // Returns the nearest ancestor of an element (or the element) that is not inline.
     const getBlock = (element: Element) => {
@@ -217,8 +232,9 @@ const getCandidates = (page: Page, scopeRoots: string[] | null) => page.evaluate
           if (! elementOrder.has(element)) {
             elementOrder.set(element, elementOrder.size);
           }
-          const {shadowRoot} = node as Element;
-          if (shadowRoot) {
+          const {shadowRoot} = element;
+          // Recurse only into an open shadow root that may contain a rendered candidate in scope.
+          if (shadowRoot && mayHaveCandidates(element)) {
             collect(shadowRoot);
           }
           continue;
@@ -236,7 +252,6 @@ const getCandidates = (page: Page, scopeRoots: string[] | null) => page.evaluate
           || owner.closest('script, style, noscript, template, textarea')
           || ! isRendered(node as Text, owner)
           || (roots.length && ! isInScope(owner))
-          || (scopeRoots && scopeRoots.length && ! roots.length)
         ) {
           continue;
         }

@@ -81,6 +81,10 @@ const getCandidates = (page, scopeRoots) => page.evaluate(({ scopeRoots, maxMarg
         }
     })
         .filter((root) => Boolean(root));
+    // If a scope was specified but no scope root was found, nothing can qualify.
+    if (scopeRoots && scopeRoots.length && !roots.length) {
+        return [];
+    }
     // Returns whether an element is within a scope root, looking through shadow hosts.
     const isInScope = (element) => {
         let node = element;
@@ -92,6 +96,17 @@ const getCandidates = (page, scopeRoots) => page.evaluate(({ scopeRoots, maxMarg
             node = rootNode instanceof ShadowRoot ? rootNode.host : null;
         }
         return false;
+    };
+    // Returns whether an element’s shadow tree may contain a rendered candidate in scope. (visibility is not checked: a descendant may override it.)
+    const mayHaveCandidates = (host) => {
+        if (excludedTags.has(host.tagName) || host.closest('script, style, noscript, template, textarea')) {
+            return false;
+        }
+        const style = window.getComputedStyle(host);
+        if (style.display === 'none' || Number(style.opacity) === 0) {
+            return false;
+        }
+        return !roots.length || isInScope(host);
     };
     // Returns the nearest ancestor of an element (or the element) that is not inline.
     const getBlock = (element) => {
@@ -204,8 +219,9 @@ const getCandidates = (page, scopeRoots) => page.evaluate(({ scopeRoots, maxMarg
                 if (!elementOrder.has(element)) {
                     elementOrder.set(element, elementOrder.size);
                 }
-                const { shadowRoot } = node;
-                if (shadowRoot) {
+                const { shadowRoot } = element;
+                // Recurse only into an open shadow root that may contain a rendered candidate in scope.
+                if (shadowRoot && mayHaveCandidates(element)) {
                     collect(shadowRoot);
                 }
                 continue;
@@ -221,8 +237,7 @@ const getCandidates = (page, scopeRoots) => page.evaluate(({ scopeRoots, maxMarg
                 || excludedTags.has(owner.tagName)
                 || owner.closest('script, style, noscript, template, textarea')
                 || !isRendered(node, owner)
-                || (roots.length && !isInScope(owner))
-                || (scopeRoots && scopeRoots.length && !roots.length)) {
+                || (roots.length && !isInScope(owner))) {
                 continue;
             }
             const treeRoot = node.getRootNode();
