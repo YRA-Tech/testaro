@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<!--
+  © 2026 Jonathan Robert Pool.
+
+  Licensed under the MIT License. See LICENSE file at the project root or
+  https://opensource.org/license/mit/ for details.
+
+  SPDX-License-Identifier: MIT
+-->
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <title>allCaps review regressions</title>
+  </head>
+  <body>
+    <main>
+      <p id="privacy"><span hidden>PRIVATE</span>WARNING visible</p>
+      <p id="hiddenJoin">N<span hidden>SECRET</span>O</p>
+      <p id="hiddenBreak">UPPER<br hidden>CASE</p>
+      <div id="parentOrder">ordinary <span id="childOrder">CHILD</span> PARENT</div>
+      <p id="lineBreak">UPPER<br>CASE</p>
+      <p id="longRun"></p>
+      <div id="contextHost"></div>
+      <div id="sharedHost">LIGHT CAPITALS <span>ordinary details</span></div>
+    </main>
+    <script>
+      const privacy = document.getElementById('privacy');
+      const script = document.createElement('script');
+      script.type = 'application/json';
+      script.textContent = '{"secret":"SCRIPTSECRET"}';
+      privacy.append(script);
+      const style = document.createElement('style');
+      style.textContent = '/* STYLESECRET */';
+      privacy.append(style);
+      document.getElementById('longRun').textContent = 'A'.repeat(3000);
+      document.getElementById('contextHost').attachShadow({mode: 'open'}).innerHTML =
+        'Are you <span>WARNING</span> with that?';
+      document.getElementById('sharedHost').attachShadow({mode: 'open'}).innerHTML =
+        'SHADOW CAPITALS <slot></slot>';
+    </script>
+  </body>
+</html>

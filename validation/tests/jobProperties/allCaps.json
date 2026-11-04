@@ -9,6 +9,14 @@
           1
         ],
         [
+          "\"NO\"",
+          0.9
+        ],
+        [
+          "PLEASE",
+          0.9
+        ],
+        [
           "ENTIRELY",
           0.9
         ],
@@ -67,6 +75,14 @@
         [
           "PARTLY",
           1
+        ],
+        [
+          "\"NO\"",
+          0.9
+        ],
+        [
+          "PLEASE",
+          0.9
         ],
         [
           "ENTIRELY",
@@ -141,6 +157,14 @@
         [
           "PARTLY",
           1
+        ],
+        [
+          "\"NO\"",
+          0.9
+        ],
+        [
+          "PLEASE",
+          0.9
         ],
         [
           "ENTIRELY",
@@ -221,12 +245,12 @@
         [
           "standardResult.totals.0",
           "=",
-          10
+          14
         ],
         [
           "standardResult.instances.length",
           "=",
-          10
+          14
         ],
         [
           "standardResult.instances.0.ruleID",
@@ -324,9 +348,29 @@
           "LI"
         ],
         [
+          "standardResult.instances.10.id",
+          "=",
+          "splitComment"
+        ],
+        [
+          "standardResult.instances.11.id",
+          "=",
+          "contents"
+        ],
+        [
+          "standardResult.instances.12.id",
+          "=",
+          "shadowA"
+        ],
+        [
+          "standardResult.instances.13.id",
+          "=",
+          "shadowB"
+        ],
+        [
           "standardResult.outcomeTotals.cantTell",
           "=",
-          10
+          14
         ],
         [
           "standardResult.outcomeTotals.failed",
@@ -339,12 +383,12 @@
         [
           "data.ruleData.allCaps.candidateCount",
           "=",
-          15
+          21
         ],
         [
           "data.ruleData.allCaps.distinctCandidateCount",
           "=",
-          14
+          20
         ]
       ]
     },
@@ -361,7 +405,7 @@
         [
           "standardResult.totals.0",
           "=",
-          10
+          14
         ],
         [
           "standardResult.instances.length",
@@ -396,7 +440,7 @@
         [
           "standardResult.instances.0.count",
           "=",
-          10
+          14
         ],
         [
           "data.ruleData.allCaps.aiError"
@@ -416,12 +460,12 @@
         [
           "standardResult.totals.0",
           "=",
-          4
+          5
         ],
         [
           "standardResult.instances.length",
           "=",
-          4
+          5
         ],
         [
           "standardResult.instances.0.what",
@@ -449,9 +493,14 @@
           "host"
         ],
         [
+          "standardResult.instances.4.id",
+          "=",
+          "splitFallback"
+        ],
+        [
           "standardResult.outcomeTotals.cantTell",
           "=",
-          4
+          5
         ],
         [
           "data.ruleData.allCaps.aiError",
@@ -461,12 +510,12 @@
         [
           "data.ruleData.allCaps.candidateCount",
           "=",
-          15
+          21
         ],
         [
           "data.ruleData.allCaps.distinctCandidateCount",
           "=",
-          14
+          20
         ]
       ]
     },
@@ -483,12 +532,12 @@
         [
           "standardResult.totals.0",
           "=",
-          4
+          5
         ],
         [
           "standardResult.instances.length",
           "=",
-          4
+          5
         ],
         [
           "standardResult.instances.0.what",
@@ -516,9 +565,14 @@
           "host"
         ],
         [
+          "standardResult.instances.4.id",
+          "=",
+          "splitFallback"
+        ],
+        [
           "standardResult.outcomeTotals.cantTell",
           "=",
-          4
+          5
         ],
         [
           "data.ruleData.allCaps.aiError",
@@ -528,12 +582,12 @@
         [
           "data.ruleData.allCaps.candidateCount",
           "=",
-          15
+          21
         ],
         [
           "data.ruleData.allCaps.distinctCandidateCount",
           "=",
-          14
+          20
         ]
       ]
     },
@@ -550,12 +604,12 @@
         [
           "standardResult.totals.0",
           "=",
-          4
+          5
         ],
         [
           "standardResult.instances.length",
           "=",
-          4
+          5
         ],
         [
           "standardResult.instances.0.what",
@@ -583,9 +637,14 @@
           "host"
         ],
         [
+          "standardResult.instances.4.id",
+          "=",
+          "splitFallback"
+        ],
+        [
           "standardResult.outcomeTotals.cantTell",
           "=",
-          4
+          5
         ],
         [
           "data.ruleData.allCaps.aiError",
@@ -595,12 +654,12 @@
         [
           "data.ruleData.allCaps.candidateCount",
           "=",
-          15
+          21
         ],
         [
           "data.ruleData.allCaps.distinctCandidateCount",
           "=",
-          14
+          20
         ]
       ]
     },
@@ -630,12 +689,12 @@
         [
           "data.ruleData.allCaps.candidateCount",
           "=",
-          15
+          21
         ],
         [
           "data.ruleData.allCaps.distinctCandidateCount",
           "=",
-          14
+          20
         ]
       ]
     },
@@ -652,20 +711,20 @@
         [
           "standardResult.totals.0",
           "=",
-          11
+          15
         ],
         [
           "standardResult.instances.length",
           "=",
-          11
+          15
         ],
         [
-          "standardResult.instances.10.what",
+          "standardResult.instances.14.what",
           "i",
           "Elements have all-capital text"
         ],
         [
-          "standardResult.instances.10.count",
+          "standardResult.instances.14.count",
           "=",
           1
         ],

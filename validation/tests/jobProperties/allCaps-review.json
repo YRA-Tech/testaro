@@ -1,0 +1,65 @@
+{
+  "rule": "allCaps",
+  "timeLimit": 120,
+  "aiMock": [
+    {
+      "confidences": [
+        ["PRIVATE", 0.2],
+        ["SCRIPTSECRET", 0.2],
+        ["STYLESECRET", 0.2],
+        ["\"text\":\"WARNING visible\"", 0.9],
+        ["\"runs\":[\"NO\"]", 0.9],
+        ["\"runs\":[\"PARENT\"]", 0.9],
+        ["\"runs\":[\"CHILD\"]", 0.9],
+        ["\"text\":\"Are you WARNING with that?\"", 0.9],
+        ["LIGHT CAPITALS", 0.9],
+        ["SHADOW CAPITALS", 0.9]
+      ],
+      "maxRunsLength": 1000
+    },
+    {
+      "error": "mock unavailable"
+    }
+  ],
+  "acts": [
+    {
+      "type": "launch",
+      "target": {
+        "url": "file://validation/tests/targets/allCaps/review.html",
+        "what": "page with allCaps review regressions"
+      }
+    },
+    {
+      "type": "test",
+      "which": "testaro",
+      "withItems": true,
+      "stopOnFail": false,
+      "rules": ["y", "allCaps"],
+      "expect": [
+        ["standardResult.totals.0", "=", 6],
+        ["standardResult.instances.length", "=", 6],
+        ["standardResult.instances.0.id", "=", "privacy"],
+        ["standardResult.instances.1.id", "=", "hiddenJoin"],
+        ["standardResult.instances.2.id", "=", "parentOrder"],
+        ["standardResult.instances.3.id", "=", "childOrder"],
+        ["standardResult.instances.4.id", "=", "contextHost"],
+        ["standardResult.instances.5.id", "=", "sharedHost"]
+      ]
+    },
+    {
+      "type": "test",
+      "which": "testaro",
+      "withItems": true,
+      "stopOnFail": false,
+      "rules": ["y", "allCaps"],
+      "expect": [
+        ["standardResult.totals.0", "=", 3],
+        ["standardResult.instances.length", "=", 3],
+        ["standardResult.instances.0.id", "=", "hiddenBreak"],
+        ["standardResult.instances.1.id", "=", "longRun"],
+        ["standardResult.instances.2.id", "=", "sharedHost"],
+        ["data.ruleData.allCaps.aiError", "=", "mock unavailable"]
+      ]
+    }
+  ]
+}

@@ -54,6 +54,7 @@ const xPathScript_1 = require("../procs/xPathScript");
   Related to Tenon rule 153.
   This test reports elements whose own text contains literal upper-case strings that are not intrinsically upper-case (i.e., not acronyms, abbreviations, or terms whose standard form is all-capitals). Upper-case text produced by styles is the subject of the allCapStyle rule, so this rule reads the characters of text nodes, unaffected by styles.
   The test examines the live page, so it tests the page state of the act's checkpoint, and, if the act's scope is changed, only the changed subtrees. A text node is owned by its parent element (or, directly in a shadow root, by the host). Each rendered element whose own text contains a run of 2 or more upper-case letters is a candidate, with the text of its nearest block ancestor around the runs as context. Candidates with identical runs and context are classified once. Claude Haiku estimates the probability that each violates the rule; up to 100 distinct candidates are classified, and violations among the others are estimated in proportion. If the AI call fails, the test falls back to a rule-based check for 8+ consecutive upper-case letters in an element's own text. Violations are reported in document order. The API is reached at ANTHROPIC_BASE_URL if set (as by the validation mock), else at https://api.anthropic.com.
+  Open shadow roots are examined, but closed shadow roots and frame documents are not, and slotted text is attributed to its light-DOM owner and document position, not to the slot that renders it.
   Compiled to allCaps.js by tsc (issue #73); edit this file, not the emitted one.
 */
 // PARAMETERS
@@ -61,6 +62,7 @@ const MIN_CONFIDENCE = 0.8;
 const MAX_MARGIN = 100;
 const MAX_TOTAL = 2000;
 const MAX_QUALIFYING = 100;
+const MAX_RUNS_TOTAL = 1000;
 // CONSTANTS
 const ruleID = 'allCaps';
 const whats = 'Elements have all-capital text';
@@ -70,8 +72,6 @@ const getCandidates = (page, scopeRoots) => page.evaluate(({ scopeRoots, maxMarg
     const excludedTags = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEMPLATE', 'TEXTAREA']);
     // A run: 2+ consecutive capitals, even within a word (as in DECISIONmaker or antiCOAGULANT), with any following words that are entirely capitals (so that in WCAG-EM Overview the run is WCAG-EM).
     const runPattern = /\p{Lu}{2,}(?:[\s\p{Pd}]+\p{Lu}+(?!\p{L}))*/gu;
-    // Returns text with its whitespace collapsed.
-    const tidy = (text) => text.replace(/\s+/g, ' ');
     const roots = (scopeRoots ?? [])
         .map(selector => {
         try {
@@ -82,6 +82,10 @@ const getCandidates = (page, scopeRoots) => page.evaluate(({ scopeRoots, maxMarg
         }
     })
         .filter((root) => Boolean(root));
+    // If a scope was specified but no scope root was found, nothing can qualify.
+    if (scopeRoots && scopeRoots.length && !roots.length) {
+        return [];
+    }
     // Returns whether an element is within a scope root, looking through shadow hosts.
     const isInScope = (element) => {
         let node = element;
@@ -94,30 +98,138 @@ const getCandidates = (page, scopeRoots) => page.evaluate(({ scopeRoots, maxMarg
         }
         return false;
     };
+    // Returns whether an element’s shadow tree may contain a rendered candidate in scope. (visibility is not checked: a descendant may override it.)
+    const mayHaveCandidates = (host) => {
+        if (excludedTags.has(host.tagName) || host.closest('script, style, noscript, template, textarea')) {
+            return false;
+        }
+        const style = window.getComputedStyle(host);
+        if (style.display === 'none' || Number(style.opacity) === 0) {
+            return false;
+        }
+        return !roots.length || isInScope(host);
+    };
     // Returns the nearest ancestor of an element (or the element) that is not inline.
     const getBlock = (element) => {
         let block = element;
-        while (block.parentElement
-            && ['inline', 'contents'].includes(window.getComputedStyle(block).display)) {
-            block = block.parentElement;
+        while (['inline', 'contents'].includes(window.getComputedStyle(block).display)) {
+            if (block.parentElement) {
+                block = block.parentElement;
+            }
+            else {
+                const rootNode = block.getRootNode();
+                return rootNode instanceof ShadowRoot ? rootNode : block;
+            }
         }
         return block;
     };
-    // Own texts of the owners, in document order.
+    // Text nodes owned by each element in each document or shadow root.
     const ownTexts = new Map();
+    const elementOrder = new Map();
+    // Returns whether a text node is rendered, including when its owner has no box.
+    const isRendered = (node, owner) => {
+        const range = document.createRange();
+        range.selectNodeContents(node);
+        if (!range.getClientRects().length) {
+            return false;
+        }
+        const style = window.getComputedStyle(owner);
+        if (['hidden', 'collapse'].includes(style.visibility)) {
+            return false;
+        }
+        let ancestor = owner;
+        while (ancestor) {
+            if (Number(window.getComputedStyle(ancestor).opacity) === 0) {
+                return false;
+            }
+            if (ancestor.parentElement) {
+                ancestor = ancestor.parentElement;
+            }
+            else {
+                const rootNode = ancestor.getRootNode();
+                ancestor = rootNode instanceof ShadowRoot ? rootNode.host : null;
+            }
+        }
+        return style.display === 'contents'
+            || typeof owner.checkVisibility !== 'function'
+            || owner.checkVisibility({ visibilityProperty: true, opacityProperty: true });
+    };
+    // Returns visible, non-excluded text and the offsets of its source nodes.
+    const getRenderedText = (root) => {
+        let text = '';
+        const offsets = new Map();
+        const separate = () => {
+            if (text && !text.endsWith('\n')) {
+                text += '\n';
+            }
+        };
+        const visit = (node) => {
+            if (node.nodeType === Node.TEXT_NODE) {
+                const textNode = node;
+                const parent = textNode.parentNode;
+                const owner = parent instanceof Element
+                    ? parent
+                    : parent instanceof ShadowRoot ? parent.host : null;
+                if (!owner
+                    || excludedTags.has(owner.tagName)
+                    || owner.closest('script, style, noscript, template, textarea')
+                    || !isRendered(textNode, owner)) {
+                    return;
+                }
+                const start = text.length;
+                const value = textNode.nodeValue ?? '';
+                text += value;
+                offsets.set(textNode, { value, start, end: text.length });
+                return;
+            }
+            if (node.nodeType === Node.ELEMENT_NODE) {
+                const element = node;
+                if (excludedTags.has(element.tagName)
+                    || element.closest('script, style, noscript, template, textarea')
+                    || window.getComputedStyle(element).display === 'none') {
+                    return;
+                }
+                if (element.tagName === 'BR') {
+                    separate();
+                    return;
+                }
+                const isBlock = !['inline', 'contents'].includes(window.getComputedStyle(element).display);
+                if (isBlock) {
+                    separate();
+                }
+                // A slot renders its assigned nodes at its position, or its fallback children if none are assigned. (An assigned slot resolves itself by recursion.)
+                const assigned = element instanceof HTMLSlotElement ? element.assignedNodes() : [];
+                Array.from(assigned.length ? assigned : element.childNodes).forEach(visit);
+                if (isBlock) {
+                    separate();
+                }
+                return;
+            }
+            Array.from(node.childNodes).forEach(visit);
+        };
+        Array.from(root.childNodes).forEach(visit);
+        return { text, offsets };
+    };
     // Adds the qualifying text nodes in a tree, and in the open shadow roots within it.
     const collect = (root) => {
+        if (root instanceof Element && !elementOrder.has(root)) {
+            elementOrder.set(root, elementOrder.size);
+        }
         const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT);
         for (let node = walker.nextNode(); node; node = walker.nextNode()) {
             if (node.nodeType === Node.ELEMENT_NODE) {
-                const { shadowRoot } = node;
-                if (shadowRoot) {
+                const element = node;
+                if (!elementOrder.has(element)) {
+                    elementOrder.set(element, elementOrder.size);
+                }
+                const { shadowRoot } = element;
+                // Recurse only into an open shadow root that may contain a rendered candidate in scope.
+                if (shadowRoot && mayHaveCandidates(element)) {
                     collect(shadowRoot);
                 }
                 continue;
             }
-            const value = node.nodeValue ?? '';
-            if (!/\p{Lu}{2,}/u.test(value)) {
+            if (!/\p{Lu}/u.test(node.nodeValue ?? '')) {
                 continue;
             }
             const parent = node.parentNode;
@@ -127,63 +239,114 @@ const getCandidates = (page, scopeRoots) => page.evaluate(({ scopeRoots, maxMarg
             if (!owner
                 || excludedTags.has(owner.tagName)
                 || owner.closest('script, style, noscript, template, textarea')
-                || (typeof owner.checkVisibility === 'function'
-                    && !owner.checkVisibility({ visibilityProperty: true, opacityProperty: true }))
-                || (roots.length && !isInScope(owner))
-                || (scopeRoots && scopeRoots.length && !roots.length)) {
+                || !isRendered(node, owner)
+                || (roots.length && !isInScope(owner))) {
                 continue;
             }
+            const treeRoot = node.getRootNode();
             if (!ownTexts.has(owner)) {
-                ownTexts.set(owner, []);
+                ownTexts.set(owner, new Map());
             }
-            ownTexts.get(owner).push(value);
+            const trees = ownTexts.get(owner);
+            if (!trees.has(treeRoot)) {
+                trees.set(treeRoot, []);
+            }
+            trees.get(treeRoot).push(node);
         }
     };
     collect(document.body);
-    const candidates = [];
-    ownTexts.forEach((texts, owner) => {
-        const ownText = tidy(texts.join(' ')).trim();
-        const allRuns = ownText.match(runPattern) ?? [];
-        const firstRun = allRuns[0];
-        const lastRun = allRuns[allRuns.length - 1];
-        if (!firstRun || !lastRun) {
-            return;
+    const orderedCandidates = [];
+    const getCatalogOwner = (element) => {
+        let catalogOwner = element;
+        let rootNode = catalogOwner.getRootNode();
+        while (rootNode instanceof ShadowRoot) {
+            catalogOwner = rootNode.host;
+            rootNode = catalogOwner.getRootNode();
         }
-        const runs = Array.from(new Set(allRuns));
-        // Get the literal text of the nearest block and the offset of the owner's text in it.
-        const block = getBlock(owner);
-        const blockText = tidy(block.textContent ?? '');
-        let ownerOffset = 0;
-        if (block !== owner) {
-            const range = document.createRange();
-            range.setStart(block, 0);
-            range.setEndBefore(owner);
-            ownerOffset = tidy(range.toString()).length;
+        return catalogOwner;
+    };
+    const renderedTextByBlock = new WeakMap();
+    const getRenderedTextForBlock = (block) => {
+        let renderedText = renderedTextByBlock.get(block);
+        if (!renderedText) {
+            renderedText = getRenderedText(block);
+            renderedTextByBlock.set(block, renderedText);
         }
-        // Get the context: the block text around the runs, starting from the owner's position, extended to whole words.
-        const first = blockText.indexOf(firstRun, Math.max(0, ownerOffset - 1));
-        const last = first > -1 ? blockText.lastIndexOf(lastRun, first + ownText.length) : -1;
-        let text = ownText;
-        if (first > -1 && last >= first) {
+        return renderedText;
+    };
+    ownTexts.forEach((trees, owner) => {
+        const allMatches = [];
+        const contextTexts = [];
+        const ownTextsByTree = [];
+        trees.forEach((nodes, treeRoot) => {
+            if (!nodes.length) {
+                return;
+            }
+            const block = treeRoot instanceof ShadowRoot && owner === treeRoot.host
+                ? treeRoot
+                : getBlock(owner);
+            const { text: blockText, offsets } = getRenderedTextForBlock(block);
+            const sourceNodes = treeRoot instanceof ShadowRoot && owner === treeRoot.host
+                ? treeRoot.childNodes
+                : owner.childNodes;
+            const textNodes = Array.from(sourceNodes)
+                .filter((node) => node.nodeType === Node.TEXT_NODE);
+            const segments = textNodes
+                .map(node => offsets.get(node))
+                .filter((segment) => Boolean(segment?.value));
+            const components = [];
+            segments.forEach(segment => {
+                const previous = components[components.length - 1];
+                if (previous && previous.end === segment.start) {
+                    previous.value += segment.value;
+                    previous.end = segment.end;
+                }
+                else {
+                    components.push({ ...segment });
+                }
+            });
+            const matches = components.flatMap(component => Array.from(component.value.matchAll(runPattern), match => ({
+                run: match[0],
+                start: component.start + (match.index ?? 0),
+                end: component.start + (match.index ?? 0) + match[0].length
+            })));
+            if (!matches.length) {
+                return;
+            }
+            allMatches.push(...matches);
+            ownTextsByTree.push(components.map(({ value }) => value).join(' '));
+            // Get the real block context around the runs, using their source offsets.
+            const first = matches[0].start;
+            const last = matches[matches.length - 1].end;
             let start = Math.max(0, first - maxMargin);
-            let end = Math.min(blockText.length, last + lastRun.length + maxMargin);
+            let end = Math.min(blockText.length, last + maxMargin);
             while (start > 0 && /\S/.test(blockText[start - 1] ?? '')) {
                 start--;
             }
             while (end < blockText.length && /\S/.test(blockText[end] ?? '')) {
                 end++;
             }
-            text = blockText.slice(start, end).trim();
+            contextTexts.push(blockText.slice(start, end).trim());
+        });
+        if (!allMatches.length) {
+            return;
         }
-        candidates.push({
-            xPath: window.getXPath(owner) ?? '/html',
-            tagName: owner.tagName,
-            runs,
-            text: text.slice(0, maxTotal),
-            ownText
+        const catalogOwner = getCatalogOwner(owner);
+        orderedCandidates.push({
+            candidate: {
+                xPath: window.getXPath(catalogOwner) ?? '/html',
+                tagName: catalogOwner.tagName,
+                runs: Array.from(new Set(allMatches.map(({ run }) => run))),
+                text: contextTexts.join('\n').slice(0, maxTotal),
+                ownText: ownTextsByTree.join('\n')
+            },
+            order: elementOrder.get(owner) ?? Number.MAX_SAFE_INTEGER,
+            sequence: orderedCandidates.length
         });
     });
-    return candidates;
+    return orderedCandidates
+        .sort((a, b) => a.order - b.order || a.sequence - b.sequence)
+        .map(({ candidate }) => candidate);
 }, { scopeRoots, maxMargin: MAX_MARGIN, maxTotal: MAX_TOTAL });
 // Returns the classifications in the text of an AI response, i.e. its JSON array, keeping only those of entries that were sent; throws if there is no parsable array.
 const getClassifications = (text, entries) => {
@@ -209,6 +372,19 @@ const getRuleBasedViolations = (candidates) => candidates
     position,
     what: '[No AI available] Element contains all-capital text'
 }));
+// Bounds the uppercase run data sent for each entry, leaving the full local fallback text intact.
+const getBoundedRuns = (runs) => {
+    let remaining = MAX_RUNS_TOTAL;
+    const bounded = [];
+    for (const run of runs) {
+        if (!remaining) {
+            break;
+        }
+        bounded.push(run.slice(0, remaining));
+        remaining -= Math.min(run.length, remaining);
+    }
+    return bounded;
+};
 // Sends qualifying entries to Claude Haiku and returns confidence scores.
 const classifyWithAI = (entries) => new Promise((resolve, reject) => {
     const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -283,7 +459,13 @@ const reporter = async (page, report, _, withItems) => {
     const groups = new Map();
     candidates.forEach(({ runs, text }, position) => {
         const key = JSON.stringify([runs, text]);
-        groups.set(key, [...(groups.get(key) ?? []), position]);
+        const positions = groups.get(key);
+        if (positions) {
+            positions.push(position);
+        }
+        else {
+            groups.set(key, [position]);
+        }
     });
     const distinct = Array.from(groups.values())
         .map((positions, index) => {
@@ -305,7 +487,7 @@ const reporter = async (page, report, _, withItems) => {
     let violations;
     try {
         // Get AI estimates of the probabilities of their violating the rule.
-        const { classifications, aiModelUsage } = await classifyWithAI(sample.map(({ entry }) => entry));
+        const { classifications, aiModelUsage } = await classifyWithAI(sample.map(({ entry }) => ({ ...entry, runs: getBoundedRuns(entry.runs) })));
         data.aiModelUsage = aiModelUsage;
         // Treat the elements of the distinct candidates with above-minimum violation confidence levels as violations.
         violations = classifications
