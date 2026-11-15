@@ -166,7 +166,7 @@ const normalizeURL = url => {
     return undefined;
   }
 };
-// Visits a URL and returns the response of the server.
+// Visits a URL and returns whether the visit succeeded and, if not, why not.
 const goTo = exports.goTo = async (report, page, url, timeout, waitUntil) => {
   // If the URL is that of a local file:
   if (url.startsWith('file://')) {
@@ -220,8 +220,7 @@ const goTo = exports.goTo = async (report, page, url, timeout, waitUntil) => {
         await page.keyboard.press('Escape');
         // Return the result of the navigation.
         return {
-          success: true,
-          response
+          success: true
         };
       }
     }
