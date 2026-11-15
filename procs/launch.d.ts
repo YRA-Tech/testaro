@@ -13,7 +13,7 @@
   files use. Delete this file when launch.js itself is converted (issue #73).
 */
 
-import type {Page, Response} from 'playwright';
+import type {Page} from 'playwright';
 import type {BrowserID, Report} from '../types';
 
 export interface LaunchOptions {
@@ -36,5 +36,3 @@ export function browserClose(page: Page | null | undefined): Promise<void>;
 export function goTo(
   report: Report, page: Page, url: string, timeout: number, waitUntil: string
 ): Promise<unknown>;
-// Gets the nonce, if any, of a response.
-export function getNonce(response: Response): Promise<string>;

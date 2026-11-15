@@ -5,8 +5,7 @@ signature browser replacement, resume-from-output): the default ACT-fixture mode
 below, and `--urls <file>` mode (one URL per line, `#` comments) for real-world captures — used
 by the engine-candidacy pipeline's Stage-3 stress/mapping run. URL mode additionally records
 per-instance element paths (`instances: [{ruleID, severity, xPath}]`, capped at 2,000/row) for
-element-level co-occurrence, and captures the page's CSP script nonce so script-injecting
-adapters can reuse it (mirroring the production launch proc's `jobData.lastScriptNonce`).
+element-level co-occurrence.
 
 Runs tool reporters over the [W3C ACT-Rules test cases](https://www.w3.org/WAI/standards-guidelines/act/rules/)
 — ~1,200 tiny fixture pages with expected outcomes (passed / failed / inapplicable) per ACT rule —

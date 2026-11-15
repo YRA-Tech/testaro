@@ -161,7 +161,7 @@ const waitError = (page, act, error, what) => {
 exports.doInteractionAct = async ({
   page, report, act, actIndex, actCount = 0, interaction = exports.defaultInteraction
 }) => {
-  const {goTo, getNonce, wait} = getLaunch();
+  const {goTo, wait} = getLaunch();
   const {type} = act;
   // The modality is recorded for the future modalities; only 'efficient' exists today.
   act.modality = interaction.modality;
@@ -174,12 +174,6 @@ exports.doInteractionAct = async ({
     if (navResult.success) {
       // Revise the temporary report URL to this URL.
       report.target.url = requestedURL;
-      // Add the script nonce, if any, to the job data.
-      const {response} = navResult;
-      const scriptNonce = await getNonce(response);
-      if (scriptNonce) {
-        report.jobData.lastScriptNonce = scriptNonce;
-      }
       // Add the resulting URL to the act.
       act.result = {success: true, url: page.url()};
     }
