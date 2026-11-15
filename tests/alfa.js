@@ -171,8 +171,41 @@ const getSchemeFamily = (url) => {
     }
     return url.startsWith('data:') ? 'data' : 'other';
 };
-// Gets the text of a stylesheet that page scripts cannot read, or null if it is unavailable.
-const getSheetText = async (fetcher, url) => {
+/*
+  Returns the Referer header that a browser would by default (under the policy
+  strict-origin-when-cross-origin) send when a document or stylesheet requests an HTTP
+  resource, or null if it would send none. Some servers, such as those of licensed font
+  services, do not respond to a stylesheet request that lacks the Referer of a licensed site.
+*/
+const getReferer = (referrer, url) => {
+    try {
+        const from = new URL(referrer);
+        const to = new URL(url);
+        // If the requester is not an HTTP resource or the request would downgrade security:
+        if (!['http:', 'https:'].includes(from.protocol)
+            || (from.protocol === 'https:' && to.protocol !== 'https:')) {
+            // No Referer would be sent.
+            return null;
+        }
+        // If the request is same-origin, the Referer is the URL without credentials or fragment.
+        if (from.origin === to.origin) {
+            from.username = '';
+            from.password = '';
+            from.hash = '';
+            return from.href;
+        }
+        // Otherwise the Referer is only the origin.
+        return `${from.origin}/`;
+    }
+    catch (error) {
+        return null;
+    }
+};
+/*
+  Gets the text of a stylesheet that page scripts cannot read, or null if it is unavailable.
+  The referrer is the URL of the page or stylesheet that requests the sheet.
+*/
+const getSheetText = async (fetcher, url, referrer) => {
     try {
         const family = getSchemeFamily(url);
         // If the sheet is a local file (each file URL being an origin of its own):
@@ -194,8 +227,12 @@ const getSheetText = async (fetcher, url) => {
         }
         // Otherwise, if it is an HTTP resource:
         if (family === 'http') {
-            // Fetch it outside the page, where the cross-origin rule does not apply.
-            const response = await fetcher.get(url, { timeout: (0, config_1.applyMultiplier)(5000) });
+            // Fetch it outside the page, where the cross-origin rule does not apply, as a browser would.
+            const referer = getReferer(referrer, url);
+            const response = await fetcher.get(url, {
+                timeout: (0, config_1.applyMultiplier)(5000),
+                ...(referer ? { headers: { Referer: referer } } : {})
+            });
             return response.ok() ? await response.text() : null;
         }
         return null;
@@ -251,7 +288,7 @@ const countTextRules = async (page, fetcher, text, url, visited = []) => {
             const importFamily = getSchemeFamily(importURL);
             const isFollowable = importFamily === 'data' || importFamily === rootFamily;
             if (isFollowable && !visitedNext.includes(importURL)) {
-                const importText = await getSheetText(fetcher, importURL);
+                const importText = await getSheetText(fetcher, importURL, url);
                 const importCount = importText === null
                     ? null
                     : await countTextRules(page, fetcher, importText, importURL, visitedNext);
@@ -473,7 +510,7 @@ const resolveSheetText = async (fetcher, text, url, visited = []) => {
             if (importURL && !visited.includes(importURL)) {
                 if (getSchemeFamily(importURL) === 'data'
                     || getSchemeFamily(importURL) === rootFamily) {
-                    const imported = await getSheetText(fetcher, importURL);
+                    const imported = await getSheetText(fetcher, importURL, url);
                     if (imported === null) {
                         failedImports.push(importURL);
                     }
@@ -807,7 +844,7 @@ const injectSheetCopies = async (page, fetcher) => {
                 || (getSchemeFamily(plan.href) === 'file' && pageFamily !== 'file')) {
                 continue;
             }
-            text = await getSheetText(fetcher, plan.href);
+            text = await getSheetText(fetcher, plan.href, page.url());
             if (text === null) {
                 continue;
             }
@@ -897,7 +934,7 @@ const getStyleLosses = async (page, fetcher, alfaSheets, copies = [], noReload =
         if (getSchemeFamily(url) === 'file' && pageFamily !== 'file') {
             continue;
         }
-        const text = await getSheetText(fetcher, url);
+        const text = await getSheetText(fetcher, url, page.url());
         /*
           If its text cannot be fetched either, the page presumably lacks its rules: a dead
           link or unreachable host fails for the browser, too. It is then no loss of alfa’s,
@@ -916,7 +953,7 @@ const getStyleLosses = async (page, fetcher, alfaSheets, copies = [], noReload =
         if (getSchemeFamily(url) === 'file' && pageFamily !== 'file') {
             continue;
         }
-        const text = await getSheetText(fetcher, url);
+        const text = await getSheetText(fetcher, url, page.url());
         // If its text is available:
         if (text !== null) {
             const ruleCount = await countTextRules(page, fetcher, text, url);
