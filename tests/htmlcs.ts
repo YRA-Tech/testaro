@@ -67,32 +67,34 @@ export const reporter = async (page: Page, report: Report, actIndex: number) => 
   const {nativeResult, standardResult} = result;
   // Get the HTMLCS script.
   const scriptText = await fs.readFile(`${__dirname}/../htmlcs/HTMLCS.js`, 'utf8');
-  const scriptNonce = (report.jobData && report.jobData.lastScriptNonce) as string | undefined;
+  /*
+    HTMLCS.js is a UMD bundle. If the page exposes an AMD loader (define.amd, e.g. Wix or RequireJS) or leaked CommonJS globals (exports, module), the UMD wrapper registers HTMLCS as a module and never attaches HTMLCS_RUNNER to window, so the run() call below throws and the tool is reported prevented. So those loader globals are hidden while the script runs, making the wrapper fall through to its browser-global branch, and then restored.
+  */
+  const hideLoaders = 'window.__testaroUMD = {define: window.define, exports: window.exports, module: window.module};'
+  + ' window.define = window.exports = window.module = undefined;';
+  const restoreLoaders = 'if (window.__testaroUMD) {window.define = window.__testaroUMD.define;'
+  + ' window.exports = window.__testaroUMD.exports; window.module = window.__testaroUMD.module;'
+  + ' delete window.__testaroUMD;}';
   let messageStrings: string[] = [];
   // For each class of standards to  be tested for:
   for (const actStandard of ['WCAG2AAA']) {
+    try {
+      /*
+        Run the HTMLCS script in the page. A script element would be refused by a page whose
+        content security policy forbids inline scripts, so the script is instead evaluated in
+        the page, which no such policy prevents.
+      */
+      await page.evaluate(`${hideLoaders}\n${scriptText}\n;${restoreLoaders}\nvoid 0;`);
+    }
+    // If the script failed to run:
+    catch(error) {
+      console.log(`ERROR running the HTMLCS script (${(error as Error).message.slice(0, 200)})`);
+      // Ensure the loader globals are restored. The run() call below will fail and be reported.
+      await page.evaluate(`${restoreLoaders}\nvoid 0;`).catch(() => {});
+    }
     const nextViolations = await page.evaluate(args => {
       const actStandard = args[0] as string;
       const rules = args[1] as string[] | undefined;
-      const scriptText = args[2] as string;
-      const scriptNonce = args[3] as string;
-      const script = document.createElement('script');
-      script.nonce = scriptNonce;
-      script.textContent = scriptText;
-      // HTMLCS.js is a UMD bundle. If the page exposes an AMD loader (define.amd, e.g. Wix or RequireJS) or leaked CommonJS globals (exports, module), the UMD wrapper registers HTMLCS as a module and never attaches HTMLCS_RUNNER to window, so the run() call below throws and the tool is reported prevented. Hide those loader globals for the duration of the synchronous script execution, so the wrapper falls through to its browser-global branch.
-      const umdDefine = window.define;
-      const umdExports = window.exports;
-      const umdModule = window.module;
-      window.define = undefined;
-      window.exports = undefined;
-      // The cast erases; window.module otherwise types as Node's module global.
-      window.module = undefined as unknown as typeof window.module;
-      // Add the HTMLCS script to the page.
-      document.head.insertAdjacentElement('beforeend', script);
-      // Restore the loader globals.
-      window.define = umdDefine;
-      window.exports = umdExports;
-      window.module = umdModule;
       // If only some rules are to be employed:
       if (rules && Array.isArray(rules) && rules.length) {
         // Redefine WCAG 2 AAA as including only them.
@@ -111,7 +113,7 @@ export const reporter = async (page: Page, report: Report, actIndex: number) => 
       }
       // Return the reported violations of that standard.
       return violations;
-    }, [actStandard, rules, scriptText, scriptNonce]);
+    }, [actStandard, rules]);
     // If all reported violations of the standard are validly described:
     if (nextViolations?.every(violation => typeof violation === 'string')) {
       // Add their descriptions to the violation descriptions.

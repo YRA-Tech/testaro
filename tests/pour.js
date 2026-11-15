@@ -71,10 +71,7 @@ const severityWeights = {
 // FUNCTIONS
 // Performs and reports the Pour Engine tests.
 const reporter = async (page, report, actIndex) => {
-    // Get the nonce, if any.
     const act = report.acts[actIndex];
-    const { jobData } = report;
-    const scriptNonce = (jobData && jobData.lastScriptNonce);
     // Initialize the act report.
     let data = {};
     const result = {
@@ -97,37 +94,33 @@ const reporter = async (page, report, actIndex) => {
         data.error = 'ERROR: pour bundle missing (see pour/README.md for vendoring instructions)';
         return { data, result };
     }
+    try {
+        /*
+          Run the tool bundle in the page. A script element would be refused by a page whose content
+          security policy forbids inline scripts, so the script is instead evaluated in the page,
+          which no such policy prevents.
+        */
+        await page.evaluate(`${script}\n;void 0;`);
+    }
+    // If the bundle failed to run:
+    catch (error) {
+        // Report the prevention.
+        data.prevented = true;
+        data.error = `pour bundle failed to run (${error.message.slice(0, 200)})`;
+        if (standard) {
+            result.standardResult.prevented = true;
+        }
+        return { data, result };
+    }
     // Perform the tests and populate the native result.
     result.nativeResult = await page.evaluate(args => new Promise(async (resolve) => {
-        const { scriptNonce, script } = args;
-        // Detect page-CSP blocking of the injection (the violation event is
-        // dispatched as a task, so the check below waits a tick).
-        let cspBlocked = false;
-        document.addEventListener('securitypolicyviolation', event => {
-            if ((event.violatedDirective || '').startsWith('script-src')) {
-                cspBlocked = true;
-            }
-        });
-        // Add the tool script to the page.
-        const toolScript = document.createElement('script');
-        if (scriptNonce) {
-            toolScript.nonce = scriptNonce;
-            console.log(`Added nonce ${scriptNonce} to tool script`);
-        }
-        toolScript.textContent = script;
-        document.body.insertAdjacentElement('beforeend', toolScript);
+        const { scriptChars } = args;
         // If the bundle failed to define its global:
         if (typeof pourEngine === 'undefined' || typeof pourEngine.run !== 'function') {
-            // Let a pending securitypolicyviolation event fire before diagnosing.
-            await new Promise(tick => setTimeout(tick, 0));
-            // A CSP block is a per-page condition, not a browser fault — report it
-            // distinctly (wedge canaries must not match this message).
             resolve({
                 prevented: true,
-                error: cspBlocked
-                    ? 'pour injection blocked by page CSP (script-src)'
-                    : `pourEngine global not defined (contentType ${document.contentType}, `
-                        + `scriptChars ${script.length}, readyState ${document.readyState})`
+                error: `pourEngine global not defined (contentType ${document.contentType}, `
+                    + `scriptChars ${scriptChars}, readyState ${document.readyState})`
             });
             return;
         }
@@ -188,8 +181,7 @@ const reporter = async (page, report, actIndex) => {
         }
         ;
     }), {
-        scriptNonce,
-        script
+        scriptChars: script.length
     });
     const { nativeResult } = result;
     // If the tool ran and rules were selected:

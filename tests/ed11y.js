@@ -56,10 +56,7 @@ const standard_1 = require("../procs/standard");
 // FUNCTIONS
 // Performs and reports the Editoria11y tests.
 const reporter = async (page, report, actIndex) => {
-    // Get the nonce, if any.
     const act = report.acts[actIndex];
-    const { jobData } = report;
-    const scriptNonce = (jobData && jobData.lastScriptNonce);
     // Initialize the act report.
     let data = {};
     const result = {
@@ -74,9 +71,30 @@ const reporter = async (page, report, actIndex) => {
     }
     // Get the tool script.
     const script = await fs.readFile(`${__dirname}/../ed11y/editoria11y.min.js`, 'utf8');
+    try {
+        /*
+          Run the tool script in the page, making its Ed11y class a global of the page. A script
+          element would be refused by a page whose content security policy forbids inline scripts,
+          so the script is instead evaluated in the page, which no such policy prevents.
+        */
+        await page.evaluate(`${script}\n;globalThis.Ed11y = Ed11y;\nvoid 0;`);
+    }
+    // If the tool script failed to run:
+    catch (error) {
+        // Report the prevention.
+        data.prevented = true;
+        data.error = `Editoria11y script failed to run (${error.message.slice(0, 200)})`;
+        if (standard) {
+            result.standardResult.prevented = true;
+        }
+        return {
+            data,
+            result
+        };
+    }
     // Perform the specified tests and populate the native result.
     result.nativeResult = await page.evaluate(args => new Promise(async (resolve) => {
-        const { scriptNonce, script, rulesToTest } = args;
+        const { rulesToTest } = args;
         // When the script has been executed, creating data in an Ed11y object:
         document.addEventListener('ed11yResults', async () => {
             let { results } = Ed11y;
@@ -99,15 +117,7 @@ const reporter = async (page, report, actIndex) => {
                 }))
             });
         });
-        // Add the tool script to the page.
-        const toolScript = document.createElement('script');
-        if (scriptNonce) {
-            toolScript.nonce = scriptNonce;
-            console.log(`Added nonce ${scriptNonce} to tool script`);
-        }
-        toolScript.textContent = script;
-        document.body.insertAdjacentElement('beforeend', toolScript);
-        // Execute the tool script, creating Ed11y and triggering the event listener.
+        // Create an Ed11y instance, triggering the event listener.
         try {
             await new Ed11y({
                 alertMode: 'headless'
@@ -121,8 +131,6 @@ const reporter = async (page, report, actIndex) => {
         }
         ;
     }), {
-        scriptNonce,
-        script,
         rulesToTest: act.rules
     });
     // If the tool script failed to run:
