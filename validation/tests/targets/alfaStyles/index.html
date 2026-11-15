@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<!--
+  © 2026 Jonathan Robert Pool.
+
+  Licensed under the MIT License. See LICENSE file at the project root or
+  https://opensource.org/license/mit/ for details.
+
+  SPDX-License-Identifier: MIT
+-->
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <title>Page with a stylesheet that Alfa cannot use</title>
+    <meta name="description" content="tester">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="usable.css">
+    <style>
+      @property --gap {
+        syntax: "<length>";
+        inherits: false;
+        initial-value: 0px;
+      }
+      p {
+        line-height: 1.6;
+      }
+    </style>
+    <link rel="stylesheet" href="imports.css">
+  </head>
+  <body>
+    <main>
+      <h1>Page with a stylesheet that Alfa cannot use</h1>
+      <p>Because the inline stylesheet of this page contains an @property rule, Alfa treats all of its rules as absent. When this page is loaded from a file URL, page scripts cannot read the linked stylesheets, so Alfa lacks their rules, too, including the rules of the stylesheet imported by one of them.</p>
+    </main>
+  </body>
+</html>
