@@ -166,7 +166,7 @@ const normalizeURL = url => {
     return undefined;
   }
 };
-// Visits a URL and returns the response of the server.
+// Visits a URL and returns whether the visit succeeded and, if not, why not.
 const goTo = exports.goTo = async (report, page, url, timeout, waitUntil) => {
   // If the URL is that of a local file:
   if (url.startsWith('file://')) {
@@ -220,8 +220,7 @@ const goTo = exports.goTo = async (report, page, url, timeout, waitUntil) => {
         await page.keyboard.press('Escape');
         // Return the result of the navigation.
         return {
-          success: true,
-          response
+          success: true
         };
       }
     }
@@ -295,28 +294,6 @@ const goTo = exports.goTo = async (report, page, url, timeout, waitUntil) => {
       error: `ERROR visiting ${url} (${error.message.slice(0, 200)})`
     };
   }
-};
-// Gets the script nonce from a response.
-const getNonce = exports.getNonce = async response => {
-  let nonce = '';
-  // If the response includes a content security policy:
-  const headers = await response.allHeaders();
-  const cspWithQuotes = headers && headers['content-security-policy'];
-  if (cspWithQuotes) {
-    // If it requires scripts to have a nonce:
-    const csp = cspWithQuotes.replace(/'/g, '');
-    const directives = csp.split(/ *; */).map(directive => directive.split(/ +/));
-    const scriptDirective = directives.find(dir => dir[0] === 'script-src');
-    if (scriptDirective) {
-      const nonceSpec = scriptDirective.find(valPart => valPart.startsWith('nonce-'));
-      if (nonceSpec) {
-        // Return the nonce.
-        nonce = nonceSpec.replace(/^nonce-/, '');
-      }
-    }
-  }
-  // Return the nonce, if any.
-  return nonce;
 };
 // Path of the dom-accessibility-api bundle.
 const nameComputationPath = require.resolve('../dist/nameComputation.js');
@@ -661,13 +638,6 @@ const launchOnce = async opts => {
         if (act) {
           // Add the actual URL to the act.
           act.actualURL = page.url();
-          // Get the response of the target server.
-          const {response} = navResult;
-          // Add the script nonce, if any, to the act.
-          const scriptNonce = await getNonce(response);
-          if (scriptNonce) {
-            report.jobData.lastScriptNonce = scriptNonce;
-          }
         }
       }
       // Otherwise, i.e. if the navigation failed:
