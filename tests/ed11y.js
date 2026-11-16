@@ -73,11 +73,17 @@ const reporter = async (page, report, actIndex) => {
     const script = await fs.readFile(`${__dirname}/../ed11y/editoria11y.min.js`, 'utf8');
     try {
         /*
-          Run the tool script in the page, making its Ed11y class a global of the page. A script
-          element would be refused by a page whose content security policy forbids inline scripts,
-          so the script is instead evaluated in the page, which no such policy prevents.
+          If the page does not yet have the Ed11y class, run the tool script in the page, making
+          the class a global of the page. The script registers custom elements, which a document
+          permits only once, so it must not be run again when the same page is tested again, as it
+          can be under page isolation; the class is then reused. A script element would be refused
+          by a page whose content security policy forbids inline scripts, so the script is instead
+          evaluated in the page, which no such policy prevents.
         */
-        await page.evaluate(`${script}\n;globalThis.Ed11y = Ed11y;\nvoid 0;`);
+        const isInstalled = await page.evaluate(() => typeof Ed11y === 'function');
+        if (!isInstalled) {
+            await page.evaluate(`${script}\n;globalThis.Ed11y = Ed11y;\nvoid 0;`);
+        }
     }
     // If the tool script failed to run:
     catch (error) {
