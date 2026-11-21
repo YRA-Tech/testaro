@@ -12,7 +12,6 @@
     {
       "type": "test",
       "which": "alfa",
-      "reckless": true,
       "expect": [
         [
           "standardResult.prevented",
@@ -22,7 +21,7 @@
         [
           "data.styleLosses.length",
           "=",
-          1
+          2
         ],
         [
           "data.styleLosses.0.sheet",
@@ -32,7 +31,7 @@
         [
           "data.styleLosses.0.reason",
           "=",
-          "unserialized"
+          "unsupported"
         ],
         [
           "data.styleLosses.0.ruleCount",
@@ -40,9 +39,24 @@
           1
         ],
         [
+          "data.styleLosses.1.sheet",
+          "=",
+          "inline sheet 2"
+        ],
+        [
+          "data.styleLosses.1.reason",
+          "=",
+          "unsupported"
+        ],
+        [
+          "data.styleLosses.1.ruleCount",
+          "=",
+          2
+        ],
+        [
           "data.sheetCopies.length",
           "=",
-          3
+          4
         ],
         [
           "data.sheetCopies.0.copyOf",
@@ -57,25 +71,40 @@
         [
           "data.sheetCopies.1.copyOf",
           "=",
-          "inline sheet 1"
+          "inline sheet 2"
         ],
         [
           "data.sheetCopies.1.rules",
           "=",
-          1
+          2
         ],
         [
           "data.sheetCopies.1.omittedRuleCount",
           "=",
-          1
+          2
         ],
         [
           "data.sheetCopies.2.copyOf",
+          "=",
+          "inline sheet 1"
+        ],
+        [
+          "data.sheetCopies.2.rules",
+          "=",
+          1
+        ],
+        [
+          "data.sheetCopies.2.omittedRuleCount",
+          "=",
+          1
+        ],
+        [
+          "data.sheetCopies.3.copyOf",
           "i",
           "usable.css"
         ],
         [
-          "data.sheetCopies.2.rules",
+          "data.sheetCopies.3.rules",
           "=",
           3
         ]

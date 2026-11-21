@@ -2,7 +2,7 @@ import type { Page } from 'playwright';
 import type { Report, StandardResult } from '../types';
 interface StyleLoss {
     sheet: string;
-    reason: 'unloaded' | 'unreadable' | 'unserialized';
+    reason: 'unloaded' | 'unreadable' | 'unserialized' | 'unsupported' | 'late';
     ruleCount: number | null;
 }
 interface SheetCopy {

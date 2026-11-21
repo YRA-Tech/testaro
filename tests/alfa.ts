@@ -39,11 +39,19 @@ interface AlfaAct extends Act {
 interface StyleLoss {
   // The URL of the sheet, or a description of an inline or constructed sheet.
   sheet: string;
-  // Why alfa lacks the rules: the sheet failed to reload with CORS and is empty (as in Firefox), page scripts cannot read its rules (as also in Chromium and WebKit after a failed reload), or alfa did not serialize them.
-  reason: 'unloaded' | 'unreadable' | 'unserialized';
+  /*
+    Why alfa lacks the rules: the sheet failed to reload with CORS and is empty (as in Firefox),
+    page scripts cannot read its rules (as also in Chromium and WebKit after a failed reload),
+    alfa did not serialize them, they are of a type alfa does not support and were removed from
+    the copy given to alfa, or the page added the sheet after Testaro took its list of sheets.
+    Only the last two reasons leave the act unprevented.
+  */
+  reason: 'unloaded' | 'unreadable' | 'unserialized' | 'unsupported' | 'late';
   // How many material rules alfa lacks, or null if they could not be counted.
   ruleCount: number | null;
 }
+// Reasons for style losses that do not prevent the act.
+const tolerableReasons = new Set(['unsupported', 'late']);
 // A stylesheet of the page as page scripts see it.
 interface PageSheet {
   sheet: string;
@@ -193,7 +201,26 @@ const stripCSSComments = (text: string): string => {
   return result;
 };
 // Gets the document stylesheets of the page as page scripts see them, in alfa’s order.
-const getPageSheets = (page: Page): Promise<PageSheet[]> => page.evaluate(() => {
+/*
+  Records in the page the lists of its document and adopted stylesheets, so that copy
+  planning, alfa’s view of the sheets, and loss checking all use the same lists. A page can
+  add, remove, and reorder its sheets while it is tested, and these steps take place at
+  different times, so lists read anew at each step could differ and be misaligned.
+*/
+const snapshotSheets = (page: Page): Promise<void> => page.evaluate(() => {
+  Object.defineProperty(document, '__testaroAlfaSheets', {
+    configurable: true,
+    value: {
+      dom: Array.from(document.styleSheets),
+      adopted: Array.from(document.adoptedStyleSheets ?? [])
+    }
+  });
+});
+// Removes the recorded lists of the page’s stylesheets.
+const releaseSnapshot = (page: Page): Promise<void> => page.evaluate(() => {
+  Reflect.deleteProperty(document, '__testaroAlfaSheets');
+}).catch(() => {});
+const getPageSheets = (page: Page): Promise<{sheets: PageSheet[]; late: PageSheet[]}> => page.evaluate(() => {
   // Counts the material rules in a list of rules, recording imports whose rules are unreadable.
   const countRules = (rules: CSSRuleList, unreadableImports: string[]): number => {
     let count = 0;
@@ -219,22 +246,40 @@ const getPageSheets = (page: Page): Promise<PageSheet[]> => page.evaluate(() => 
     }
     return count;
   };
+  // Get the recorded lists of the page’s sheets, if any, and the current lists.
+  const snapshot = (document as Document & {
+    __testaroAlfaSheets?: {dom: CSSStyleSheet[]; adopted: CSSStyleSheet[]};
+  }).__testaroAlfaSheets;
+  const liveDOM = Array.from(document.styleSheets);
+  const liveAdopted = Array.from(document.adoptedStyleSheets ?? []);
+  const domSheets = snapshot ? snapshot.dom : liveDOM;
+  const adoptedSheets = snapshot ? snapshot.adopted : liveAdopted;
   // Alfa serializes the document sheets first and then the constructed (adopted) sheets.
   const sheets = [
-    ...Array.from(document.styleSheets).map((sheet, index) => ({sheet, kind: 'dom' as const, index})),
-    ...Array.from(document.adoptedStyleSheets ?? [])
-      .map((sheet, index) => ({sheet, kind: 'adopted' as const, index}))
+    ...domSheets.map((sheet, index) => ({sheet, kind: 'dom' as const, index})),
+    ...adoptedSheets.map((sheet, index) => ({sheet, kind: 'adopted' as const, index}))
   ];
+  // Identify the sheets the page added after the lists were recorded, which alfa did not see.
+  const lateSheets = snapshot
+    ? [
+      ...liveDOM.filter(sheet => ! snapshot.dom.includes(sheet))
+        .map(sheet => ({sheet, kind: 'dom' as const, index: liveDOM.indexOf(sheet)})),
+      ...liveAdopted.filter(sheet => ! snapshot.adopted.includes(sheet))
+        .map(sheet => ({sheet, kind: 'adopted' as const, index: liveAdopted.indexOf(sheet)}))
+    ]
+    : [];
   // Identify the sheets the browser failed to load, so losses are not claimed where the page itself lacks the rules.
   const failedLoads = new Set(
     (performance.getEntriesByType('resource') as PerformanceResourceTiming[])
       .filter(entry => ((entry as PerformanceResourceTiming & {responseStatus?: number}).responseStatus ?? 0) >= 400)
       .map(entry => entry.name)
   );
-  return sheets.map(({sheet, kind, index}) => {
+  // Describes a sheet as page scripts see it.
+  const describe = ({sheet, kind, index}: {sheet: CSSStyleSheet; kind: 'dom' | 'adopted'; index: number}) => {
     const unreadableImports: string[] = [];
+    // A document sheet that the page has removed since the lists were recorded has no owner node.
     const sheetName = sheet.href
-      || (sheet.ownerNode ? `inline sheet ${index}` : `constructed sheet ${index}`);
+      || (kind === 'dom' ? `inline sheet ${index}` : `constructed sheet ${index}`);
     const isCrossOrigin = !! sheet.href && new URL(sheet.href).origin !== location.origin;
     let ruleCount: number | null = null;
     try {
@@ -252,7 +297,11 @@ const getPageSheets = (page: Page): Promise<PageSheet[]> => page.evaluate(() => 
       kind,
       index
     };
-  });
+  };
+  return {
+    sheets: sheets.map(describe),
+    late: lateSheets.map(describe)
+  };
 });
 // Returns the hrefs of the @import rules of a stylesheet text.
 const getImportHrefs = (text: string): string[] => {
@@ -491,9 +540,15 @@ const getCopyPlans = (page: Page): Promise<SheetCopyPlan[]> => page.evaluate(alf
     }
     return false;
   };
+  // Use the recorded lists of the page’s sheets, if any.
+  const snapshot = (document as Document & {
+    __testaroAlfaSheets?: {dom: CSSStyleSheet[]; adopted: CSSStyleSheet[]};
+  }).__testaroAlfaSheets;
+  const domSheets = snapshot ? snapshot.dom : Array.from(document.styleSheets);
+  const adoptedSheets = snapshot ? snapshot.adopted : Array.from(document.adoptedStyleSheets ?? []);
   const plans: SheetCopyPlan[] = [];
   // Alfa serializes the document sheets first and then the adopted sheets.
-  Array.from(document.styleSheets).forEach((sheet, index) => {
+  domSheets.forEach((sheet, index) => {
     let readable = true;
     let unserializable = false;
     try {
@@ -524,7 +579,7 @@ const getCopyPlans = (page: Page): Promise<SheetCopyPlan[]> => page.evaluate(alf
       });
     }
   });
-  Array.from(document.adoptedStyleSheets ?? []).forEach((sheet, index) => {
+  adoptedSheets.forEach((sheet, index) => {
     let unserializable = false;
     try {
       unserializable = deniesRules(sheet.cssRules);
@@ -687,7 +742,13 @@ const resolveSheetText = async (
     failedImports
   };
 };
-// Whether a stylesheet can be copied without changing layer or nested-selector semantics.
+/*
+  Whether a stylesheet can be copied without changing layer or nested-selector semantics. A
+  copy declares the named layers of its original in the same order, at the same place, so it
+  leaves their order unchanged. But each anonymous layer is a distinct layer, so the copy of
+  an anonymous layer would follow, and outrank, the named layers of the original that follow
+  it, if alfa also serialized the original in part.
+*/
 const isSafeCopy = (page: Page, text: string): Promise<boolean> => page.evaluate(text => {
   const tag = (rule: CSSRule): string => rule.constructor?.name
     || Object.prototype.toString.call(rule).replace(/^\[object (.+)\]$/, '$1');
@@ -721,7 +782,7 @@ const isSafeCopy = (page: Page, text: string): Promise<boolean> => page.evaluate
     return parts.filter(Boolean);
   };
   const hasUnsafeRules = (rules: CSSRuleList): boolean => Array.from(rules).some(rule => {
-    if (['CSSLayerBlockRule', 'CSSLayerStatementRule'].includes(tag(rule))) {
+    if (tag(rule) === 'CSSLayerBlockRule' && ! (rule as CSSLayerBlockRule).name) {
       return true;
     }
     if (rule instanceof CSSStyleRule && rule.cssRules.length) {
@@ -744,8 +805,10 @@ const isSafeCopy = (page: Page, text: string): Promise<boolean> => page.evaluate
   }
 }, text);
 /*
-  Creates detached stylesheet copies and exposes them in temporary stylesheet-list views for
-  alfa. This preserves sheet order without changing the page’s DOM or applying duplicate rules.
+  Creates detached stylesheet copies and exposes them to alfa in temporary stylesheet-list
+  views made of the recorded lists of the page’s sheets, each copy right after its original.
+  This preserves sheet order without changing the page’s DOM or applying duplicate rules. The
+  views are exposed even if there are no copies, so alfa sees the recorded lists.
 */
 const injectCopies = (page: Page, plans: (SheetCopyPlan & {text: string; failedImports: string[]})[]): Promise<SheetCopy[]> => page.evaluate((args: {
   specs: (SheetCopyPlan & {text: string; failedImports: string[]})[];
@@ -901,8 +964,13 @@ const injectCopies = (page: Page, plans: (SheetCopyPlan & {text: string; failedI
       }
     }
   };
-  const originalDOMSheets = Array.from(document.styleSheets);
-  const originalAdoptedSheets = Array.from(document.adoptedStyleSheets ?? []);
+  // Use the recorded lists of the page’s sheets, if any.
+  const snapshot = (document as Document & {
+    __testaroAlfaSheets?: {dom: CSSStyleSheet[]; adopted: CSSStyleSheet[]};
+  }).__testaroAlfaSheets;
+  const originalDOMSheets = snapshot ? snapshot.dom : Array.from(document.styleSheets);
+  const originalAdoptedSheets = snapshot ? snapshot.adopted : Array.from(document.adoptedStyleSheets ?? []);
+
   const domCopies: {sheet: CSSStyleSheet; spec: SheetCopyPlan & {text: string; failedImports: string[]}; omitted: Set<string>; omittedRuleCount: number}[] = [];
   const adoptedCopies: typeof domCopies = [];
   for (const kind of ['dom', 'adopted'] as const) {
@@ -923,9 +991,6 @@ const injectCopies = (page: Page, plans: (SheetCopyPlan & {text: string; failedI
         }
         catch (error) {}
       });
-  }
-  if (! domCopies.length && ! adoptedCopies.length) {
-    return [];
   }
   const domView = [...originalDOMSheets];
   for (const {sheet, spec} of domCopies) {
@@ -980,8 +1045,9 @@ const injectCopies = (page: Page, plans: (SheetCopyPlan & {text: string; failedI
   return copies;
 }, {specs: plans, alfaTypes: Array.from(ALFA_RULE_TYPES)});
 /*
-  Prepares detached copies of sheets that deny rules to alfa. Unsafe layer and nested-selector
-  cases are left uncompensated so loss checking can prevent an incomplete audit.
+  Prepares detached copies of sheets that deny rules to alfa. Sheets whose copies would change
+  layer or nested-selector semantics are left uncompensated, so loss checking can prevent an
+  incomplete audit.
 */
 const injectSheetCopies = async (page: Page, fetcher: APIRequestContext): Promise<SheetCopy[]> => {
   const plans = await getCopyPlans(page);
@@ -1024,7 +1090,7 @@ const getStyleLosses = async (
   noReload = false
 ): Promise<StyleLoss[]> => {
   const losses: StyleLoss[] = [];
-  const pageSheets = await getPageSheets(page);
+  const {sheets: pageSheets, late: lateSheets} = await getPageSheets(page);
   const unreadableURLs: string[] = [];
   const emptyCrossOriginURLs: string[] = [];
   let alfaSheetIndex = 0;
@@ -1037,10 +1103,14 @@ const getStyleLosses = async (
       alfaSheetIndex++;
       const alfaSheet = alfaSheets[copy.index];
       const alfaCount = alfaSheet ? countAlfaRules(alfaSheet.toJSON().rules) : 0;
-      const missingRules = Math.max(0, copy.rules - alfaCount) + copy.omittedRuleCount;
-      // Include material rules removed during sanitizing and any residual serialization loss.
-      if (missingRules) {
-        losses.push({sheet: copy.copyOf, reason: 'unserialized', ruleCount: missingRules});
+      const unserializedRules = Math.max(0, copy.rules - alfaCount);
+      // Report any rules of the copy that alfa did not serialize.
+      if (unserializedRules) {
+        losses.push({sheet: copy.copyOf, reason: 'unserialized', ruleCount: unserializedRules});
+      }
+      // Report any material rules removed from the copy because alfa does not support them.
+      if (copy.omittedRuleCount) {
+        losses.push({sheet: copy.copyOf, reason: 'unsupported', ruleCount: copy.omittedRuleCount});
       }
       // Check any imports of the original sheet that the copy could not inline.
       unreadableURLs.push(...copy.failedImports);
@@ -1124,6 +1194,13 @@ const getStyleLosses = async (
       }
     }
   }
+  // For each sheet that the page added after its sheets were recorded, which alfa did not see:
+  for (const lateSheet of lateSheets) {
+    // If the page has its rules and they are material or cannot be counted, report it.
+    if (! lateSheet.loadFailed && lateSheet.ruleCount !== 0) {
+      losses.push({sheet: lateSheet.sheet, reason: 'late', ruleCount: lateSheet.ruleCount});
+    }
+  }
   return losses;
 };
 // Conducts and reports the alfa tests.
@@ -1200,7 +1277,9 @@ export const reporter = async (page: Page, report: Report, actIndex: number) => 
     let sheetCopies: SheetCopy[] = [];
     try {
       if (canInject) {
-        // Give alfa copies of the sheets that would deny it rules.
+        // Record the page’s sheets, so all later steps use the same lists.
+        await snapshotSheets(page);
+        // Give alfa those lists, with copies of the sheets that would deny it rules.
         sheetCopies = await injectSheetCopies(page, fetcher);
       }
     }
@@ -1210,6 +1289,8 @@ export const reporter = async (page: Page, report: Report, actIndex: number) => 
         (document as Document & {__testaroRestoreAlfaStyles?: () => void})
           .__testaroRestoreAlfaStyles?.();
       });
+      // Alfa will read the current lists of sheets, so loss checking must, too.
+      await releaseSnapshot(page);
       sheetCopies = [];
     }
     const doc = await page.evaluateHandle('document');
@@ -1220,7 +1301,7 @@ export const reporter = async (page: Page, report: Report, actIndex: number) => 
     const alfaPage = await Playwright.toPage(doc, {
       enforceAnonymousCrossOrigin: sheetsReloaded
     }).finally(async () => {
-      if (sheetCopies.length) {
+      if (canInject) {
         await page.evaluate(() => {
           (document as Document & {__testaroRestoreAlfaStyles?: () => void})
             .__testaroRestoreAlfaStyles?.();
@@ -1235,6 +1316,7 @@ export const reporter = async (page: Page, report: Report, actIndex: number) => 
       );
     }
     finally {
+      await releaseSnapshot(page);
       if (isPageShared) {
         await fetcher.dispose();
       }
@@ -1247,11 +1329,16 @@ export const reporter = async (page: Page, report: Report, actIndex: number) => 
     if (styleLosses.length) {
       // Report them.
       data.styleLosses = styleLosses;
-      // If the act does not permit testing a page with incomplete styles:
-      if (! reckless) {
+      /*
+        Get the sheets with losses that prevent the act: all but losses of rules of types alfa
+        does not support and of sheets the page added after its sheets were recorded.
+      */
+      const preventingLosses = styleLosses.filter(loss => ! tolerableReasons.has(loss.reason));
+      // If there are any and the act does not permit testing a page with incomplete styles:
+      if (preventingLosses.length && ! reckless) {
         // Report the act as prevented.
         data.prevented = true;
-        data.error = `Alfa cannot test page correctly because it lacks the style rules of ${styleLosses.length} stylesheet${styleLosses.length > 1 ? 's' : ''}`;
+        data.error = `Alfa cannot test page correctly because it lacks the style rules of ${preventingLosses.length} stylesheet${preventingLosses.length > 1 ? 's' : ''}`;
         if (standard) {
           result.standardResult.prevented = true;
         }
