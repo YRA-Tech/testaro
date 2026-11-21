@@ -26,7 +26,7 @@
         [
           "data.styleLosses.length",
           "=",
-          3
+          4
         ],
         [
           "data.styleLosses.0.sheet",
@@ -45,23 +45,23 @@
         ],
         [
           "data.styleLosses.1.sheet",
-          "i",
-          "usable.css"
+          "=",
+          "inline sheet 2"
         ],
         [
           "data.styleLosses.1.reason",
           "=",
-          "unreadable"
+          "unserialized"
         ],
         [
           "data.styleLosses.1.ruleCount",
           "=",
-          3
+          4
         ],
         [
           "data.styleLosses.2.sheet",
           "i",
-          "imports.css"
+          "usable.css"
         ],
         [
           "data.styleLosses.2.reason",
@@ -70,6 +70,21 @@
         ],
         [
           "data.styleLosses.2.ruleCount",
+          "=",
+          3
+        ],
+        [
+          "data.styleLosses.3.sheet",
+          "i",
+          "imports.css"
+        ],
+        [
+          "data.styleLosses.3.reason",
+          "=",
+          "unreadable"
+        ],
+        [
+          "data.styleLosses.3.ruleCount",
           "=",
           3
         ]
