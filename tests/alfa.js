@@ -41,8 +41,10 @@ const tolerableReasons = new Set(['unsupported', 'late']);
 const countAlfaRules = (rules) => rules.reduce((count, rule) => ['font-face', 'page'].includes(rule.type)
     ? count
     : count + 1 + countAlfaRules(rule.rules ?? []), 0);
-// Removes CSS comments without changing comment-like text inside strings.
-const stripCSSComments = (text) => {
+/*
+  Removes CSS comments without changing comment-like text inside strings. Each comment is replaced with a space or, if keepLength is true, with as many spaces as it has characters, so that positions in the result are positions in the text.
+*/
+const stripCSSComments = (text, keepLength = false) => {
     let result = '';
     let quote = '';
     for (let index = 0; index < text.length; index++) {
@@ -62,11 +64,11 @@ const stripCSSComments = (text) => {
         }
         else if (char === '/' && text[index + 1] === '*') {
             const end = text.indexOf('*/', index + 2);
+            const commentEnd = end === -1 ? text.length : end + 2;
+            result += keepLength ? ' '.repeat(commentEnd - index) : ' ';
             if (end === -1) {
-                result += ' ';
                 break;
             }
-            result += ' ';
             index = end + 1;
         }
         else {
@@ -75,7 +77,6 @@ const stripCSSComments = (text) => {
     }
     return result;
 };
-// Gets the document stylesheets of the page as page scripts see them, in alfa’s order.
 /*
   Records in the page the lists of its document and adopted stylesheets, so that copy
   planning, alfa’s view of the sheets, and loss checking all use the same lists. A page can
@@ -95,6 +96,7 @@ const snapshotSheets = (page) => page.evaluate(() => {
 const releaseSnapshot = (page) => page.evaluate(() => {
     Reflect.deleteProperty(document, '__testaroAlfaSheets');
 }).catch(() => { });
+// Gets the document stylesheets of the page as page scripts see them, in alfa’s order.
 const getPageSheets = (page) => page.evaluate(() => {
     // Counts the material rules in a list of rules, recording imports whose rules are unreadable.
     const countRules = (rules, unreadableImports) => {
@@ -507,25 +509,116 @@ const wrapImport = (text, tail) => {
     }
     return text;
 };
-// Returns the text of a stylesheet with relative URLs made absolute against its base URL.
-const absolutizeURLs = (text, baseURL) => text.replace(/url\(\s*(['"]?)([^'")]+)\1\s*\)/g, (match, quote, href) => {
-    try {
-        return `url("${new URL(href.trim(), baseURL).href}")`;
+// Returns the index just after the end of the CSS string starting at an index of a text.
+const getStringEnd = (text, start) => {
+    const quote = text[start];
+    let index = start + 1;
+    while (index < text.length) {
+        const char = text[index];
+        if (char === '\\') {
+            index += 2;
+        }
+        else if (char === quote) {
+            return index + 1;
+        }
+        // An unescaped newline ends a string, which is then invalid.
+        else if (char === '\n') {
+            return index;
+        }
+        else {
+            index++;
+        }
     }
-    catch (error) {
-        return match;
+    return text.length;
+};
+/*
+  Makes the relative URLs of the url() functions of a stylesheet text absolute, leaving comments, strings, and fragment-only URLs (which refer to the document) unchanged.
+*/
+const absolutizeURLs = (text, baseURL) => {
+    let result = '';
+    let index = 0;
+    while (index < text.length) {
+        const char = text[index];
+        // If a comment starts here, copy it.
+        if (char === '/' && text[index + 1] === '*') {
+            const end = text.indexOf('*/', index + 2);
+            const stop = end === -1 ? text.length : end + 2;
+            result += text.slice(index, stop);
+            index = stop;
+        }
+        // Otherwise, if a string starts here, copy it.
+        else if (char === '"' || char === '\'') {
+            const stop = getStringEnd(text, index);
+            result += text.slice(index, stop);
+            index = stop;
+        }
+        // Otherwise, if an escape starts here, copy it.
+        else if (char === '\\') {
+            result += text.slice(index, index + 2);
+            index += 2;
+        }
+        // Otherwise, if a url() function that is not part of a longer name starts here:
+        else if (text.slice(index, index + 4).toLowerCase() === 'url(' && !/[-\w\\]/.test(text[index - 1] ?? '')) {
+            // Get its URL.
+            let cursor = index + 4;
+            while (/\s/.test(text[cursor] ?? '')) {
+                cursor++;
+            }
+            let href = '';
+            let argEnd = cursor;
+            if (text[cursor] === '"' || text[cursor] === '\'') {
+                argEnd = getStringEnd(text, cursor);
+                href = text.slice(cursor + 1, argEnd - 1);
+            }
+            else {
+                const close = text.indexOf(')', cursor);
+                argEnd = close === -1 ? text.length : close;
+                href = text.slice(cursor, argEnd);
+            }
+            let close = argEnd;
+            while (/\s/.test(text[close] ?? '')) {
+                close++;
+            }
+            href = href.trim();
+            let absoluteURL = null;
+            // If the function is complete and its URL is relative to the sheet, get the absolute URL.
+            if (text[close] === ')' && href && !href.startsWith('#')) {
+                try {
+                    absoluteURL = new URL(href, baseURL).href;
+                }
+                catch (error) { }
+            }
+            // Copy the function with the absolute URL, if any, or else as it is.
+            if (absoluteURL) {
+                result += `url("${absoluteURL}")`;
+                index = close + 1;
+            }
+            else {
+                result += text.slice(index, index + 4);
+                index += 4;
+            }
+        }
+        // Otherwise, copy the character.
+        else {
+            result += char;
+            index++;
+        }
     }
-});
+    return result;
+};
 /*
   Prepares the text of a stylesheet copy for injection: inlines the texts of its valid
-  imports (each wrapped in its layer, supports, and media conditions), makes relative URLs
-  absolute, and removes import statements a browser would ignore. Returns the resulting
-  text and the URLs of imports whose texts could not be fetched.
+  imports (each wrapped in its layer, supports, and media conditions) and makes relative URLs
+  absolute. Returns the resulting text and the URLs of imports whose texts could not be
+  fetched.
 */
 const resolveSheetText = async (fetcher, text, url, visited = []) => {
     const failedImports = [];
-    // Erase comments, which can contain import-like text.
-    let rest = stripCSSComments(text);
+    /*
+      Scan a copy of the text in which comments, which can contain import-like text, are blanked out, but in which positions are those of the text. Comments must remain in the text itself, because a comment can separate tokens without being whitespace: a comment between .a and .b leaves them a compound selector, but a space would make a descendant selector of them.
+    */
+    const scanText = stripCSSComments(text, true);
+    let position = 0;
     const blocks = [];
     /*
       An import is followed only if its URL is a data URL or has the scheme family of the
@@ -540,11 +633,12 @@ const resolveSheetText = async (fetcher, text, url, visited = []) => {
     */
     const importRE = /^@import\s+(?:url\(\s*["']?([^"')]+?)["']?\s*\)|["']([^"']+)["'])\s*([^;]*)(?:;|$)/i;
     const preludeRE = /^@(charset\s+["'][^"']*["']|layer\s+[^;{]+)\s*;/i;
-    while (rest.length) {
-        rest = rest.trimStart();
+    while (position < scanText.length) {
+        position += scanText.slice(position).length - scanText.slice(position).trimStart().length;
+        const rest = scanText.slice(position);
         const importMatch = rest.match(importRE);
         if (importMatch) {
-            rest = rest.slice(importMatch[0].length);
+            position += importMatch[0].length;
             const href = (importMatch[1] ?? importMatch[2]).trim();
             let importURL = null;
             try {
@@ -578,7 +672,7 @@ const resolveSheetText = async (fetcher, text, url, visited = []) => {
         }
         const preludeMatch = rest.match(preludeRE);
         if (preludeMatch) {
-            rest = rest.slice(preludeMatch[0].length);
+            position += preludeMatch[0].length;
             // Keep layer statements, which order layers, but drop charset declarations.
             if (preludeMatch[0].toLowerCase().startsWith('@layer')) {
                 blocks.push(preludeMatch[0]);
@@ -587,12 +681,12 @@ const resolveSheetText = async (fetcher, text, url, visited = []) => {
         }
         break;
     }
-    // Remove statements a browser would ignore after other rules.
-    rest = rest
-        .replace(/@import\s[^;]*;/gi, ' ')
-        .replace(/@charset\s+["'][^"']*["']\s*;/gi, ' ');
+    /*
+      Keep the rest of the text, including any import and charset statements that follow other
+      rules, which are invalid, so the browser discards them when it parses the copy.
+    */
     return {
-        text: `${blocks.join('\n')}\n${absolutizeURLs(rest, url)}`,
+        text: `${blocks.join('\n')}\n${absolutizeURLs(text.slice(position), url)}`,
         failedImports
     };
 };
@@ -723,10 +817,41 @@ const injectCopies = (page, plans) => page.evaluate((args) => {
         parts.push(selector.slice(start));
         return parts.map(part => part.trim()).filter(Boolean);
     };
-    // Expands each nested selector against each parent selector, substituting or descending.
-    const combine = (parents, nested) => parents.flatMap(parent => nested.map(selector => selector.includes('&')
-        ? selector.replace(/&/g, parent)
-        : `${parent} ${selector}`));
+    // Replaces each nesting selector (&) of a selector outside strings, or returns null if there is none.
+    const replaceNesting = (selector, replacement) => {
+        let result = '';
+        let found = false;
+        let quote = '';
+        for (let i = 0; i < selector.length; i++) {
+            const char = selector[i];
+            if (char === '\\') {
+                result += selector.slice(i, i + 2);
+                i++;
+            }
+            else if (quote) {
+                result += char;
+                if (char === quote) {
+                    quote = '';
+                }
+            }
+            else if (char === '"' || char === '\'') {
+                quote = char;
+                result += char;
+            }
+            else if (char === '&') {
+                result += replacement;
+                found = true;
+            }
+            else {
+                result += char;
+            }
+        }
+        return found ? result : null;
+    };
+    /*
+      Expands each nested selector against each parent selector. A nesting selector (&) means :is() of the parent selector, which is equivalent to the parent selector only if that is a compound selector. So each nesting selector is replaced with :is() of the parent selector, which has the parent selector’s specificity when that is a single selector, as for any sheet that is copied. A nested selector without a nesting selector is relative to the parent selector as a descendant (or with a combinator it begins with), so it is appended to the parent selector.
+    */
+    const combine = (parents, nested) => parents.flatMap(parent => nested.map(selector => replaceNesting(selector, `:is(${parent})`) ?? `${parent} ${selector}`));
     /*
       Appends to out the text of a rule nested in a style rule, made equivalent to top-level
       rules by expanding its selectors against those of its ancestors. Grouping rules keep
@@ -1094,41 +1219,43 @@ const reporter = async (page, report, actIndex) => {
             })
             : page.request;
         let sheetCopies = [];
+        let alfaPage;
+        let styleLosses;
+        // Whatever happens, release the recorded sheet lists and dispose of any separate context.
         try {
-            if (canInject) {
-                // Record the page’s sheets, so all later steps use the same lists.
-                await snapshotSheets(page);
-                // Give alfa those lists, with copies of the sheets that would deny it rules.
-                sheetCopies = await injectSheetCopies(page, fetcher);
+            try {
+                if (canInject) {
+                    // Record the page’s sheets, so all later steps use the same lists.
+                    await snapshotSheets(page);
+                    // Give alfa those lists, with copies of the sheets that would deny it rules.
+                    sheetCopies = await injectSheetCopies(page, fetcher);
+                }
             }
-        }
-        catch (error) {
-            console.log(`ERROR injecting stylesheet copies (${error.message})`);
-            await page.evaluate(() => {
-                document
-                    .__testaroRestoreAlfaStyles?.();
-            });
-            // Alfa will read the current lists of sheets, so loss checking must, too.
-            await releaseSnapshot(page);
-            sheetCopies = [];
-        }
-        const doc = await page.evaluateHandle('document');
-        /*
-          Get the alfa version of the page. Under browser isolation cross-origin sheets are first
-          reloaded with CORS; under process isolation the detached copies already provide them.
-        */
-        const alfaPage = await Playwright.toPage(doc, {
-            enforceAnonymousCrossOrigin: sheetsReloaded
-        }).finally(async () => {
-            if (canInject) {
+            catch (error) {
+                console.log(`ERROR injecting stylesheet copies (${error.message})`);
                 await page.evaluate(() => {
                     document
                         .__testaroRestoreAlfaStyles?.();
                 });
+                // Alfa will read the current lists of sheets, so loss checking must, too.
+                await releaseSnapshot(page);
+                sheetCopies = [];
             }
-        });
-        let styleLosses;
-        try {
+            const doc = await page.evaluateHandle('document');
+            /*
+              Get the alfa version of the page. Under browser isolation cross-origin sheets are first
+              reloaded with CORS; under process isolation the detached copies already provide them.
+            */
+            alfaPage = await Playwright.toPage(doc, {
+                enforceAnonymousCrossOrigin: sheetsReloaded
+            }).finally(async () => {
+                if (canInject) {
+                    await page.evaluate(() => {
+                        document
+                            .__testaroRestoreAlfaStyles?.();
+                    });
+                }
+            });
             // Get the stylesheets whose material rules alfa did not receive.
             styleLosses = await getStyleLosses(page, fetcher, Array.from(alfaPage.document.style), sheetCopies, !sheetsReloaded);
         }
