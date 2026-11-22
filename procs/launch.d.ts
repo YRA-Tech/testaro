@@ -36,5 +36,11 @@ export function browserClose(page: Page | null | undefined): Promise<void>;
 export function goTo(
   report: Report, page: Page, url: string, timeout: number, waitUntil: string
 ): Promise<unknown>;
+// A stylesheet response that a page received, or null if the request failed.
+export interface SheetRecord {
+  response: Response | null;
+}
+// Gets the stylesheet records of a page, by request URL, or null if none are kept for it.
+export function getSheetRecords(page: Page): Map<string, SheetRecord> | null;
 // Gets the nonce, if any, of a response.
 export function getNonce(response: Response): Promise<string>;

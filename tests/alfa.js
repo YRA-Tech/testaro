@@ -17,6 +17,7 @@ const url_1 = require("url");
 const playwright_1 = require("playwright");
 const xPath_1 = require("../procs/xPath");
 const standard_1 = require("../procs/standard");
+const launch_1 = require("../procs/launch");
 const config_1 = require("../procs/config");
 /*
   The alfa packages are pure ESM that Node loads via require(esm); their own
@@ -331,11 +332,32 @@ const getSheetText = async (fetcher, url, referrer) => {
         }
         // Otherwise, if it is an HTTP resource:
         if (family === 'http') {
+            // If the browser requested it for the page, use what the browser received.
+            const recordURL = new URL(url);
+            recordURL.hash = '';
+            const record = fetcher.records?.get(recordURL.href);
+            if (record) {
+                const { response } = record;
+                // If the request failed or was refused, the page lacks the sheet.
+                if (!response || !response.ok()) {
+                    return null;
+                }
+                // If the response declares a content type other than CSS, a browser ignores the sheet.
+                const recordType = (response.headers()['content-type'] ?? '').split(';')[0].trim().toLowerCase();
+                if (recordType && recordType !== 'text/css') {
+                    return null;
+                }
+                try {
+                    return { text: await response.text(), finalURL: response.url() || url };
+                }
+                // If the response body is no longer available, fetch the sheet instead.
+                catch (error) { }
+            }
             /*
               Fetch it outside the page, where the cross-origin rule does not apply, requesting it as a browser requests a stylesheet: with the referrer a browser would send and with the Accept header of a stylesheet request rather than the page-navigation one of the browser context.
             */
             const referer = getReferer(referrer, url);
-            const response = await fetcher.get(url, {
+            const response = await fetcher.request.get(url, {
                 timeout: (0, config_1.applyMultiplier)(5000),
                 headers: {
                     Accept: 'text/css,*/*;q=0.1',
@@ -1352,7 +1374,7 @@ const reporter = async (page, report, actIndex) => {
           case use a separate context, so that cookies set by the responses do not reach the page.
         */
         const proxy = isPageShared ? (0, config_1.getProxyLaunchOptions)(report.browserID ?? '').proxy : undefined;
-        const fetcher = isPageShared
+        const requestContext = isPageShared
             ? await playwright_1.request.newContext({
                 userAgent: await page.evaluate(() => navigator.userAgent),
                 extraHTTPHeaders: (0, config_1.getScannerId)(report) ? { 'X-YRA-Scanner': (0, config_1.getScannerId)(report) } : {},
@@ -1360,6 +1382,8 @@ const reporter = async (page, report, actIndex) => {
                 ...(proxy ? { proxy } : {})
             })
             : page.request;
+        // Prefer the stylesheet responses the browser received for the page to fetches of the sheets.
+        const fetcher = { request: requestContext, records: (0, launch_1.getSheetRecords)(page) };
         let sheetCopies = [];
         let alfaPage;
         let styleLosses;
@@ -1404,7 +1428,7 @@ const reporter = async (page, report, actIndex) => {
         finally {
             await releaseSnapshot(page);
             if (isPageShared) {
-                await fetcher.dispose();
+                await requestContext.dispose();
             }
         }
         // Report any detached copies, for transparency about what alfa was given.

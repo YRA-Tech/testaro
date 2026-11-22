@@ -111,6 +111,22 @@ const settleWithin = promise => Promise.race([
 */
 let sharedBrowser = null;
 let sharedBrowserID = '';
+/*
+  The stylesheet responses that each page has received, by request URL, so that tools needing the texts of stylesheets that page scripts cannot read (alfa) can use what the browser received rather than fetch the sheets again. Each record holds the response, or null if the request failed. A request that a redirect led to is recorded under the URL of each request in its redirect chain.
+*/
+const sheetRecords = new WeakMap();
+// Returns the stylesheet records of a page, or null if none are kept for it.
+exports.getSheetRecords = page => sheetRecords.get(page) ?? null;
+// Records a stylesheet response, or a failure, under the URLs of the redirect chain of its request.
+const recordSheet = (records, request, response) => {
+  for (let hop = request; hop; hop = hop.redirectedFrom()) {
+    const url = hop.url();
+    // A failure does not replace a received response, as when alfa reloads a sheet with CORS and the server refuses it.
+    if (response || ! records.get(url)) {
+      records.set(url, {response});
+    }
+  }
+};
 exports.setSharedBrowser = (browser, browserID) => {
   sharedBrowser = browser;
   sharedBrowserID = browserID;
@@ -525,6 +541,9 @@ const launchOnce = async opts => {
         jobData.logCount ??= 0;
         jobData.logSize ??= 0;
         jobData.errorLogCount ??= 0;
+        // Keep records of the stylesheet responses of the page.
+        const records = new Map();
+        sheetRecords.set(page, records);
         // When an error is thrown, increment the count of logging errors.
         page.on('crash', () => {
           jobData.errorLogCount++;
@@ -533,8 +552,20 @@ const launchOnce = async opts => {
         page.on('pageerror', () => {
           jobData.errorLogCount++;
         });
-        page.on('requestfailed', () => {
+        page.on('requestfailed', request => {
           jobData.errorLogCount++;
+          // If the request was for a stylesheet, record the failure.
+          if (request.resourceType() === 'stylesheet') {
+            recordSheet(records, request, null);
+          }
+        });
+        // When a stylesheet response other than a redirect arrives, record it.
+        page.on('response', response => {
+          const request = response.request();
+          const status = response.status();
+          if (request.resourceType() === 'stylesheet' && (status < 300 || status > 399)) {
+            recordSheet(records, request, response);
+          }
         });
         // When the page emits a message:
         page.on('console', msg => {
