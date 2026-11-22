@@ -331,24 +331,32 @@ const getSheetText = async (fetcher, url, referrer) => {
         }
         // Otherwise, if it is an HTTP resource:
         if (family === 'http') {
-            // Fetch it outside the page, where the cross-origin rule does not apply, as a browser would.
+            /*
+              Fetch it outside the page, where the cross-origin rule does not apply, requesting it as a browser requests a stylesheet: with the referrer a browser would send and with the Accept header of a stylesheet request rather than the page-navigation one of the browser context.
+            */
             const referer = getReferer(referrer, url);
             const response = await fetcher.get(url, {
                 timeout: (0, config_1.applyMultiplier)(5000),
-                ...(referer ? { headers: { Referer: referer } } : {})
+                headers: {
+                    Accept: 'text/css,*/*;q=0.1',
+                    ...(referer ? { Referer: referer } : {})
+                }
             });
             if (!response.ok()) {
                 return null;
             }
             const finalURL = response.url() || url;
-            try {
-                const pageURL = new URL(referrer);
-                const finalResource = new URL(finalURL);
-                if (pageURL.protocol === 'https:' && finalResource.protocol === 'http:') {
-                    return null;
-                }
+            // If a redirect made the request mixed content, which a browser blocks, the sheet is unavailable.
+            if (isMixedContent(referrer, finalURL)) {
+                return null;
             }
-            catch (error) { }
+            /*
+              If the response declares a content type other than CSS, a browser ignores the sheet (in standards mode), so the sheet is unavailable. A response without a declared type is accepted, since a browser can apply it in quirks mode.
+            */
+            const contentType = (response.headers()['content-type'] ?? '').split(';')[0].trim().toLowerCase();
+            if (contentType && contentType !== 'text/css') {
+                return null;
+            }
             return { text: await response.text(), finalURL };
         }
         return null;
