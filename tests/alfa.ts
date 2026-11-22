@@ -659,7 +659,7 @@ const wrapImport = (text: string, tail: string): string => {
   let rest = tail.trim();
   // Extract the optional layer clause, whether named or anonymous.
   let layer: string | null = null;
-  const layerMatch = rest.match(/^layer(?:\(([^)]*)\))?/i);
+  const layerMatch = rest.match(/^layer(?:\(([^)]*)\)|(?![-\w]))/i);
   if (layerMatch) {
     layer = layerMatch[1]?.trim() ?? '';
     rest = `${rest.slice(0, layerMatch.index)}${rest.slice((layerMatch.index ?? 0) + layerMatch[0].length)}`.trim();
@@ -797,6 +797,26 @@ const absolutizeURLs = (text: string, baseURL: string): string => {
   }
   return result;
 };
+// Returns whether a stylesheet text contains a namespace declaration outside comments and strings.
+const hasNamespaceRule = (text: string): boolean => {
+  const code = stripCSSComments(text);
+  let outside = '';
+  let index = 0;
+  while (index < code.length) {
+    if (code[index] === '"' || code[index] === '\'') {
+      index = getStringEnd(code, index);
+      outside += ' ';
+    }
+    else if (code[index] === '\\') {
+      index += 2;
+      outside += ' ';
+    }
+    else {
+      outside += code[index++];
+    }
+  }
+  return /(^|[;}\s])@namespace\b/i.test(outside);
+};
 /*
   Prepares the text of a stylesheet copy for injection: inlines the texts of its valid
   imports (each wrapped in its layer, supports, and media conditions) and makes relative URLs
@@ -805,9 +825,14 @@ const absolutizeURLs = (text: string, baseURL: string): string => {
 */
 const resolveSheetText = async (
   fetcher: APIRequestContext, text: string, url: string, visited: string[] = []
-): Promise<{text: string; failedImports: string[]; hasNamespace: boolean}> => {
+): Promise<{text: string; failedImports: string[]; hasNamespace: boolean; namespaceConflict: boolean}> => {
   const failedImports: string[] = [];
-  let hasNamespace = /(^|[;}\s])@namespace\b/i.test(stripCSSComments(text));
+  // Whether the sheet or a sheet it imports declares a namespace.
+  let hasNamespace = hasNamespaceRule(text);
+  // Whether any import of the sheet has been inlined.
+  let hasInlined = false;
+  // Whether inlining makes a namespace declaration in the sheet or its imports invalid.
+  let namespaceConflict = false;
   /*
     Scan a copy of the text in which comments, which can contain import-like text, are blanked out, but in which positions are those of the text. Comments must remain in the text itself, because a comment can separate tokens without being whitespace: a comment between .a and .b leaves them a compound selector, but a space would make a descendant selector of them.
   */
@@ -866,7 +891,11 @@ const resolveSheetText = async (
             if (resolved.hasNamespace) {
               hasNamespace = true;
             }
+            if (resolved.namespaceConflict) {
+              namespaceConflict = true;
+            }
             blocks.push(wrapImport(resolved.text, importMatch[3] ?? ''));
+            hasInlined = true;
           }
         }
         // Otherwise the browser would keep the rule but not follow it; do the same.
@@ -898,15 +927,15 @@ const resolveSheetText = async (
   return {
     text: `${blocks.join('\n')}\n${absolutizeURLs(text.slice(position), url)}`,
     failedImports,
-    hasNamespace
+    hasNamespace,
+    /*
+      A namespace declaration is valid only before all rules except charset, import, and layer statement rules, so the inlined rules of an import make invalid any namespace declaration of the sheet or of an import that follows them.
+    */
+    namespaceConflict: namespaceConflict || (hasInlined && hasNamespace)
   };
 };
 /*
-  Whether a stylesheet can be copied without changing layer or nested-selector semantics. A
-  copy declares the named layers of its original in the same order, at the same place, so it
-  leaves their order unchanged. But each anonymous layer is a distinct layer, so the copy of
-  an anonymous layer would follow, and outrank, the named layers of the original that follow
-  it, if alfa also serialized the original in part.
+  Whether a stylesheet can be copied without changing nested-selector semantics. A copy can contain cascade layers, named or anonymous, because it takes the place of its original in alfa’s view, so it declares them in the same order. But a nesting selector under a list of selectors means :is() of the list, whose specificity is that of the most specific selector in it, which flattening cannot reproduce.
 */
 const isSafeCopy = (page: Page, text: string): Promise<boolean> => page.evaluate(text => {
   const tag = (rule: CSSRule): string => rule.constructor?.name
@@ -945,12 +974,6 @@ const isSafeCopy = (page: Page, text: string): Promise<boolean> => page.evaluate
     return parts.filter(Boolean);
   };
   const hasUnsafeRules = (rules: CSSRuleList): boolean => Array.from(rules).some(rule => {
-    if (
-      tag(rule) === 'CSSLayerBlockRule'
-      || tag(rule) === 'CSSLayerStatementRule'
-    ) {
-      return true;
-    }
     if (rule instanceof CSSStyleRule && rule.cssRules.length) {
       if (splitList(rule.selectorText).length > 1 || hasUnsafeRules(rule.cssRules)) {
         return true;
@@ -971,10 +994,7 @@ const isSafeCopy = (page: Page, text: string): Promise<boolean> => page.evaluate
   }
 }, text);
 /*
-  Creates detached stylesheet copies and exposes them to alfa in temporary stylesheet-list
-  views made of the recorded lists of the page’s sheets, each copy right after its original.
-  This preserves sheet order without changing the page’s DOM or applying duplicate rules. The
-  views are exposed even if there are no copies, so alfa sees the recorded lists.
+  Creates detached stylesheet copies and exposes them to alfa in temporary stylesheet-list views made of the recorded lists of the page’s sheets, each copy in place of its original. This preserves sheet order without changing the page’s DOM or applying duplicate rules. The views are exposed even if there are no copies, so alfa sees the recorded lists.
 */
 const injectCopies = (page: Page, plans: (SheetCopyPlan & {text: string; failedImports: string[]})[]): Promise<SheetCopy[]> => page.evaluate((args: {
   specs: (SheetCopyPlan & {text: string; failedImports: string[]})[];
@@ -1193,13 +1213,16 @@ const injectCopies = (page: Page, plans: (SheetCopyPlan & {text: string; failedI
         catch (error) {}
       });
   }
+  /*
+    In alfa’s view, each copy takes the place of its original. If the original stayed in the view, alfa could serialize it in part (it empties a media, supports, or keyframes block containing a rule it does not support, but keeps the rest of the sheet), and the rules of the original would then precede the duplicates in the copy, which could change the order of the cascade layers they declare.
+  */
   const domView = [...originalDOMSheets];
   for (const {sheet, spec} of domCopies) {
-    domView.splice(spec.index + 1, 0, sheet);
+    domView[spec.index] = sheet;
   }
   const adoptedView = [...originalAdoptedSheets];
   for (const {sheet, spec} of adoptedCopies) {
-    adoptedView.splice(spec.index + 1, 0, sheet);
+    adoptedView[spec.index] = sheet;
   }
   const styleSheetsDescriptor = Object.getOwnPropertyDescriptor(document, 'styleSheets');
   const adoptedStyleSheetsDescriptor = Object.getOwnPropertyDescriptor(document, 'adoptedStyleSheets');
@@ -1247,7 +1270,7 @@ const injectCopies = (page: Page, plans: (SheetCopyPlan & {text: string; failedI
 }, {specs: plans, alfaTypes: Array.from(ALFA_RULE_TYPES)});
 /*
   Prepares detached copies of sheets that deny rules to alfa. Sheets whose copies would change
-  layer or nested-selector semantics are left uncompensated, so loss checking can prevent an
+  nested-selector or namespace semantics are left uncompensated, so loss checking can prevent an
   incomplete audit.
 */
 const injectSheetCopies = async (page: Page, fetcher: APIRequestContext): Promise<SheetCopy[]> => {
@@ -1255,10 +1278,14 @@ const injectSheetCopies = async (page: Page, fetcher: APIRequestContext): Promis
   const specs: (SheetCopyPlan & {text: string; failedImports: string[]})[] = [];
   // The scheme family of the page, for confining file reads to local roots.
   const pageFamily = getSchemeFamily(page.url());
+  // The base URL of the document, which can differ from its URL.
   const documentBase = await page.evaluate(() => document.baseURI);
   for (const plan of plans) {
-    // Get the text of the sheet: its serialized rules, or a fetch of its URL.
+    /*
+      Get the text of the sheet: its serialized rules, or a fetch of its URL. Relative URLs in an inline sheet are relative to the document’s base URL.
+    */
     let text = plan.text;
+    let baseURL = plan.href ?? documentBase;
     if (text === null) {
       // A non-file page cannot have a file sheet, so a file URL is never read for one.
       if (
@@ -1267,15 +1294,18 @@ const injectSheetCopies = async (page: Page, fetcher: APIRequestContext): Promis
       ) {
         continue;
       }
-      const fetched = await getSheetText(fetcher, plan.href, documentBase);
+      // The sheet is requested by the page, so the referrer is the page’s URL, not its base URL.
+      const fetched = await getSheetText(fetcher, plan.href, page.url());
       if (fetched === null) {
         continue;
       }
       text = fetched.text;
+      // Relative URLs in the sheet are relative to its URL after any redirects.
+      baseURL = fetched.finalURL;
     }
     // Prepare the text for Alfa, inlining its imports.
-    const resolved = await resolveSheetText(fetcher, text, plan.href ?? documentBase);
-    if (! resolved.hasNamespace && await isSafeCopy(page, resolved.text)) {
+    const resolved = await resolveSheetText(fetcher, text, baseURL);
+    if (! resolved.namespaceConflict && await isSafeCopy(page, resolved.text)) {
       specs.push({...plan, text: resolved.text, failedImports: resolved.failedImports});
     }
   }
@@ -1300,10 +1330,9 @@ const getStyleLosses = async (
   pageSheets.forEach(pageSheet => {
     const {sheet, isCrossOrigin, ruleCount, unreadableImports, kind, index} = pageSheet;
     const sourceAlfaIndex = alfaSheetIndex++;
-    // If a detached copy is present, it follows its original in Alfa’s temporary sheet list.
+    // If a detached copy is present, it takes the place of its original in Alfa’s sheet list.
     const copy = copies.find(item => item.kind === kind && item.originalIndex === index);
     if (copy) {
-      alfaSheetIndex++;
       const alfaSheet = alfaSheets[copy.index];
       const alfaCount = alfaSheet ? countAlfaRules(alfaSheet.toJSON().rules) : 0;
       const unserializedRules = Math.max(0, copy.rules - alfaCount);

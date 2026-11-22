@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<!--
+  © 2026 Jonathan Robert Pool.
+
+  Licensed under the MIT License. See LICENSE file at the project root or
+  https://opensource.org/license/mit/ for details.
+
+  SPDX-License-Identifier: MIT
+-->
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <title>Page with cascade layers that Alfa cannot fully read</title>
+    <meta name="description" content="tester">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+      body {
+        color: #000;
+        background-color: #fff;
+      }
+      p {
+        line-height: 1.6;
+      }
+      @media all {
+        @layer first {
+          h1 {
+            color: #000;
+          }
+        }
+        @container (min-width: 1px) {
+          p {
+            margin: 0;
+          }
+        }
+      }
+      @layer second {
+        h1 {
+          color: #ccc;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Light gray heading on a white background</h1>
+      <p>The heading is light gray, because layer second, declared after layer first, wins. Alfa empties the media block of this stylesheet, because the block contains an @container rule, and so, if it read both this stylesheet and a copy of it, it would declare layer second before layer first and treat the heading as black, so it would not find its poor contrast.</p>
+    </main>
+  </body>
+</html>
