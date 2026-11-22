@@ -247,6 +247,17 @@ const getSchemeFamily = (url) => {
     }
     return url.startsWith('data:') ? 'data' : 'other';
 };
+// Returns whether a request from a resource to a URL is mixed content, which browsers block: from an HTTPS resource to an HTTP URL.
+const isMixedContent = (fromURL, toURL) => {
+    try {
+        return new URL(fromURL).protocol === 'https:' && new URL(toURL).protocol === 'http:';
+    }
+    catch (error) {
+        return false;
+    }
+};
+// Returns a CSS url() function for a URL, escaping the characters a double-quoted CSS string cannot contain.
+const toCSSURL = (url) => `url("${url.replace(/[\\"]/g, '\\$&').replace(/\n/g, '\\a ')}")`;
 /*
   Returns the Referer header that a browser would by default (under the policy
   strict-origin-when-cross-origin) send when a document or stylesheet requests an HTTP
@@ -286,6 +297,10 @@ const getSheetText = async (fetcher, url, referrer) => {
         const family = getSchemeFamily(url);
         // If the sheet is a local file (each file URL being an origin of its own):
         if (family === 'file') {
+            // Refuse to read it unless a local file requests it, as a browser would.
+            if (getSchemeFamily(referrer) !== 'file') {
+                return null;
+            }
             // Read it.
             return { text: await (0, promises_1.readFile)((0, url_1.fileURLToPath)(url), 'utf8'), finalURL: url };
         }
@@ -376,8 +391,7 @@ const countTextRules = async (page, fetcher, text, url, visited = []) => {
             }
             const importFamily = getSchemeFamily(importURL);
             const isFollowable = importFamily === 'data' || importFamily === rootFamily;
-            const pageURL = new URL(url);
-            const mixed = pageURL.protocol === 'https:' && getSchemeFamily(importURL) === 'http';
+            const mixed = isMixedContent(url, importURL);
             if (isFollowable && !mixed && !visitedNext.includes(importURL)) {
                 const importFetch = await getSheetText(fetcher, importURL, url);
                 const importCount = importFetch === null
@@ -638,7 +652,7 @@ const absolutizeURLs = (text, baseURL) => {
             }
             // Copy the function with the absolute URL, if any, or else as it is.
             if (absoluteURL) {
-                result += `url("${absoluteURL}")`;
+                result += toCSSURL(absoluteURL);
                 index = close + 1;
             }
             else {
@@ -719,16 +733,12 @@ const resolveSheetText = async (fetcher, text, url, visited = []) => {
                 importURL = new URL(decodeCSSEscapes(href), url).href;
             }
             catch (error) { }
-            // If the import can be fetched and is not circular, inline it, else report it.
-            if (importURL && !visited.includes(importURL)) {
+            // If the import can be fetched and is not circular (importing the sheet or an ancestor), inline it, else report it.
+            if (importURL && ![...visited, url].includes(importURL)) {
                 if (getSchemeFamily(importURL) === 'data'
                     || getSchemeFamily(importURL) === rootFamily) {
-                    let pageProtocol = '';
-                    try {
-                        pageProtocol = new URL(visited[0] ?? url).protocol;
-                    }
-                    catch (error) { }
-                    const isMixed = pageProtocol === 'https:' && getSchemeFamily(importURL) === 'http';
+                    // A browser blocks an import from an HTTPS sheet of an HTTP one.
+                    const isMixed = isMixedContent(visited[0] ?? url, importURL);
                     const imported = isMixed ? null : await getSheetText(fetcher, importURL, url);
                     if (imported === null) {
                         failedImports.push(importURL);
@@ -752,7 +762,7 @@ const resolveSheetText = async (fetcher, text, url, visited = []) => {
                 // Otherwise the browser would keep the rule but not follow it; do the same.
                 else {
                     const tail = (importMatch[3] ?? '').trim();
-                    blocks.push(`@import url("${importURL}")${tail ? ` ${tail}` : ''};`);
+                    blocks.push(`@import ${toCSSURL(importURL)}${tail ? ` ${tail}` : ''};`);
                 }
             }
             else if (!importURL) {
@@ -1117,10 +1127,14 @@ const injectSheetCopies = async (page, fetcher) => {
         */
         let text = plan.text;
         let baseURL = plan.href ?? documentBase;
+        /*
+          A non-file page cannot have a file sheet or import a file, so a sheet whose URLs would be resolved against a file URL (even a readable inline sheet, if the page sets a file base URL) is never resolved for one.
+        */
+        if (getSchemeFamily(baseURL) === 'file' && pageFamily !== 'file') {
+            continue;
+        }
         if (text === null) {
-            // A non-file page cannot have a file sheet, so a file URL is never read for one.
-            if (!plan.href
-                || (getSchemeFamily(plan.href) === 'file' && pageFamily !== 'file')) {
+            if (!plan.href) {
                 continue;
             }
             // The sheet is requested by the page, so the referrer is the page’s URL, not its base URL.
