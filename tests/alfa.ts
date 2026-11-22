@@ -147,6 +147,10 @@ interface AlfaNativeResult {
   };
   items: AlfaEvalItem[];
 }
+interface SheetFetch {
+  text: string;
+  finalURL: string;
+}
 
 /*
   alfa
@@ -198,6 +202,39 @@ const stripCSSComments = (text: string, keepLength = false): string => {
     }
     else {
       result += char;
+    }
+  }
+  return result;
+};
+// Decodes CSS hexadecimal and character escapes in a URL or import argument.
+const decodeCSSEscapes = (text: string): string => {
+  let result = '';
+  for (let index = 0; index < text.length; index++) {
+    if (text[index] !== '\\') {
+      result += text[index];
+      continue;
+    }
+    index++;
+    if (index >= text.length) {
+      break;
+    }
+    if (/[0-9a-f]/i.test(text[index])) {
+      const match = text.slice(index).match(/^[0-9a-f]{1,6}/i);
+      if (match) {
+        let code = parseInt(match[0], 16);
+        index += match[0].length - 1;
+        if (/\s/.test(text[index + 1] ?? '') && text[index + 1] !== '\n') {
+          index++;
+        }
+        if (code === 0 || code > 0x10ffff || (code >= 0xd800 && code <= 0xdfff)) {
+          code = 0xfffd;
+        }
+        result += String.fromCodePoint(code);
+        continue;
+      }
+    }
+    if (text[index] !== '\r' && text[index] !== '\n') {
+      result += text[index];
     }
   }
   return result;
@@ -381,13 +418,13 @@ const getReferer = (referrer: string, url: string): string | null => {
 */
 const getSheetText = async (
   fetcher: APIRequestContext, url: string, referrer: string
-): Promise<string | null> => {
+): Promise<SheetFetch | null> => {
   try {
     const family = getSchemeFamily(url);
     // If the sheet is a local file (each file URL being an origin of its own):
     if (family === 'file') {
       // Read it.
-      return await readFile(fileURLToPath(url), 'utf8');
+      return {text: await readFile(fileURLToPath(url), 'utf8'), finalURL: url};
     }
     // Otherwise, if the sheet is a data URL:
     if (family === 'data') {
@@ -397,9 +434,10 @@ const getSheetText = async (
         return null;
       }
       const payload = url.slice(commaIndex + 1);
-      return url.slice(5, commaIndex).endsWith(';base64')
+      const text = url.slice(5, commaIndex).endsWith(';base64')
         ? Buffer.from(payload, 'base64').toString('utf8')
         : decodeURIComponent(payload);
+      return {text, finalURL: url};
     }
     // Otherwise, if it is an HTTP resource:
     if (family === 'http') {
@@ -409,7 +447,19 @@ const getSheetText = async (
         timeout: applyMultiplier(5000),
         ... (referer ? {headers: {Referer: referer}} : {})
       });
-      return response.ok() ? await response.text() : null;
+      if (! response.ok()) {
+        return null;
+      }
+      const finalURL = response.url() || url;
+      try {
+        const pageURL = new URL(referrer);
+        const finalResource = new URL(finalURL);
+        if (pageURL.protocol === 'https:' && finalResource.protocol === 'http:') {
+          return null;
+        }
+      }
+      catch (error) {}
+      return {text: await response.text(), finalURL};
     }
     return null;
   }
@@ -458,18 +508,20 @@ const countTextRules = async (
     for (const href of importHrefs) {
       let importURL: string;
       try {
-        importURL = new URL(href, url).href;
+        importURL = new URL(decodeCSSEscapes(href), url).href;
       }
       catch (error) {
         continue;
       }
       const importFamily = getSchemeFamily(importURL);
       const isFollowable = importFamily === 'data' || importFamily === rootFamily;
-      if (isFollowable && ! visitedNext.includes(importURL)) {
-        const importText = await getSheetText(fetcher, importURL, url);
-        const importCount = importText === null
+      const pageURL = new URL(url);
+      const mixed = pageURL.protocol === 'https:' && getSchemeFamily(importURL) === 'http';
+      if (isFollowable && ! mixed && ! visitedNext.includes(importURL)) {
+        const importFetch = await getSheetText(fetcher, importURL, url);
+        const importCount = importFetch === null
           ? null
-          : await countTextRules(page, fetcher, importText, importURL, visitedNext);
+          : await countTextRules(page, fetcher, importFetch.text, importFetch.finalURL, visitedNext);
         // If the rules of the imported sheet cannot be counted, neither can those of this sheet.
         if (importCount === null) {
           return null;
@@ -607,7 +659,7 @@ const wrapImport = (text: string, tail: string): string => {
   let rest = tail.trim();
   // Extract the optional layer clause, whether named or anonymous.
   let layer: string | null = null;
-  const layerMatch = rest.match(/layer\(([^)]*)\)|\blayer\b/i);
+  const layerMatch = rest.match(/^layer(?:\(([^)]*)\))?/i);
   if (layerMatch) {
     layer = layerMatch[1]?.trim() ?? '';
     rest = `${rest.slice(0, layerMatch.index)}${rest.slice((layerMatch.index ?? 0) + layerMatch[0].length)}`.trim();
@@ -723,7 +775,7 @@ const absolutizeURLs = (text: string, baseURL: string): string => {
       // If the function is complete and its URL is relative to the sheet, get the absolute URL.
       if (text[close] === ')' && href && ! href.startsWith('#')) {
         try {
-          absoluteURL = new URL(href, baseURL).href;
+          absoluteURL = new URL(decodeCSSEscapes(href), baseURL).href;
         }
         catch (error) {}
       }
@@ -753,8 +805,9 @@ const absolutizeURLs = (text: string, baseURL: string): string => {
 */
 const resolveSheetText = async (
   fetcher: APIRequestContext, text: string, url: string, visited: string[] = []
-): Promise<{text: string; failedImports: string[]}> => {
+): Promise<{text: string; failedImports: string[]; hasNamespace: boolean}> => {
   const failedImports: string[] = [];
+  let hasNamespace = /(^|[;}\s])@namespace\b/i.test(stripCSSComments(text));
   /*
     Scan a copy of the text in which comments, which can contain import-like text, are blanked out, but in which positions are those of the text. Comments must remain in the text itself, because a comment can separate tokens without being whitespace: a comment between .a and .b leaves them a compound selector, but a space would make a descendant selector of them.
   */
@@ -783,7 +836,7 @@ const resolveSheetText = async (
       const href = (importMatch[1] ?? importMatch[2]).trim();
       let importURL: string | null = null;
       try {
-        importURL = new URL(href, url).href;
+        importURL = new URL(decodeCSSEscapes(href), url).href;
       }
       catch (error) {}
       // If the import can be fetched and is not circular, inline it, else report it.
@@ -792,15 +845,27 @@ const resolveSheetText = async (
           getSchemeFamily(importURL) === 'data'
           || getSchemeFamily(importURL) === rootFamily
         ) {
-          const imported = await getSheetText(fetcher, importURL, url);
+          let pageProtocol = '';
+          try {
+            pageProtocol = new URL(visited[0] ?? url).protocol;
+          }
+          catch (error) {}
+          const isMixed = pageProtocol === 'https:' && getSchemeFamily(importURL) === 'http';
+          const imported = isMixed ? null : await getSheetText(fetcher, importURL, url);
           if (imported === null) {
             failedImports.push(importURL);
           }
           else {
+            if (imported.finalURL !== importURL) {
+              importURL = imported.finalURL;
+            }
             const resolved = await resolveSheetText(
-              fetcher, imported, importURL, [...visited, url]
+              fetcher, imported.text, importURL, [...visited, url]
             );
             failedImports.push(...resolved.failedImports);
+            if (resolved.hasNamespace) {
+              hasNamespace = true;
+            }
             blocks.push(wrapImport(resolved.text, importMatch[3] ?? ''));
           }
         }
@@ -832,7 +897,8 @@ const resolveSheetText = async (
   */
   return {
     text: `${blocks.join('\n')}\n${absolutizeURLs(text.slice(position), url)}`,
-    failedImports
+    failedImports,
+    hasNamespace
   };
 };
 /*
@@ -852,6 +918,10 @@ const isSafeCopy = (page: Page, text: string): Promise<boolean> => page.evaluate
     let start = 0;
     for (let i = 0; i < selector.length; i++) {
       const char = selector[i];
+      if (char === '\\') {
+        i++;
+        continue;
+      }
       if (quote) {
         if (char === quote) {
           quote = '';
@@ -875,7 +945,10 @@ const isSafeCopy = (page: Page, text: string): Promise<boolean> => page.evaluate
     return parts.filter(Boolean);
   };
   const hasUnsafeRules = (rules: CSSRuleList): boolean => Array.from(rules).some(rule => {
-    if (tag(rule) === 'CSSLayerBlockRule' && ! (rule as CSSLayerBlockRule).name) {
+    if (
+      tag(rule) === 'CSSLayerBlockRule'
+      || tag(rule) === 'CSSLayerStatementRule'
+    ) {
       return true;
     }
     if (rule instanceof CSSStyleRule && rule.cssRules.length) {
@@ -945,6 +1018,10 @@ const injectCopies = (page: Page, plans: (SheetCopyPlan & {text: string; failedI
     let start = 0;
     for (let i = 0; i < selector.length; i++) {
       const char = selector[i];
+      if (char === '\\') {
+        i++;
+        continue;
+      }
       if (quote) {
         if (char === quote) {
           quote = '';
@@ -1178,6 +1255,7 @@ const injectSheetCopies = async (page: Page, fetcher: APIRequestContext): Promis
   const specs: (SheetCopyPlan & {text: string; failedImports: string[]})[] = [];
   // The scheme family of the page, for confining file reads to local roots.
   const pageFamily = getSchemeFamily(page.url());
+  const documentBase = await page.evaluate(() => document.baseURI);
   for (const plan of plans) {
     // Get the text of the sheet: its serialized rules, or a fetch of its URL.
     let text = plan.text;
@@ -1189,14 +1267,15 @@ const injectSheetCopies = async (page: Page, fetcher: APIRequestContext): Promis
       ) {
         continue;
       }
-      text = await getSheetText(fetcher, plan.href, page.url());
-      if (text === null) {
+      const fetched = await getSheetText(fetcher, plan.href, documentBase);
+      if (fetched === null) {
         continue;
       }
+      text = fetched.text;
     }
     // Prepare the text for Alfa, inlining its imports.
-    const resolved = await resolveSheetText(fetcher, text, plan.href ?? page.url());
-    if (await isSafeCopy(page, resolved.text)) {
+    const resolved = await resolveSheetText(fetcher, text, plan.href ?? documentBase);
+    if (! resolved.hasNamespace && await isSafeCopy(page, resolved.text)) {
       specs.push({...plan, text: resolved.text, failedImports: resolved.failedImports});
     }
   }
@@ -1289,14 +1368,16 @@ const getStyleLosses = async (
     if (getSchemeFamily(url) === 'file' && pageFamily !== 'file') {
       continue;
     }
-    const text = await getSheetText(fetcher, url, page.url());
+    const fetch = await getSheetText(fetcher, url, page.url());
+    const text = fetch?.text ?? null;
+    const finalURL = fetch?.finalURL ?? url;
     /*
       If its text cannot be fetched either, the page presumably lacks its rules: a dead
       link or unreachable host fails for the browser, too. It is then no loss of alfa’s,
       rather than a loss whose size cannot be known.
     */
     if (text !== null) {
-      const ruleCount = await countTextRules(page, fetcher, text, url);
+      const ruleCount = await countTextRules(page, fetcher, text, finalURL);
       // If it has material rules or they could not be counted, report it.
       if (ruleCount !== 0) {
         losses.push({sheet: url, reason: 'unreadable', ruleCount});
@@ -1308,10 +1389,12 @@ const getStyleLosses = async (
     if (getSchemeFamily(url) === 'file' && pageFamily !== 'file') {
       continue;
     }
-    const text = await getSheetText(fetcher, url, page.url());
+    const fetch = await getSheetText(fetcher, url, page.url());
+    const text = fetch?.text ?? null;
+    const finalURL = fetch?.finalURL ?? url;
     // If its text is available:
     if (text !== null) {
-      const ruleCount = await countTextRules(page, fetcher, text, url);
+      const ruleCount = await countTextRules(page, fetcher, text, finalURL);
       // If it has material rules or rules of its imports could not be counted, report it.
       if (ruleCount !== 0) {
         losses.push({sheet: url, reason: 'unloaded', ruleCount});
