@@ -256,6 +256,18 @@ const isMixedContent = (fromURL, toURL) => {
         return false;
     }
 };
+/*
+  Returns whether a browser lets a stylesheet import a sheet with a URL: a data URL or a web URL from any sheet, but a local file only from a local file, since browsers treat each file URL as an origin of its own and do not let web resources load local files.
+*/
+const isImportable = (importerURL, importURL) => {
+    const family = getSchemeFamily(importURL);
+    if (family === 'data' || family === 'http') {
+        return true;
+    }
+    return family === 'file' && getSchemeFamily(importerURL) === 'file';
+};
+// The maximum depth of an import chain that Testaro follows, guarding against endless chains.
+const maxImportDepth = 16;
 // Returns a CSS url() function for a URL, escaping the characters a double-quoted CSS string cannot contain.
 const toCSSURL = (url) => `url("${url.replace(/[\\"]/g, '\\$&').replace(/\n/g, '\\a ')}")`;
 /*
@@ -348,12 +360,10 @@ const getSheetText = async (fetcher, url, referrer) => {
 /*
   Counts the material rules in the text of a stylesheet that page scripts cannot read, plus
   those of the stylesheets it validly imports, fetched relative to its URL. Each import rule
-  counts as 1, as it does for page scripts. An import is followed only if its URL is a data URL
-  or has the scheme family (file or http) of the sheet at the root of the import chain, as a
-  browser would not let a web page import a local file; otherwise only its rule is counted.
-  Returns null if the rules of any followed import cannot be counted.
+  counts as 1, as it does for page scripts. An import is followed only if a browser would follow it: if it is importable, is not mixed content, and is not circular (to the sheet or a sheet importing it, before or after redirects); otherwise only its rule is counted.
+  Returns null if the rules of any followed import cannot be counted, or if the import chain is too deep to follow.
 */
-const countTextRules = async (page, fetcher, text, url, visited = []) => {
+const countTextRules = async (page, fetcher, text, url, visited = [], depth = 0) => {
     try {
         // Count the sheet’s own material rules in a sheet constructed by the page, whose rules are readable.
         const ownCount = await page.evaluate(text => {
@@ -380,7 +390,6 @@ const countTextRules = async (page, fetcher, text, url, visited = []) => {
         let count = ownCount + importHrefs.length;
         // Guard against circular imports.
         const visitedNext = [...visited, url];
-        const rootFamily = getSchemeFamily(visitedNext[0]);
         for (const href of importHrefs) {
             let importURL;
             try {
@@ -389,14 +398,20 @@ const countTextRules = async (page, fetcher, text, url, visited = []) => {
             catch (error) {
                 continue;
             }
-            const importFamily = getSchemeFamily(importURL);
-            const isFollowable = importFamily === 'data' || importFamily === rootFamily;
             const mixed = isMixedContent(url, importURL);
-            if (isFollowable && !mixed && !visitedNext.includes(importURL)) {
+            if (isImportable(url, importURL) && !mixed && !visitedNext.includes(importURL)) {
+                // If the chain is too deep to follow, the rules cannot be counted.
+                if (depth >= maxImportDepth) {
+                    return null;
+                }
                 const importFetch = await getSheetText(fetcher, importURL, url);
+                // If the import redirects to a sheet in its chain, it is circular, so only its rule counts.
+                if (importFetch && visitedNext.includes(importFetch.finalURL)) {
+                    continue;
+                }
                 const importCount = importFetch === null
                     ? null
-                    : await countTextRules(page, fetcher, importFetch.text, importFetch.finalURL, visitedNext);
+                    : await countTextRules(page, fetcher, importFetch.text, importFetch.finalURL, [...visitedNext, importURL], depth + 1);
                 // If the rules of the imported sheet cannot be counted, neither can those of this sheet.
                 if (importCount === null) {
                     return null;
@@ -694,7 +709,7 @@ const hasNamespaceRule = (text) => {
   absolute. Returns the resulting text and the URLs of imports whose texts could not be
   fetched.
 */
-const resolveSheetText = async (fetcher, text, url, visited = []) => {
+const resolveSheetText = async (fetcher, text, url, visited = [], depth = 0) => {
     const failedImports = [];
     // Whether the sheet or a sheet it imports declares a namespace.
     let hasNamespace = hasNamespaceRule(text);
@@ -708,12 +723,8 @@ const resolveSheetText = async (fetcher, text, url, visited = []) => {
     const scanText = stripCSSComments(text, true);
     let position = 0;
     const blocks = [];
-    /*
-      An import is followed only if its URL is a data URL or has the scheme family of the
-      sheet at the root of the import chain, as in countTextRules: a web page cannot
-      import a local file.
-    */
-    const rootFamily = getSchemeFamily(visited[0] ?? url);
+    // The import chain of the sheet, for recognizing circular imports.
+    const chain = [...visited, url];
     /*
       An import rule is valid only before all other rules except charset rules and layer
       statements. Scan the leading statements and stop at the first other rule, as in
@@ -733,21 +744,22 @@ const resolveSheetText = async (fetcher, text, url, visited = []) => {
                 importURL = new URL(decodeCSSEscapes(href), url).href;
             }
             catch (error) { }
-            // If the import can be fetched and is not circular (importing the sheet or an ancestor), inline it, else report it.
-            if (importURL && ![...visited, url].includes(importURL)) {
-                if (getSchemeFamily(importURL) === 'data'
-                    || getSchemeFamily(importURL) === rootFamily) {
+            /*
+              If the import is not circular (to the sheet or a sheet importing it), inline it if the browser would follow it, else report it. A circular import is ignored, as browsers ignore it.
+            */
+            if (importURL && !chain.includes(importURL)) {
+                if (isImportable(url, importURL)) {
                     // A browser blocks an import from an HTTPS sheet of an HTTP one.
                     const isMixed = isMixedContent(visited[0] ?? url, importURL);
-                    const imported = isMixed ? null : await getSheetText(fetcher, importURL, url);
+                    // An import chain too deep to follow is reported as failed.
+                    const isTooDeep = depth >= maxImportDepth;
+                    const imported = isMixed || isTooDeep ? null : await getSheetText(fetcher, importURL, url);
                     if (imported === null) {
                         failedImports.push(importURL);
                     }
-                    else {
-                        if (imported.finalURL !== importURL) {
-                            importURL = imported.finalURL;
-                        }
-                        const resolved = await resolveSheetText(fetcher, imported.text, importURL, [...visited, url]);
+                    // Otherwise, unless the import redirects to a sheet in its chain, which makes it circular:
+                    else if (!chain.includes(imported.finalURL)) {
+                        const resolved = await resolveSheetText(fetcher, imported.text, imported.finalURL, [...chain, importURL], depth + 1);
                         failedImports.push(...resolved.failedImports);
                         if (resolved.hasNamespace) {
                             hasNamespace = true;
@@ -759,7 +771,7 @@ const resolveSheetText = async (fetcher, text, url, visited = []) => {
                         hasInlined = true;
                     }
                 }
-                // Otherwise the browser would keep the rule but not follow it; do the same.
+                // Otherwise the browser would keep the rule but not follow it (an import of a local file by a web sheet); do the same.
                 else {
                     const tail = (importMatch[3] ?? '').trim();
                     blocks.push(`@import ${toCSSURL(importURL)}${tail ? ` ${tail}` : ''};`);
