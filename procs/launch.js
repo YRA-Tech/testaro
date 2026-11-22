@@ -117,14 +117,28 @@ let sharedBrowserID = '';
 const sheetRecords = new WeakMap();
 // Returns the stylesheet records of a page, or null if none are kept for it.
 exports.getSheetRecords = page => sheetRecords.get(page) ?? null;
-// Records a stylesheet response, or a failure, under the URLs of the redirect chain of its request.
+/*
+  Records a stylesheet response, or a failure (a null response), of a request under the URLs of the redirect chain of the request. A failure of the request whose response is recorded invalidates that response, since its body did not fully arrive. But neither a failure nor an unsuccessful response of another request replaces a successful response, as when alfa reloads a sheet with CORS and the server refuses it.
+*/
 const recordSheet = (records, request, response) => {
   for (let hop = request; hop; hop = hop.redirectedFrom()) {
     const url = hop.url();
-    // A failure does not replace a received response, as when alfa reloads a sheet with CORS and the server refuses it.
-    if (response || ! records.get(url)) {
-      records.set(url, {response});
+    const prior = records.get(url);
+    const isOwnRecord = prior?.request === request;
+    const priorSucceeded = Boolean(prior?.response?.ok());
+    const succeeds = Boolean(response?.ok());
+    if (! prior || isOwnRecord || ! priorSucceeded || succeeds) {
+      records.set(url, {request, response});
     }
+  }
+};
+// Returns whether a request was made by the main frame of a page, not by an iframe.
+const isMainFrameRequest = (page, request) => {
+  try {
+    return request.frame() === page.mainFrame();
+  }
+  catch (error) {
+    return false;
   }
 };
 exports.setSharedBrowser = (browser, browserID) => {
@@ -554,16 +568,19 @@ const launchOnce = async opts => {
         });
         page.on('requestfailed', request => {
           jobData.errorLogCount++;
-          // If the request was for a stylesheet, record the failure.
-          if (request.resourceType() === 'stylesheet') {
+          // If the request was for a stylesheet of the main frame, record the failure.
+          if (request.resourceType() === 'stylesheet' && isMainFrameRequest(page, request)) {
             recordSheet(records, request, null);
           }
         });
-        // When a stylesheet response other than a redirect arrives, record it.
+        // When a stylesheet response of the main frame, other than a redirect, arrives, record it.
         page.on('response', response => {
           const request = response.request();
           const status = response.status();
-          if (request.resourceType() === 'stylesheet' && (status < 300 || status > 399)) {
+          if (
+            request.resourceType() === 'stylesheet' && (status < 300 || status > 399)
+            && isMainFrameRequest(page, request)
+          ) {
             recordSheet(records, request, response);
           }
         });

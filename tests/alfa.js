@@ -302,6 +302,38 @@ const getReferer = (referrer, url) => {
     }
 };
 /*
+  Fetches a stylesheet outside the page, or returns null if it is unavailable. The referrer is the URL of the page or stylesheet that requests the sheet.
+*/
+const probeSheet = async (fetcher, url, referrer) => {
+    /*
+      Fetch it outside the page, where the cross-origin rule does not apply, requesting it as a browser requests a stylesheet: with the referrer a browser would send and with the Accept header of a stylesheet request rather than the page-navigation one of the browser context.
+    */
+    const referer = getReferer(referrer, url);
+    const response = await fetcher.request.get(url, {
+        timeout: (0, config_1.applyMultiplier)(5000),
+        headers: {
+            Accept: 'text/css,*/*;q=0.1',
+            ...(referer ? { Referer: referer } : {})
+        }
+    });
+    if (!response.ok()) {
+        return null;
+    }
+    const finalURL = response.url() || url;
+    // If a redirect made the request mixed content, which a browser blocks, the sheet is unavailable.
+    if (isMixedContent(referrer, finalURL)) {
+        return null;
+    }
+    /*
+      If the response declares a content type other than CSS, a browser ignores the sheet (in standards mode), so the sheet is unavailable. A response without a declared type is accepted, since a browser can apply it in quirks mode.
+    */
+    const contentType = (response.headers()['content-type'] ?? '').split(';')[0].trim().toLowerCase();
+    if (contentType && contentType !== 'text/css') {
+        return null;
+    }
+    return { text: await response.text(), finalURL };
+};
+/*
   Gets the text of a stylesheet that page scripts cannot read, or null if it is unavailable.
   The referrer is the URL of the page or stylesheet that requests the sheet.
 */
@@ -350,36 +382,15 @@ const getSheetText = async (fetcher, url, referrer) => {
                 try {
                     return { text: await response.text(), finalURL: response.url() || url };
                 }
-                // If the response body is no longer available, fetch the sheet instead.
                 catch (error) { }
             }
-            /*
-              Fetch it outside the page, where the cross-origin rule does not apply, requesting it as a browser requests a stylesheet: with the referrer a browser would send and with the Accept header of a stylesheet request rather than the page-navigation one of the browser context.
-            */
-            const referer = getReferer(referrer, url);
-            const response = await fetcher.request.get(url, {
-                timeout: (0, config_1.applyMultiplier)(5000),
-                headers: {
-                    Accept: 'text/css,*/*;q=0.1',
-                    ...(referer ? { Referer: referer } : {})
-                }
-            });
-            if (!response.ok()) {
-                return null;
+            // Otherwise, or if its body is no longer available, fetch it.
+            const fetched = await probeSheet(fetcher, url, referrer).catch(() => null);
+            // If that fails but the browser loaded the sheet, its text is unavailable.
+            if (fetched === null && record?.response) {
+                return { text: null, finalURL: record.response.url() || url };
             }
-            const finalURL = response.url() || url;
-            // If a redirect made the request mixed content, which a browser blocks, the sheet is unavailable.
-            if (isMixedContent(referrer, finalURL)) {
-                return null;
-            }
-            /*
-              If the response declares a content type other than CSS, a browser ignores the sheet (in standards mode), so the sheet is unavailable. A response without a declared type is accepted, since a browser can apply it in quirks mode.
-            */
-            const contentType = (response.headers()['content-type'] ?? '').split(';')[0].trim().toLowerCase();
-            if (contentType && contentType !== 'text/css') {
-                return null;
-            }
-            return { text: await response.text(), finalURL };
+            return fetched;
         }
         return null;
     }
@@ -439,7 +450,7 @@ const countTextRules = async (page, fetcher, text, url, visited = [], depth = 0)
                 if (importFetch && visitedNext.includes(importFetch.finalURL)) {
                     continue;
                 }
-                const importCount = importFetch === null
+                const importCount = importFetch === null || importFetch.text === null
                     ? null
                     : await countTextRules(page, fetcher, importFetch.text, importFetch.finalURL, [...visitedNext, importURL], depth + 1);
                 // If the rules of the imported sheet cannot be counted, neither can those of this sheet.
@@ -784,7 +795,7 @@ const resolveSheetText = async (fetcher, text, url, visited = [], depth = 0) => 
                     // An import chain too deep to follow is reported as failed.
                     const isTooDeep = depth >= maxImportDepth;
                     const imported = isMixed || isTooDeep ? null : await getSheetText(fetcher, importURL, url);
-                    if (imported === null) {
+                    if (imported === null || imported.text === null) {
                         failedImports.push(importURL);
                     }
                     // Otherwise, unless the import redirects to a sheet in its chain, which makes it circular:
@@ -1181,7 +1192,8 @@ const injectSheetCopies = async (page, fetcher) => {
             }
             // The sheet is requested by the page, so the referrer is the page’s URL, not its base URL.
             const fetched = await getSheetText(fetcher, plan.href, page.url());
-            if (fetched === null) {
+            // If the text is unavailable, leave the sheet uncompensated, for loss checking to report.
+            if (fetched === null || fetched.text === null) {
                 continue;
             }
             text = fetched.text;
@@ -1280,9 +1292,7 @@ const getStyleLosses = async (page, fetcher, alfaSheets, copies = [], noReload =
         const text = fetch?.text ?? null;
         const finalURL = fetch?.finalURL ?? url;
         /*
-          If its text cannot be fetched either, the page presumably lacks its rules: a dead
-          link or unreachable host fails for the browser, too. It is then no loss of alfa’s,
-          rather than a loss whose size cannot be known.
+          If the sheet is absent (the browser’s request for it failed, or it did not request it and it cannot be fetched), the page lacks its rules, so it is no loss of alfa’s. If the browser loaded it but its text is unavailable, it is a loss whose size cannot be known.
         */
         if (text !== null) {
             const ruleCount = await countTextRules(page, fetcher, text, finalURL);
@@ -1290,6 +1300,9 @@ const getStyleLosses = async (page, fetcher, alfaSheets, copies = [], noReload =
             if (ruleCount !== 0) {
                 losses.push({ sheet: url, reason: 'unreadable', ruleCount });
             }
+        }
+        else if (fetch) {
+            losses.push({ sheet: url, reason: 'unreadable', ruleCount: null });
         }
     }
     // For each cross-origin sheet that seems empty:
@@ -1307,6 +1320,10 @@ const getStyleLosses = async (page, fetcher, alfaSheets, copies = [], noReload =
             if (ruleCount !== 0) {
                 losses.push({ sheet: url, reason: 'unloaded', ruleCount });
             }
+        }
+        // Otherwise, if the browser loaded it but its text is unavailable, report a loss of unknown size.
+        else if (fetch) {
+            losses.push({ sheet: url, reason: 'unloaded', ruleCount: null });
         }
     }
     // For each sheet that the page added after its sheets were recorded, which alfa did not see:
