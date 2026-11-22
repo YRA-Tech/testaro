@@ -1,0 +1,64 @@
+{
+  "rule": "alfaLayers",
+  "timeLimit": 30,
+  "acts": [
+    {
+      "type": "launch",
+      "target": {
+        "url": "file://validation/tests/targets/alfaLayers/index.html",
+        "what": "page with cascade layers in a stylesheet that Alfa reads only in part"
+      }
+    },
+    {
+      "type": "test",
+      "which": "alfa",
+      "expect": [
+        [
+          "standardResult.prevented",
+          "=",
+          false
+        ],
+        [
+          "data.sheetCopies.length",
+          "=",
+          1
+        ],
+        [
+          "data.sheetCopies.0.copyOf",
+          "=",
+          "inline sheet 0"
+        ],
+        [
+          "data.sheetCopies.0.omittedRuleCount",
+          "=",
+          2
+        ],
+        [
+          "data.styleLosses.length",
+          "=",
+          1
+        ],
+        [
+          "data.styleLosses.0.reason",
+          "=",
+          "unsupported"
+        ],
+        [
+          "data.styleLosses.0.ruleCount",
+          "=",
+          2
+        ],
+        [
+          "standardResult.instances.0.ruleID",
+          "=",
+          "r66"
+        ],
+        [
+          "standardResult.instances.1.ruleID",
+          "=",
+          "r69"
+        ]
+      ]
+    }
+  ]
+}

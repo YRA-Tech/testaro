@@ -77,6 +77,39 @@ const stripCSSComments = (text, keepLength = false) => {
     }
     return result;
 };
+// Decodes CSS hexadecimal and character escapes in a URL or import argument.
+const decodeCSSEscapes = (text) => {
+    let result = '';
+    for (let index = 0; index < text.length; index++) {
+        if (text[index] !== '\\') {
+            result += text[index];
+            continue;
+        }
+        index++;
+        if (index >= text.length) {
+            break;
+        }
+        if (/[0-9a-f]/i.test(text[index])) {
+            const match = text.slice(index).match(/^[0-9a-f]{1,6}/i);
+            if (match) {
+                let code = parseInt(match[0], 16);
+                index += match[0].length - 1;
+                if (/\s/.test(text[index + 1] ?? '') && text[index + 1] !== '\n') {
+                    index++;
+                }
+                if (code === 0 || code > 0x10ffff || (code >= 0xd800 && code <= 0xdfff)) {
+                    code = 0xfffd;
+                }
+                result += String.fromCodePoint(code);
+                continue;
+            }
+        }
+        if (text[index] !== '\r' && text[index] !== '\n') {
+            result += text[index];
+        }
+    }
+    return result;
+};
 /*
   Records in the page the lists of its document and adopted stylesheets, so that copy
   planning, alfa’s view of the sheets, and loss checking all use the same lists. A page can
@@ -214,6 +247,17 @@ const getSchemeFamily = (url) => {
     }
     return url.startsWith('data:') ? 'data' : 'other';
 };
+// Returns whether a request from a resource to a URL is mixed content, which browsers block: from an HTTPS resource to an HTTP URL.
+const isMixedContent = (fromURL, toURL) => {
+    try {
+        return new URL(fromURL).protocol === 'https:' && new URL(toURL).protocol === 'http:';
+    }
+    catch (error) {
+        return false;
+    }
+};
+// Returns a CSS url() function for a URL, escaping the characters a double-quoted CSS string cannot contain.
+const toCSSURL = (url) => `url("${url.replace(/[\\"]/g, '\\$&').replace(/\n/g, '\\a ')}")`;
 /*
   Returns the Referer header that a browser would by default (under the policy
   strict-origin-when-cross-origin) send when a document or stylesheet requests an HTTP
@@ -253,8 +297,12 @@ const getSheetText = async (fetcher, url, referrer) => {
         const family = getSchemeFamily(url);
         // If the sheet is a local file (each file URL being an origin of its own):
         if (family === 'file') {
+            // Refuse to read it unless a local file requests it, as a browser would.
+            if (getSchemeFamily(referrer) !== 'file') {
+                return null;
+            }
             // Read it.
-            return await (0, promises_1.readFile)((0, url_1.fileURLToPath)(url), 'utf8');
+            return { text: await (0, promises_1.readFile)((0, url_1.fileURLToPath)(url), 'utf8'), finalURL: url };
         }
         // Otherwise, if the sheet is a data URL:
         if (family === 'data') {
@@ -264,9 +312,10 @@ const getSheetText = async (fetcher, url, referrer) => {
                 return null;
             }
             const payload = url.slice(commaIndex + 1);
-            return url.slice(5, commaIndex).endsWith(';base64')
+            const text = url.slice(5, commaIndex).endsWith(';base64')
                 ? Buffer.from(payload, 'base64').toString('utf8')
                 : decodeURIComponent(payload);
+            return { text, finalURL: url };
         }
         // Otherwise, if it is an HTTP resource:
         if (family === 'http') {
@@ -276,7 +325,19 @@ const getSheetText = async (fetcher, url, referrer) => {
                 timeout: (0, config_1.applyMultiplier)(5000),
                 ...(referer ? { headers: { Referer: referer } } : {})
             });
-            return response.ok() ? await response.text() : null;
+            if (!response.ok()) {
+                return null;
+            }
+            const finalURL = response.url() || url;
+            try {
+                const pageURL = new URL(referrer);
+                const finalResource = new URL(finalURL);
+                if (pageURL.protocol === 'https:' && finalResource.protocol === 'http:') {
+                    return null;
+                }
+            }
+            catch (error) { }
+            return { text: await response.text(), finalURL };
         }
         return null;
     }
@@ -323,18 +384,19 @@ const countTextRules = async (page, fetcher, text, url, visited = []) => {
         for (const href of importHrefs) {
             let importURL;
             try {
-                importURL = new URL(href, url).href;
+                importURL = new URL(decodeCSSEscapes(href), url).href;
             }
             catch (error) {
                 continue;
             }
             const importFamily = getSchemeFamily(importURL);
             const isFollowable = importFamily === 'data' || importFamily === rootFamily;
-            if (isFollowable && !visitedNext.includes(importURL)) {
-                const importText = await getSheetText(fetcher, importURL, url);
-                const importCount = importText === null
+            const mixed = isMixedContent(url, importURL);
+            if (isFollowable && !mixed && !visitedNext.includes(importURL)) {
+                const importFetch = await getSheetText(fetcher, importURL, url);
+                const importCount = importFetch === null
                     ? null
-                    : await countTextRules(page, fetcher, importText, importURL, visitedNext);
+                    : await countTextRules(page, fetcher, importFetch.text, importFetch.finalURL, visitedNext);
                 // If the rules of the imported sheet cannot be counted, neither can those of this sheet.
                 if (importCount === null) {
                     return null;
@@ -470,7 +532,7 @@ const wrapImport = (text, tail) => {
     let rest = tail.trim();
     // Extract the optional layer clause, whether named or anonymous.
     let layer = null;
-    const layerMatch = rest.match(/layer\(([^)]*)\)|\blayer\b/i);
+    const layerMatch = rest.match(/^layer(?:\(([^)]*)\)|(?![-\w]))/i);
     if (layerMatch) {
         layer = layerMatch[1]?.trim() ?? '';
         rest = `${rest.slice(0, layerMatch.index)}${rest.slice((layerMatch.index ?? 0) + layerMatch[0].length)}`.trim();
@@ -584,13 +646,13 @@ const absolutizeURLs = (text, baseURL) => {
             // If the function is complete and its URL is relative to the sheet, get the absolute URL.
             if (text[close] === ')' && href && !href.startsWith('#')) {
                 try {
-                    absoluteURL = new URL(href, baseURL).href;
+                    absoluteURL = new URL(decodeCSSEscapes(href), baseURL).href;
                 }
                 catch (error) { }
             }
             // Copy the function with the absolute URL, if any, or else as it is.
             if (absoluteURL) {
-                result += `url("${absoluteURL}")`;
+                result += toCSSURL(absoluteURL);
                 index = close + 1;
             }
             else {
@@ -606,6 +668,26 @@ const absolutizeURLs = (text, baseURL) => {
     }
     return result;
 };
+// Returns whether a stylesheet text contains a namespace declaration outside comments and strings.
+const hasNamespaceRule = (text) => {
+    const code = stripCSSComments(text);
+    let outside = '';
+    let index = 0;
+    while (index < code.length) {
+        if (code[index] === '"' || code[index] === '\'') {
+            index = getStringEnd(code, index);
+            outside += ' ';
+        }
+        else if (code[index] === '\\') {
+            index += 2;
+            outside += ' ';
+        }
+        else {
+            outside += code[index++];
+        }
+    }
+    return /(^|[;}\s])@namespace\b/i.test(outside);
+};
 /*
   Prepares the text of a stylesheet copy for injection: inlines the texts of its valid
   imports (each wrapped in its layer, supports, and media conditions) and makes relative URLs
@@ -614,6 +696,12 @@ const absolutizeURLs = (text, baseURL) => {
 */
 const resolveSheetText = async (fetcher, text, url, visited = []) => {
     const failedImports = [];
+    // Whether the sheet or a sheet it imports declares a namespace.
+    let hasNamespace = hasNamespaceRule(text);
+    // Whether any import of the sheet has been inlined.
+    let hasInlined = false;
+    // Whether inlining makes a namespace declaration in the sheet or its imports invalid.
+    let namespaceConflict = false;
     /*
       Scan a copy of the text in which comments, which can contain import-like text, are blanked out, but in which positions are those of the text. Comments must remain in the text itself, because a comment can separate tokens without being whitespace: a comment between .a and .b leaves them a compound selector, but a space would make a descendant selector of them.
     */
@@ -642,27 +730,39 @@ const resolveSheetText = async (fetcher, text, url, visited = []) => {
             const href = (importMatch[1] ?? importMatch[2]).trim();
             let importURL = null;
             try {
-                importURL = new URL(href, url).href;
+                importURL = new URL(decodeCSSEscapes(href), url).href;
             }
             catch (error) { }
-            // If the import can be fetched and is not circular, inline it, else report it.
-            if (importURL && !visited.includes(importURL)) {
+            // If the import can be fetched and is not circular (importing the sheet or an ancestor), inline it, else report it.
+            if (importURL && ![...visited, url].includes(importURL)) {
                 if (getSchemeFamily(importURL) === 'data'
                     || getSchemeFamily(importURL) === rootFamily) {
-                    const imported = await getSheetText(fetcher, importURL, url);
+                    // A browser blocks an import from an HTTPS sheet of an HTTP one.
+                    const isMixed = isMixedContent(visited[0] ?? url, importURL);
+                    const imported = isMixed ? null : await getSheetText(fetcher, importURL, url);
                     if (imported === null) {
                         failedImports.push(importURL);
                     }
                     else {
-                        const resolved = await resolveSheetText(fetcher, imported, importURL, [...visited, url]);
+                        if (imported.finalURL !== importURL) {
+                            importURL = imported.finalURL;
+                        }
+                        const resolved = await resolveSheetText(fetcher, imported.text, importURL, [...visited, url]);
                         failedImports.push(...resolved.failedImports);
+                        if (resolved.hasNamespace) {
+                            hasNamespace = true;
+                        }
+                        if (resolved.namespaceConflict) {
+                            namespaceConflict = true;
+                        }
                         blocks.push(wrapImport(resolved.text, importMatch[3] ?? ''));
+                        hasInlined = true;
                     }
                 }
                 // Otherwise the browser would keep the rule but not follow it; do the same.
                 else {
                     const tail = (importMatch[3] ?? '').trim();
-                    blocks.push(`@import url("${importURL}")${tail ? ` ${tail}` : ''};`);
+                    blocks.push(`@import ${toCSSURL(importURL)}${tail ? ` ${tail}` : ''};`);
                 }
             }
             else if (!importURL) {
@@ -687,15 +787,16 @@ const resolveSheetText = async (fetcher, text, url, visited = []) => {
     */
     return {
         text: `${blocks.join('\n')}\n${absolutizeURLs(text.slice(position), url)}`,
-        failedImports
+        failedImports,
+        hasNamespace,
+        /*
+          A namespace declaration is valid only before all rules except charset, import, and layer statement rules, so the inlined rules of an import make invalid any namespace declaration of the sheet or of an import that follows them.
+        */
+        namespaceConflict: namespaceConflict || (hasInlined && hasNamespace)
     };
 };
 /*
-  Whether a stylesheet can be copied without changing layer or nested-selector semantics. A
-  copy declares the named layers of its original in the same order, at the same place, so it
-  leaves their order unchanged. But each anonymous layer is a distinct layer, so the copy of
-  an anonymous layer would follow, and outrank, the named layers of the original that follow
-  it, if alfa also serialized the original in part.
+  Whether a stylesheet can be copied without changing nested-selector semantics. A copy can contain cascade layers, named or anonymous, because it takes the place of its original in alfa’s view, so it declares them in the same order. But a nesting selector under a list of selectors means :is() of the list, whose specificity is that of the most specific selector in it, which flattening cannot reproduce.
 */
 const isSafeCopy = (page, text) => page.evaluate(text => {
     const tag = (rule) => rule.constructor?.name
@@ -707,6 +808,10 @@ const isSafeCopy = (page, text) => page.evaluate(text => {
         let start = 0;
         for (let i = 0; i < selector.length; i++) {
             const char = selector[i];
+            if (char === '\\') {
+                i++;
+                continue;
+            }
             if (quote) {
                 if (char === quote) {
                     quote = '';
@@ -730,9 +835,6 @@ const isSafeCopy = (page, text) => page.evaluate(text => {
         return parts.filter(Boolean);
     };
     const hasUnsafeRules = (rules) => Array.from(rules).some(rule => {
-        if (tag(rule) === 'CSSLayerBlockRule' && !rule.name) {
-            return true;
-        }
         if (rule instanceof CSSStyleRule && rule.cssRules.length) {
             if (splitList(rule.selectorText).length > 1 || hasUnsafeRules(rule.cssRules)) {
                 return true;
@@ -753,10 +855,7 @@ const isSafeCopy = (page, text) => page.evaluate(text => {
     }
 }, text);
 /*
-  Creates detached stylesheet copies and exposes them to alfa in temporary stylesheet-list
-  views made of the recorded lists of the page’s sheets, each copy right after its original.
-  This preserves sheet order without changing the page’s DOM or applying duplicate rules. The
-  views are exposed even if there are no copies, so alfa sees the recorded lists.
+  Creates detached stylesheet copies and exposes them to alfa in temporary stylesheet-list views made of the recorded lists of the page’s sheets, each copy in place of its original. This preserves sheet order without changing the page’s DOM or applying duplicate rules. The views are exposed even if there are no copies, so alfa sees the recorded lists.
 */
 const injectCopies = (page, plans) => page.evaluate((args) => {
     const { specs, alfaTypes } = args;
@@ -795,6 +894,10 @@ const injectCopies = (page, plans) => page.evaluate((args) => {
         let start = 0;
         for (let i = 0; i < selector.length; i++) {
             const char = selector[i];
+            if (char === '\\') {
+                i++;
+                continue;
+            }
             if (quote) {
                 if (char === quote) {
                     quote = '';
@@ -953,13 +1056,16 @@ const injectCopies = (page, plans) => page.evaluate((args) => {
             catch (error) { }
         });
     }
+    /*
+      In alfa’s view, each copy takes the place of its original. If the original stayed in the view, alfa could serialize it in part (it empties a media, supports, or keyframes block containing a rule it does not support, but keeps the rest of the sheet), and the rules of the original would then precede the duplicates in the copy, which could change the order of the cascade layers they declare.
+    */
     const domView = [...originalDOMSheets];
     for (const { sheet, spec } of domCopies) {
-        domView.splice(spec.index + 1, 0, sheet);
+        domView[spec.index] = sheet;
     }
     const adoptedView = [...originalAdoptedSheets];
     for (const { sheet, spec } of adoptedCopies) {
-        adoptedView.splice(spec.index + 1, 0, sheet);
+        adoptedView[spec.index] = sheet;
     }
     const styleSheetsDescriptor = Object.getOwnPropertyDescriptor(document, 'styleSheets');
     const adoptedStyleSheetsDescriptor = Object.getOwnPropertyDescriptor(document, 'adoptedStyleSheets');
@@ -1005,7 +1111,7 @@ const injectCopies = (page, plans) => page.evaluate((args) => {
 }, { specs: plans, alfaTypes: Array.from(ALFA_RULE_TYPES) });
 /*
   Prepares detached copies of sheets that deny rules to alfa. Sheets whose copies would change
-  layer or nested-selector semantics are left uncompensated, so loss checking can prevent an
+  nested-selector or namespace semantics are left uncompensated, so loss checking can prevent an
   incomplete audit.
 */
 const injectSheetCopies = async (page, fetcher) => {
@@ -1013,23 +1119,36 @@ const injectSheetCopies = async (page, fetcher) => {
     const specs = [];
     // The scheme family of the page, for confining file reads to local roots.
     const pageFamily = getSchemeFamily(page.url());
+    // The base URL of the document, which can differ from its URL.
+    const documentBase = await page.evaluate(() => document.baseURI);
     for (const plan of plans) {
-        // Get the text of the sheet: its serialized rules, or a fetch of its URL.
+        /*
+          Get the text of the sheet: its serialized rules, or a fetch of its URL. Relative URLs in an inline sheet are relative to the document’s base URL.
+        */
         let text = plan.text;
+        let baseURL = plan.href ?? documentBase;
+        /*
+          A non-file page cannot have a file sheet or import a file, so a sheet whose URLs would be resolved against a file URL (even a readable inline sheet, if the page sets a file base URL) is never resolved for one.
+        */
+        if (getSchemeFamily(baseURL) === 'file' && pageFamily !== 'file') {
+            continue;
+        }
         if (text === null) {
-            // A non-file page cannot have a file sheet, so a file URL is never read for one.
-            if (!plan.href
-                || (getSchemeFamily(plan.href) === 'file' && pageFamily !== 'file')) {
+            if (!plan.href) {
                 continue;
             }
-            text = await getSheetText(fetcher, plan.href, page.url());
-            if (text === null) {
+            // The sheet is requested by the page, so the referrer is the page’s URL, not its base URL.
+            const fetched = await getSheetText(fetcher, plan.href, page.url());
+            if (fetched === null) {
                 continue;
             }
+            text = fetched.text;
+            // Relative URLs in the sheet are relative to its URL after any redirects.
+            baseURL = fetched.finalURL;
         }
         // Prepare the text for Alfa, inlining its imports.
-        const resolved = await resolveSheetText(fetcher, text, plan.href ?? page.url());
-        if (await isSafeCopy(page, resolved.text)) {
+        const resolved = await resolveSheetText(fetcher, text, baseURL);
+        if (!resolved.namespaceConflict && await isSafeCopy(page, resolved.text)) {
             specs.push({ ...plan, text: resolved.text, failedImports: resolved.failedImports });
         }
     }
@@ -1048,10 +1167,9 @@ const getStyleLosses = async (page, fetcher, alfaSheets, copies = [], noReload =
     pageSheets.forEach(pageSheet => {
         const { sheet, isCrossOrigin, ruleCount, unreadableImports, kind, index } = pageSheet;
         const sourceAlfaIndex = alfaSheetIndex++;
-        // If a detached copy is present, it follows its original in Alfa’s temporary sheet list.
+        // If a detached copy is present, it takes the place of its original in Alfa’s sheet list.
         const copy = copies.find(item => item.kind === kind && item.originalIndex === index);
         if (copy) {
-            alfaSheetIndex++;
             const alfaSheet = alfaSheets[copy.index];
             const alfaCount = alfaSheet ? countAlfaRules(alfaSheet.toJSON().rules) : 0;
             const unserializedRules = Math.max(0, copy.rules - alfaCount);
@@ -1116,14 +1234,16 @@ const getStyleLosses = async (page, fetcher, alfaSheets, copies = [], noReload =
         if (getSchemeFamily(url) === 'file' && pageFamily !== 'file') {
             continue;
         }
-        const text = await getSheetText(fetcher, url, page.url());
+        const fetch = await getSheetText(fetcher, url, page.url());
+        const text = fetch?.text ?? null;
+        const finalURL = fetch?.finalURL ?? url;
         /*
           If its text cannot be fetched either, the page presumably lacks its rules: a dead
           link or unreachable host fails for the browser, too. It is then no loss of alfa’s,
           rather than a loss whose size cannot be known.
         */
         if (text !== null) {
-            const ruleCount = await countTextRules(page, fetcher, text, url);
+            const ruleCount = await countTextRules(page, fetcher, text, finalURL);
             // If it has material rules or they could not be counted, report it.
             if (ruleCount !== 0) {
                 losses.push({ sheet: url, reason: 'unreadable', ruleCount });
@@ -1135,10 +1255,12 @@ const getStyleLosses = async (page, fetcher, alfaSheets, copies = [], noReload =
         if (getSchemeFamily(url) === 'file' && pageFamily !== 'file') {
             continue;
         }
-        const text = await getSheetText(fetcher, url, page.url());
+        const fetch = await getSheetText(fetcher, url, page.url());
+        const text = fetch?.text ?? null;
+        const finalURL = fetch?.finalURL ?? url;
         // If its text is available:
         if (text !== null) {
-            const ruleCount = await countTextRules(page, fetcher, text, url);
+            const ruleCount = await countTextRules(page, fetcher, text, finalURL);
             // If it has material rules or rules of its imports could not be counted, report it.
             if (ruleCount !== 0) {
                 losses.push({ sheet: url, reason: 'unloaded', ruleCount });
