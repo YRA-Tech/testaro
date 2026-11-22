@@ -558,6 +558,22 @@ const launchOnce = async opts => {
         // Keep records of the stylesheet responses of the page.
         const records = new Map();
         sheetRecords.set(page, records);
+        /*
+          The records are of the current document of the main frame. A request of the main frame for a new document (a navigation, not a same-document change of URL) starts a new generation of records, and requests made in an earlier generation are not recorded when they end.
+        */
+        let generation = 0;
+        const requestGenerations = new WeakMap();
+        // Returns whether a request is a stylesheet request of the current document of the main frame.
+        const isCurrentSheetRequest = request => request.resourceType() === 'stylesheet'
+        && isMainFrameRequest(page, request)
+        && requestGenerations.get(request) === generation;
+        page.on('request', request => {
+          if (request.isNavigationRequest() && isMainFrameRequest(page, request)) {
+            generation++;
+            records.clear();
+          }
+          requestGenerations.set(request, generation);
+        });
         // When an error is thrown, increment the count of logging errors.
         page.on('crash', () => {
           jobData.errorLogCount++;
@@ -568,20 +584,21 @@ const launchOnce = async opts => {
         });
         page.on('requestfailed', request => {
           jobData.errorLogCount++;
-          // If the request was for a stylesheet of the main frame, record the failure.
-          if (request.resourceType() === 'stylesheet' && isMainFrameRequest(page, request)) {
+          // If the request was for a stylesheet of the current document, record the failure.
+          if (isCurrentSheetRequest(request)) {
             recordSheet(records, request, null);
           }
         });
-        // When a stylesheet response of the main frame, other than a redirect, arrives, record it.
-        page.on('response', response => {
-          const request = response.request();
-          const status = response.status();
-          if (
-            request.resourceType() === 'stylesheet' && (status < 300 || status > 399)
-            && isMainFrameRequest(page, request)
-          ) {
-            recordSheet(records, request, response);
+        /*
+          When a stylesheet request of the current document, other than a redirect, finishes, record its response. A response is recorded only once its body has fully arrived, so a request whose body fails, such as a CORS reload by alfa, records only a failure, which does not replace a successful response of another request.
+        */
+        page.on('requestfinished', async request => {
+          if (isCurrentSheetRequest(request)) {
+            const response = await request.response().catch(() => null);
+            const status = response?.status() ?? 0;
+            if (response && (status < 300 || status > 399) && isCurrentSheetRequest(request)) {
+              recordSheet(records, request, response);
+            }
           }
         });
         // When the page emits a message:

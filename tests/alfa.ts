@@ -550,7 +550,7 @@ const getSheetText = async (
   Counts the material rules in the text of a stylesheet that page scripts cannot read, plus
   those of the stylesheets it validly imports, fetched relative to its URL. Each import rule
   counts as 1, as it does for page scripts. An import is followed only if a browser would follow it: if it is importable, is not mixed content, and is not circular (to the sheet or a sheet importing it, before or after redirects); otherwise only its rule is counted.
-  Returns null if the rules of any followed import cannot be counted, or if the import chain is too deep to follow.
+  Returns null if the browser loaded a followed import but its text is unavailable, so its rules cannot be counted, or if the import chain is too deep to follow.
 */
 const countTextRules = async (
   page: Page, fetcher: SheetSource, text: string, url: string, visited: string[] = [],
@@ -597,11 +597,13 @@ const countTextRules = async (
           return null;
         }
         const importFetch = await getSheetText(fetcher, importURL, url);
-        // If the import redirects to a sheet in its chain, it is circular, so only its rule counts.
-        if (importFetch && visitedNext.includes(importFetch.finalURL)) {
+        /*
+          If the imported sheet is absent (the browser’s request for it failed, or it cannot be fetched), the page lacks its rules, as it lacks those of an absent sheet that the page links to, or if the import redirects to a sheet in its chain, it is circular; either way only its rule counts.
+        */
+        if (importFetch === null || visitedNext.includes(importFetch.finalURL)) {
           continue;
         }
-        const importCount = importFetch === null || importFetch.text === null
+        const importCount = importFetch.text === null
           ? null
           : await countTextRules(
             page, fetcher, importFetch.text, importFetch.finalURL, [...visitedNext, importURL], depth + 1
