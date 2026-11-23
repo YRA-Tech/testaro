@@ -27,7 +27,7 @@ const validatorDir = `${__dirname}/../tests/jobProperties`;
 const aiRuleIDs = ['allCaps'];
 // Validators of features other than rules, run after the rule validators.
 const featureValidatorIDs = [
-  'alfaLayers', 'alfaStyles', 'alfaStylesLosses', 'checkpoint', 'checkpoint-browser', 'checkpoint-page',
+  'alfaLayers', 'alfaStyles', 'alfaStylesLosses', 'alfaStylesPrevented', 'checkpoint', 'checkpoint-browser', 'checkpoint-page',
   'userPath'
 ];
 // Maximum number of seconds allowed for the validation of one rule.

@@ -639,8 +639,10 @@ exports.doActs = async (report, opts = {}) => {
         const {toolTimes} = tempReport.jobData;
         toolTimes[act.which] ??= 0;
         toolTimes[act.which] += time;
-        // If the act was not prevented:
-        if (act.data && ! act.data.prevented) {
+        /*
+          If the act has data, evaluate any expectations, even if the act was prevented, so that a validator can expect a prevention; the expectations of an act prevented unexpectedly fail.
+        */
+        if (act.data) {
           const expectations = act.expect;
           // If the act has expectations:
           if (expectations) {
