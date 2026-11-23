@@ -128,17 +128,21 @@ const deliversSheet = response => {
   return ! contentType || contentType === 'text/css';
 };
 /*
-  Records a stylesheet response, or a failure (a null response), of a request under the URLs of the redirect chain of the request. A failure of the request whose response is recorded invalidates that response, since its body did not fully arrive. But neither a failure nor a response that does not deliver a stylesheet (unsuccessful or not CSS) of another request replaces a response that does, as when alfa reloads a sheet with CORS and the server refuses it or returns an error page, unless the recorded response is provisional: made while a navigation was pending, so the document’s own request for the sheet supersedes it.
+  Records a stylesheet response, or a failure (a null response), of a request under the URLs of the redirect chain of the request. A failure of the request whose response is recorded invalidates that response, since its body did not fully arrive. But neither a failure nor a response that does not deliver a stylesheet (unsuccessful or not CSS) of another request replaces a response that does, as when alfa reloads a sheet with CORS and the server refuses it or returns an error page, unless the recorded response is provisional: made while a navigation was pending, so the document’s own request for the sheet supersedes it. Conversely, a provisional outcome never replaces a record of the document’s own request, whenever it ends.
 */
-const recordSheet = (records, request, response) => {
+const recordSheet = (records, request, response, provisional = false) => {
   for (let hop = request; hop; hop = hop.redirectedFrom()) {
     const url = hop.url();
     const prior = records.get(url);
     const isOwnRecord = prior?.request === request;
+    // A provisional outcome does not replace the record of another request of the document itself.
+    if (provisional && prior && ! prior.provisional && ! isOwnRecord) {
+      continue;
+    }
     const priorSucceeded = deliversSheet(prior?.response);
     const succeeds = deliversSheet(response);
     if (! prior || prior.provisional || isOwnRecord || ! priorSucceeded || succeeds) {
-      records.set(url, {request, response});
+      records.set(url, provisional ? {request, response, provisional} : {request, response});
     }
   }
 };
@@ -229,16 +233,7 @@ const trackSheets = exports.trackSheets = page => {
   const record = (request, response) => {
     const destination = getRecordsOf(request);
     if (destination) {
-      const {target, provisional} = destination;
-      recordSheet(target, request, response);
-      if (provisional) {
-        for (let hop = request; hop; hop = hop.redirectedFrom()) {
-          const entry = target.get(hop.url());
-          if (entry?.request === request) {
-            entry.provisional = true;
-          }
-        }
-      }
+      recordSheet(destination.target, request, response, destination.provisional);
     }
   };
   const isSheetRequest = request => request.resourceType() === 'stylesheet'

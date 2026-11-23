@@ -1,0 +1,55 @@
+{
+  "rule": "alfaStylesPrevented",
+  "isolation": "page",
+  "timeLimit": 30,
+  "acts": [
+    {
+      "type": "launch",
+      "target": {
+        "url": "file://validation/tests/targets/alfaStyles/index.html",
+        "what": "page with stylesheets that deny rules to Alfa"
+      }
+    },
+    {
+      "type": "test",
+      "which": "alfa",
+      "expect": [
+        [
+          "standardResult.prevented",
+          "=",
+          true
+        ],
+        [
+          "data.prevented",
+          "=",
+          true
+        ],
+        [
+          "data.error",
+          "i",
+          "lacks the style rules of 4 stylesheets"
+        ],
+        [
+          "data.styleLosses.length",
+          "=",
+          4
+        ],
+        [
+          "data.styleLosses.0.reason",
+          "=",
+          "unserialized"
+        ],
+        [
+          "data.styleLosses.2.reason",
+          "=",
+          "unreadable"
+        ],
+        [
+          "standardResult.instances.length",
+          "=",
+          0
+        ]
+      ]
+    }
+  ]
+}
