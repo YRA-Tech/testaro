@@ -17,6 +17,8 @@ import {request} from 'playwright';
 import type {APIRequestContext, Page} from 'playwright';
 import {getNormalizedXPath, getXPathCatalogIndex} from '../procs/xPath';
 import {getStandardResult, addInstance} from '../procs/standard';
+import {getSheetRecords} from '../procs/launch';
+import type {SheetRecord} from '../procs/launch';
 import {applyMultiplier, getProxyLaunchOptions, getScannerId} from '../procs/config';
 import type {Act, Report, StandardInstance, StandardResult} from '../types';
 /*
@@ -147,9 +149,17 @@ interface AlfaNativeResult {
   };
   items: AlfaEvalItem[];
 }
+// The text of a stylesheet and its URL after redirects. The text is null if the browser loaded the sheet but its text could not be obtained.
 interface SheetFetch {
-  text: string;
+  text: string | null;
   finalURL: string;
+}
+/*
+  The sources of stylesheet texts: the stylesheet responses the browser received for the page, by request URL, and a request context for fetching sheets the browser did not request (or whose responses are no longer available).
+*/
+interface SheetSource {
+  request: APIRequestContext;
+  records: Map<string, SheetRecord> | null;
 }
 
 /*
@@ -436,11 +446,45 @@ const getReferer = (referrer: string, url: string): string | null => {
   }
 };
 /*
+  Fetches a stylesheet outside the page, or returns null if it is unavailable. The referrer is the URL of the page or stylesheet that requests the sheet.
+*/
+const probeSheet = async (
+  fetcher: SheetSource, url: string, referrer: string
+): Promise<SheetFetch | null> => {
+  /*
+    Fetch it outside the page, where the cross-origin rule does not apply, requesting it as a browser requests a stylesheet: with the referrer a browser would send and with the Accept header of a stylesheet request rather than the page-navigation one of the browser context.
+  */
+  const referer = getReferer(referrer, url);
+  const response = await fetcher.request.get(url, {
+    timeout: applyMultiplier(5000),
+    headers: {
+      Accept: 'text/css,*/*;q=0.1',
+      ... (referer ? {Referer: referer} : {})
+    }
+  });
+  if (! response.ok()) {
+    return null;
+  }
+  const finalURL = response.url() || url;
+  // If a redirect made the request mixed content, which a browser blocks, the sheet is unavailable.
+  if (isMixedContent(referrer, finalURL)) {
+    return null;
+  }
+  /*
+    If the response declares a content type other than CSS, a browser ignores the sheet (in standards mode), so the sheet is unavailable. A response without a declared type is accepted, since a browser can apply it in quirks mode.
+  */
+  const contentType = (response.headers()['content-type'] ?? '').split(';')[0].trim().toLowerCase();
+  if (contentType && contentType !== 'text/css') {
+    return null;
+  }
+  return {text: await response.text(), finalURL};
+};
+/*
   Gets the text of a stylesheet that page scripts cannot read, or null if it is unavailable.
   The referrer is the URL of the page or stylesheet that requests the sheet.
 */
 const getSheetText = async (
-  fetcher: APIRequestContext, url: string, referrer: string
+  fetcher: SheetSource, url: string, referrer: string
 ): Promise<SheetFetch | null> => {
   try {
     const family = getSchemeFamily(url);
@@ -468,25 +512,33 @@ const getSheetText = async (
     }
     // Otherwise, if it is an HTTP resource:
     if (family === 'http') {
-      // Fetch it outside the page, where the cross-origin rule does not apply, as a browser would.
-      const referer = getReferer(referrer, url);
-      const response = await fetcher.get(url, {
-        timeout: applyMultiplier(5000),
-        ... (referer ? {headers: {Referer: referer}} : {})
-      });
-      if (! response.ok()) {
-        return null;
-      }
-      const finalURL = response.url() || url;
-      try {
-        const pageURL = new URL(referrer);
-        const finalResource = new URL(finalURL);
-        if (pageURL.protocol === 'https:' && finalResource.protocol === 'http:') {
+      // If the browser requested it for the page, use what the browser received.
+      const recordURL = new URL(url);
+      recordURL.hash = '';
+      const record = fetcher.records?.get(recordURL.href);
+      if (record) {
+        const {response} = record;
+        // If the request failed or was refused, the page lacks the sheet.
+        if (! response || ! response.ok()) {
           return null;
         }
+        // If the response declares a content type other than CSS, a browser ignores the sheet.
+        const recordType = (response.headers()['content-type'] ?? '').split(';')[0].trim().toLowerCase();
+        if (recordType && recordType !== 'text/css') {
+          return null;
+        }
+        try {
+          return {text: await response.text(), finalURL: response.url() || url};
+        }
+        catch (error) {}
       }
-      catch (error) {}
-      return {text: await response.text(), finalURL};
+      // Otherwise, or if its body is no longer available, fetch it.
+      const fetched = await probeSheet(fetcher, url, referrer).catch(() => null);
+      // If that fails but the browser loaded the sheet, its text is unavailable.
+      if (fetched === null && record?.response) {
+        return {text: null, finalURL: record.response.url() || url};
+      }
+      return fetched;
     }
     return null;
   }
@@ -498,10 +550,10 @@ const getSheetText = async (
   Counts the material rules in the text of a stylesheet that page scripts cannot read, plus
   those of the stylesheets it validly imports, fetched relative to its URL. Each import rule
   counts as 1, as it does for page scripts. An import is followed only if a browser would follow it: if it is importable, is not mixed content, and is not circular (to the sheet or a sheet importing it, before or after redirects); otherwise only its rule is counted.
-  Returns null if the rules of any followed import cannot be counted, or if the import chain is too deep to follow.
+  Returns null if the browser loaded a followed import but its text is unavailable, so its rules cannot be counted, or if the import chain is too deep to follow.
 */
 const countTextRules = async (
-  page: Page, fetcher: APIRequestContext, text: string, url: string, visited: string[] = [],
+  page: Page, fetcher: SheetSource, text: string, url: string, visited: string[] = [],
   depth = 0
 ): Promise<number | null> => {
   try {
@@ -545,11 +597,13 @@ const countTextRules = async (
           return null;
         }
         const importFetch = await getSheetText(fetcher, importURL, url);
-        // If the import redirects to a sheet in its chain, it is circular, so only its rule counts.
-        if (importFetch && visitedNext.includes(importFetch.finalURL)) {
+        /*
+          If the imported sheet is absent (the browser’s request for it failed, or it cannot be fetched), the page lacks its rules, as it lacks those of an absent sheet that the page links to, or if the import redirects to a sheet in its chain, it is circular; either way only its rule counts.
+        */
+        if (importFetch === null || visitedNext.includes(importFetch.finalURL)) {
           continue;
         }
-        const importCount = importFetch === null
+        const importCount = importFetch.text === null
           ? null
           : await countTextRules(
             page, fetcher, importFetch.text, importFetch.finalURL, [...visitedNext, importURL], depth + 1
@@ -856,7 +910,7 @@ const hasNamespaceRule = (text: string): boolean => {
   fetched.
 */
 const resolveSheetText = async (
-  fetcher: APIRequestContext, text: string, url: string, visited: string[] = [], depth = 0
+  fetcher: SheetSource, text: string, url: string, visited: string[] = [], depth = 0
 ): Promise<{text: string; failedImports: string[]; hasNamespace: boolean; namespaceConflict: boolean}> => {
   const failedImports: string[] = [];
   // Whether the sheet or a sheet it imports declares a namespace.
@@ -902,7 +956,7 @@ const resolveSheetText = async (
           // An import chain too deep to follow is reported as failed.
           const isTooDeep = depth >= maxImportDepth;
           const imported = isMixed || isTooDeep ? null : await getSheetText(fetcher, importURL, url);
-          if (imported === null) {
+          if (imported === null || imported.text === null) {
             failedImports.push(importURL);
           }
           // Otherwise, unless the import redirects to a sheet in its chain, which makes it circular:
@@ -1296,7 +1350,7 @@ const injectCopies = (page: Page, plans: (SheetCopyPlan & {text: string; failedI
   nested-selector or namespace semantics are left uncompensated, so loss checking can prevent an
   incomplete audit.
 */
-const injectSheetCopies = async (page: Page, fetcher: APIRequestContext): Promise<SheetCopy[]> => {
+const injectSheetCopies = async (page: Page, fetcher: SheetSource): Promise<SheetCopy[]> => {
   const plans = await getCopyPlans(page);
   const specs: (SheetCopyPlan & {text: string; failedImports: string[]})[] = [];
   // The scheme family of the page, for confining file reads to local roots.
@@ -1321,7 +1375,8 @@ const injectSheetCopies = async (page: Page, fetcher: APIRequestContext): Promis
       }
       // The sheet is requested by the page, so the referrer is the page’s URL, not its base URL.
       const fetched = await getSheetText(fetcher, plan.href, page.url());
-      if (fetched === null) {
+      // If the text is unavailable, leave the sheet uncompensated, for loss checking to report.
+      if (fetched === null || fetched.text === null) {
         continue;
       }
       text = fetched.text;
@@ -1342,7 +1397,7 @@ const injectSheetCopies = async (page: Page, fetcher: APIRequestContext): Promis
 // Gets the stylesheets of the page whose material rules alfa did not receive.
 const getStyleLosses = async (
   page: Page,
-  fetcher: APIRequestContext,
+  fetcher: SheetSource,
   alfaSheets: {toJSON: () => {rules: AlfaRuleJSON[]}}[],
   copies: SheetCopy[] = [],
   noReload = false
@@ -1426,9 +1481,7 @@ const getStyleLosses = async (
     const text = fetch?.text ?? null;
     const finalURL = fetch?.finalURL ?? url;
     /*
-      If its text cannot be fetched either, the page presumably lacks its rules: a dead
-      link or unreachable host fails for the browser, too. It is then no loss of alfa’s,
-      rather than a loss whose size cannot be known.
+      If the sheet is absent (the browser’s request for it failed, or it did not request it and it cannot be fetched), the page lacks its rules, so it is no loss of alfa’s. If the browser loaded it but its text is unavailable, it is a loss whose size cannot be known.
     */
     if (text !== null) {
       const ruleCount = await countTextRules(page, fetcher, text, finalURL);
@@ -1436,6 +1489,9 @@ const getStyleLosses = async (
       if (ruleCount !== 0) {
         losses.push({sheet: url, reason: 'unreadable', ruleCount});
       }
+    }
+    else if (fetch) {
+      losses.push({sheet: url, reason: 'unreadable', ruleCount: null});
     }
   }
   // For each cross-origin sheet that seems empty:
@@ -1453,6 +1509,10 @@ const getStyleLosses = async (
       if (ruleCount !== 0) {
         losses.push({sheet: url, reason: 'unloaded', ruleCount});
       }
+    }
+    // Otherwise, if the browser loaded it but its text is unavailable, report a loss of unknown size.
+    else if (fetch) {
+      losses.push({sheet: url, reason: 'unloaded', ruleCount: null});
     }
   }
   // For each sheet that the page added after its sheets were recorded, which alfa did not see:
@@ -1527,7 +1587,7 @@ export const reporter = async (page: Page, report: Report, actIndex: number) => 
       case use a separate context, so that cookies set by the responses do not reach the page.
     */
     const proxy = isPageShared ? getProxyLaunchOptions(report.browserID ?? '').proxy : undefined;
-    const fetcher = isPageShared
+    const requestContext = isPageShared
       ? await request.newContext({
         userAgent: await page.evaluate(() => navigator.userAgent),
         extraHTTPHeaders: getScannerId(report) ? {'X-YRA-Scanner': getScannerId(report)} : {},
@@ -1535,6 +1595,8 @@ export const reporter = async (page: Page, report: Report, actIndex: number) => 
         ...(proxy ? {proxy} : {})
       })
       : page.request;
+    // Prefer the stylesheet responses the browser received for the page to fetches of the sheets.
+    const fetcher: SheetSource = {request: requestContext, records: getSheetRecords(page)};
     let sheetCopies: SheetCopy[] = [];
     let alfaPage: Awaited<ReturnType<typeof Playwright.toPage>>;
     let styleLosses: StyleLoss[];
@@ -1581,7 +1643,7 @@ export const reporter = async (page: Page, report: Report, actIndex: number) => 
     finally {
       await releaseSnapshot(page);
       if (isPageShared) {
-        await fetcher.dispose();
+        await requestContext.dispose();
       }
     }
     // Report any detached copies, for transparency about what alfa was given.

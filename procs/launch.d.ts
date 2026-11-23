@@ -13,7 +13,7 @@
   files use. Delete this file when launch.js itself is converted (issue #73).
 */
 
-import type {Page} from 'playwright';
+import type {Page, Request, Response} from 'playwright';
 import type {BrowserID, Report} from '../types';
 
 export interface LaunchOptions {
@@ -36,3 +36,12 @@ export function browserClose(page: Page | null | undefined): Promise<void>;
 export function goTo(
   report: Report, page: Page, url: string, timeout: number, waitUntil: string
 ): Promise<unknown>;
+// A stylesheet request of the main frame of a page and its response, or null if the request failed.
+export interface SheetRecord {
+  request: Request;
+  response: Response | null;
+}
+// Gets the stylesheet records of a page, by request URL, or null if none are kept for it.
+export function getSheetRecords(page: Page): Map<string, SheetRecord> | null;
+// Gets the nonce, if any, of a response.
+export function getNonce(response: Response): Promise<string>;
