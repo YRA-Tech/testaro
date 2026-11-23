@@ -118,15 +118,25 @@ const sheetRecords = new WeakMap();
 // Returns the stylesheet records of a page, or null if none are kept for it.
 exports.getSheetRecords = page => sheetRecords.get(page) ?? null;
 /*
-  Records a stylesheet response, or a failure (a null response), of a request under the URLs of the redirect chain of the request. A failure of the request whose response is recorded invalidates that response, since its body did not fully arrive. But neither a failure nor an unsuccessful response of another request replaces a successful response, as when alfa reloads a sheet with CORS and the server refuses it.
+  Returns whether a response delivers a stylesheet that a browser applies: it is successful and declares no content type other than CSS.
+*/
+const deliversSheet = response => {
+  if (! response?.ok()) {
+    return false;
+  }
+  const contentType = (response.headers()['content-type'] ?? '').split(';')[0].trim().toLowerCase();
+  return ! contentType || contentType === 'text/css';
+};
+/*
+  Records a stylesheet response, or a failure (a null response), of a request under the URLs of the redirect chain of the request. A failure of the request whose response is recorded invalidates that response, since its body did not fully arrive. But neither a failure nor a response that does not deliver a stylesheet (unsuccessful or not CSS) of another request replaces a response that does, as when alfa reloads a sheet with CORS and the server refuses it or returns an error page.
 */
 const recordSheet = (records, request, response) => {
   for (let hop = request; hop; hop = hop.redirectedFrom()) {
     const url = hop.url();
     const prior = records.get(url);
     const isOwnRecord = prior?.request === request;
-    const priorSucceeded = Boolean(prior?.response?.ok());
-    const succeeds = Boolean(response?.ok());
+    const priorSucceeded = deliversSheet(prior?.response);
+    const succeeds = deliversSheet(response);
     if (! prior || isOwnRecord || ! priorSucceeded || succeeds) {
       records.set(url, {request, response});
     }
@@ -559,20 +569,46 @@ const launchOnce = async opts => {
         const records = new Map();
         sheetRecords.set(page, records);
         /*
-          The records are of the current document of the main frame. A request of the main frame for a new document (a navigation, not a same-document change of URL) starts a new generation of records, and requests made in an earlier generation are not recorded when they end.
+          The records are of the current document of the main frame. When a navigation request of the main frame for a new document leads to the commit of that document, a new generation of records starts, and requests made in an earlier generation are not recorded when they end. Until then, the outgoing document is current, so a navigation that does not replace it (a 204 response, a download, a failure) leaves its records in place, and a same-document change of URL, which makes no navigation request, does too.
         */
         let generation = 0;
         const requestGenerations = new WeakMap();
+        // The pending navigation request of the main frame, if any.
+        let pendingNavigation = null;
+        // Returns a URL without its fragment.
+        const withoutFragment = url => url.replace(/#.*$/, '');
         // Returns whether a request is a stylesheet request of the current document of the main frame.
         const isCurrentSheetRequest = request => request.resourceType() === 'stylesheet'
         && isMainFrameRequest(page, request)
         && requestGenerations.get(request) === generation;
         page.on('request', request => {
+          // A navigation request of the main frame (including a redirect of one) becomes pending.
           if (request.isNavigationRequest() && isMainFrameRequest(page, request)) {
+            pendingNavigation = request;
+          }
+          requestGenerations.set(request, generation);
+        });
+        // When a pending navigation cannot commit a new document, it is no longer pending.
+        page.on('response', response => {
+          const request = response.request();
+          if (request === pendingNavigation) {
+            const status = response.status();
+            const disposition = response.headers()['content-disposition'] ?? '';
+            if (status === 204 || status === 205 || /^\s*attachment/i.test(disposition)) {
+              pendingNavigation = null;
+            }
+          }
+        });
+        // When the main frame commits the document of the pending navigation, start a new generation.
+        page.on('framenavigated', frame => {
+          if (
+            frame === page.mainFrame() && pendingNavigation
+            && withoutFragment(frame.url()) === withoutFragment(pendingNavigation.url())
+          ) {
+            pendingNavigation = null;
             generation++;
             records.clear();
           }
-          requestGenerations.set(request, generation);
         });
         // When an error is thrown, increment the count of logging errors.
         page.on('crash', () => {
@@ -584,6 +620,10 @@ const launchOnce = async opts => {
         });
         page.on('requestfailed', request => {
           jobData.errorLogCount++;
+          // If the pending navigation failed, it is no longer pending.
+          if (request === pendingNavigation) {
+            pendingNavigation = null;
+          }
           // If the request was for a stylesheet of the current document, record the failure.
           if (isCurrentSheetRequest(request)) {
             recordSheet(records, request, null);
