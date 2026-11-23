@@ -40,7 +40,11 @@ export function goTo(
 export interface SheetRecord {
   request: Request;
   response: Response | null;
+  // Whether the request was made while a navigation to the current document was pending.
+  provisional?: boolean;
 }
+// Starts keeping stylesheet records of the current document of the main frame of a page.
+export function trackSheets(page: Page): void;
 // Gets the stylesheet records of a page, by request URL, or null if none are kept for it.
 export function getSheetRecords(page: Page): Map<string, SheetRecord> | null;
 // Gets the nonce, if any, of a response.
