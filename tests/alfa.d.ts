@@ -13,6 +13,7 @@ interface SheetCopy {
     rules: number;
     omitted: string[];
     omittedRuleCount: number;
+    droppedRuleCount: number;
     failedImports: string[];
 }
 interface AlfaEvalItem {

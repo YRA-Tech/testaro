@@ -102,6 +102,8 @@ interface SheetCopy {
   omitted: string[];
   // Number of material rules removed from the copy because alfa cannot serialize them.
   omittedRuleCount: number;
+  // Number of rules bearing declarations that the copy lost, without being removed as unsupported, in its preparation.
+  droppedRuleCount: number;
   // URLs of imported sheets whose texts could not be fetched for the copy.
   failedImports: string[];
 }
@@ -1096,6 +1098,22 @@ const injectCopies = (page: Page, plans: (SheetCopyPlan & {text: string; failedI
     }
     return count;
   };
+  /*
+    Counts the rules of a rule and its descendants that bear declarations and are material: style rules, nested-declarations rules, and keyframe rules with any declarations. Flattening preserves this count, since it makes each such nested rule one such top-level rule, so a smaller count after preparing a copy means that declarations were lost.
+  */
+  const countDeclarationRules = (rule: CSSRule): number => {
+    if (rule instanceof CSSFontFaceRule || rule instanceof CSSPageRule) {
+      return 0;
+    }
+    const style = (rule as CSSStyleRule).style;
+    const own = style && style.length ? 1 : 0;
+    return own + (
+      'cssRules' in rule
+        ? Array.from((rule as CSSGroupingRule).cssRules)
+          .reduce((count, child) => count + countDeclarationRules(child), 0)
+        : 0
+    );
+  };
   const countMaterialRules = (rule: CSSRule): number => {
     if (rule instanceof CSSFontFaceRule || rule instanceof CSSPageRule) {
       return 0;
@@ -1187,7 +1205,7 @@ const injectCopies = (page: Page, plans: (SheetCopyPlan & {text: string; failedI
   */
   const flattenRule = (
     rule: CSSRule, parents: string[], out: string[], omitted: Set<string>,
-    omittedRuleCount: {value: number}
+    omittedRuleCount: {value: number; declarationRules: number}
   ): void => {
     if (rule instanceof CSSStyleRule) {
       const selectors = combine(parents, splitList(rule.selectorText));
@@ -1204,6 +1222,7 @@ const injectCopies = (page: Page, plans: (SheetCopyPlan & {text: string; failedI
       if (! supported.has(tag(rule))) {
         omitted.add(tag(rule));
         omittedRuleCount.value += countMaterialRules(rule);
+        omittedRuleCount.declarationRules += countDeclarationRules(rule);
         return;
       }
       const inner: string[] = [];
@@ -1223,13 +1242,14 @@ const injectCopies = (page: Page, plans: (SheetCopyPlan & {text: string; failedI
   */
   const sanitize = (
     container: CSSStyleSheet | CSSGroupingRule, omitted: Set<string>,
-    omittedRuleCount: {value: number}
+    omittedRuleCount: {value: number; declarationRules: number}
   ): void => {
     for (let i = container.cssRules.length - 1; i >= 0; i--) {
       const rule = container.cssRules[i];
       if (! supported.has(tag(rule))) {
         omitted.add(tag(rule));
         omittedRuleCount.value += countMaterialRules(rule);
+        omittedRuleCount.declarationRules += countDeclarationRules(rule);
         container.deleteRule(i);
         continue;
       }
@@ -1269,7 +1289,7 @@ const injectCopies = (page: Page, plans: (SheetCopyPlan & {text: string; failedI
   const originalDOMSheets = snapshot ? snapshot.dom : Array.from(document.styleSheets);
   const originalAdoptedSheets = snapshot ? snapshot.adopted : Array.from(document.adoptedStyleSheets ?? []);
 
-  const domCopies: {sheet: CSSStyleSheet; spec: SheetCopyPlan & {text: string; failedImports: string[]}; omitted: Set<string>; omittedRuleCount: number}[] = [];
+  const domCopies: {sheet: CSSStyleSheet; spec: SheetCopyPlan & {text: string; failedImports: string[]}; omitted: Set<string>; omittedRuleCount: number; droppedRuleCount: number}[] = [];
   const adoptedCopies: typeof domCopies = [];
   for (const kind of ['dom', 'adopted'] as const) {
     const destination = kind === 'dom' ? domCopies : adoptedCopies;
@@ -1281,10 +1301,21 @@ const injectCopies = (page: Page, plans: (SheetCopyPlan & {text: string; failedI
           copy.replaceSync(spec.text);
           copy.disabled = spec.disabled;
           const omitted = new Set<string>();
-          const omittedRuleCount = {value: 0};
+          const omittedRuleCount = {value: 0, declarationRules: 0};
+          // Count the rules bearing declarations before and after preparing the copy.
+          const sumDeclarationRules = (rules: CSSRuleList): number => Array.from(rules)
+            .reduce((count, rule) => count + countDeclarationRules(rule), 0);
+          const declarationRulesBefore = sumDeclarationRules(copy.cssRules);
           sanitize(copy, omitted, omittedRuleCount);
+          // Any shortfall not explained by unsupported rules is a loss of the copy’s own making.
+          const droppedRuleCount = Math.max(
+            0,
+            declarationRulesBefore - omittedRuleCount.declarationRules - sumDeclarationRules(copy.cssRules)
+          );
           if (copy.cssRules.length) {
-            destination.push({sheet: copy, spec, omitted, omittedRuleCount: omittedRuleCount.value});
+            destination.push({
+              sheet: copy, spec, omitted, omittedRuleCount: omittedRuleCount.value, droppedRuleCount
+            });
           }
         }
         catch (error) {}
@@ -1332,7 +1363,7 @@ const injectCopies = (page: Page, plans: (SheetCopyPlan & {text: string; failedI
   }
   const allSheets = [...domView, ...adoptedView];
   const copies: SheetCopy[] = [...domCopies, ...adoptedCopies].map(
-    ({sheet, spec, omitted, omittedRuleCount}) => ({
+    ({sheet, spec, omitted, omittedRuleCount, droppedRuleCount}) => ({
       index: allSheets.indexOf(sheet),
       originalIndex: spec.index,
       kind: spec.kind,
@@ -1340,6 +1371,7 @@ const injectCopies = (page: Page, plans: (SheetCopyPlan & {text: string; failedI
       rules: alfaView(sheet.cssRules),
       omitted: Array.from(omitted),
       omittedRuleCount,
+      droppedRuleCount,
       failedImports: spec.failedImports
     })
   );
@@ -1416,9 +1448,11 @@ const getStyleLosses = async (
       const alfaSheet = alfaSheets[copy.index];
       const alfaCount = alfaSheet ? countAlfaRules(alfaSheet.toJSON().rules) : 0;
       const unserializedRules = Math.max(0, copy.rules - alfaCount);
-      // Report any rules of the copy that alfa did not serialize.
-      if (unserializedRules) {
-        losses.push({sheet: copy.copyOf, reason: 'unserialized', ruleCount: unserializedRules});
+      // Report any rules of the copy that alfa did not serialize or that preparing the copy lost.
+      if (unserializedRules + copy.droppedRuleCount) {
+        losses.push({
+          sheet: copy.copyOf, reason: 'unserialized', ruleCount: unserializedRules + copy.droppedRuleCount
+        });
       }
       // Report any material rules removed from the copy because alfa does not support them.
       if (copy.omittedRuleCount) {
