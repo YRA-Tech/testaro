@@ -703,15 +703,6 @@ process.on('unhandledRejection', reason => {
             });
           }), 15000, 'stamping');
         }
-        /*
-          Capture the page's script nonce (if its CSP uses one) so
-          script-injecting adapters can reuse it — mirroring the production
-          launch proc's jobData.lastScriptNonce.
-        */
-        const scriptNonce = await page.evaluate(() => {
-          const nonced = document.querySelector('script[nonce]');
-          return (nonced && nonced.nonce) || '';
-        }).catch(() => '');
         let report;
         let actReport;
         if (engine === 'testaro') {
@@ -730,7 +721,7 @@ process.on('unhandledRejection', reason => {
         else {
           report = {
             standard: 'also',
-            jobData: scriptNonce ? {lastScriptNonce: scriptNonce} : {},
+            jobData: {},
             catalog: {},
             target: {url: testcase.url},
             acts: [{type: 'test', which: engine, withItems: true}]
