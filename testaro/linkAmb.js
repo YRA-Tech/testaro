@@ -35,7 +35,8 @@ const reporter = async (page, report, _, withItems) => {
         // Initialize the data.
         const linksData = {
             elementData: [],
-            nameTotals: {}
+            // No prototype: the keys are accessible names, and in a plain object a link named “constructor” would find the inherited Object.prototype property instead of an empty entry.
+            nameTotals: Object.create(null)
         };
         // For each visible link:
         visibleLinks.forEach(element => {
