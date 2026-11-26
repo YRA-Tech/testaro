@@ -18,7 +18,7 @@ import type {Report, StandardInstance} from '../types';
 /*
   linkAmb
   Related to Tenon rule 98.
-  This test reports text contents that are shared by links with distinct destinations. Text contents are compared case-insensitively.
+  This test reports accessible names that are shared by links with distinct destinations. Accessible names are compared case-insensitively.
   Compiled to linkAmb.js by tsc (issue #73); edit this file, not the emitted one.
 */
 
@@ -40,31 +40,33 @@ export const reporter = async (page: Page, report: Report, _: unknown, withItems
     // Initialize the data.
     const linksData: {
       elementData: [string, string | null][];
-      textTotals: Record<string, {linkCount: number; hrefs: Set<string | null>}>;
+      nameTotals: Record<string, {linkCount: number; hrefs: Set<string | null>}>;
     } = {
       elementData: [],
-      textTotals: {}
+      nameTotals: {}
     };
     // For each visible link:
     visibleLinks.forEach(element => {
-      // Get its trimmed and lowercased text.
-      const text = element.textContent!.trim().toLowerCase();
+      // Get its trimmed and lowercased accessible name.
+      const name = window.getAccessibleName(element).trim().toLowerCase();
       // Get its destination.
       const href = element.getAttribute('href');
-      // Add to the data.
-      linksData.elementData.push([text, href]);
-      linksData.textTotals[text] ??= {
-        linkCount: 0,
-        hrefs: new Set()
-      };
-      const linkData = linksData.textTotals[text];
-      linkData.linkCount++;
-      linkData.hrefs.add(href);
+      // If it has an accessible name, add the name and the destination to the data.
+      if (name) {
+        linksData.elementData.push([name, href]);
+        linksData.nameTotals[name] ??= {
+          linkCount: 0,
+          hrefs: new Set()
+        };
+        const linkData = linksData.nameTotals[name];
+        linkData.linkCount++;
+        linkData.hrefs.add(href);
+      }
     });
     let violationCount = 0;
     const standardInstances: StandardInstance[] = [];
-    // For each link text:
-    for (const [text, {linkCount, hrefs}] of Object.entries(linksData.textTotals)) {
+    // For each link accessible name:
+    for (const [name, {linkCount, hrefs}] of Object.entries(linksData.nameTotals)) {
       const destinationCount = hrefs.size;
       // If links with it violate the rule:
       if (destinationCount > 1) {
@@ -72,7 +74,7 @@ export const reporter = async (page: Page, report: Report, _: unknown, withItems
         violationCount += linkCount;
         // If itemization is required:
         if (withItems) {
-          const what = `${linkCount} links with the text “${text}” have ${destinationCount} different destinations`;
+          const what = `${linkCount} links with the accessible name “${name}” have ${destinationCount} different destinations`;
           // Add an instance to the standard instances.
           standardInstances.push({
             ruleID: 'linkAmb',
@@ -86,7 +88,7 @@ export const reporter = async (page: Page, report: Report, _: unknown, withItems
     }
     // If there were any violations and itemization is not required:
     if (violationCount && ! withItems) {
-      const what = 'Links have the same text but different destinations';
+      const what = 'Links have the same accessible name but different destinations';
       // Add a summary instance to the instances.
       standardInstances.push({
         ruleID: 'linkAmb',
