@@ -145,7 +145,8 @@ const visit = async (browserID, url, withScannerId) => {
     report, actIndex: 0, tempBrowserID: browserID, tempURL: url, xPathNeed: 'none', replay: false
   });
   if (! page) {
-    throw new Error(`Launch of ${url} failed`);
+    const reason = report.acts[0].data?.error || report.acts[0].result?.error || report.jobData.abortMessage || '';
+    throw new Error(`Launch of ${url} failed: ${String(reason).replace(/\s+/g, ' ').slice(0, 300)}`);
   }
   return page;
 };
