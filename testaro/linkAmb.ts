@@ -43,7 +43,8 @@ export const reporter = async (page: Page, report: Report, _: unknown, withItems
       nameTotals: Record<string, {linkCount: number; hrefs: Set<string | null>}>;
     } = {
       elementData: [],
-      nameTotals: {}
+      // No prototype: the keys are accessible names, and in a plain object a link named “constructor” would find the inherited Object.prototype property instead of an empty entry.
+      nameTotals: Object.create(null)
     };
     // For each visible link:
     visibleLinks.forEach(element => {
