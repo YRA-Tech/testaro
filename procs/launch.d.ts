@@ -58,5 +58,3 @@ export interface SheetRecord {
 export function trackSheets(page: Page): void;
 // Gets the stylesheet records of a page, by request URL, or null if none are kept for it.
 export function getSheetRecords(page: Page): Map<string, SheetRecord> | null;
-// Gets the nonce, if any, of a response.
-export function getNonce(response: Response): Promise<string>;
