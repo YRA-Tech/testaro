@@ -512,6 +512,12 @@ The changes in `htmlcs/HTMLCS.js` are:
 <         console.log('done');
 6500a6501
 >       return Array.from(messageStrings);
+6527,6528c6528,6529
+<         var node = msg.element.cloneNode(true);
+<         node.innerHTML = '...';
+---
+>         var node = msg.element.cloneNode(false);
+>         node.appendChild(document.createTextNode('...'));
 6531c6532,6534
 <       console.log('[HTMLCS] ' + typeName + '|' + msg.code + '|' + nodeName + '|' + elementId + '|' + msg.msg + '|' + html);
 ---
@@ -519,6 +525,8 @@ The changes in `htmlcs/HTMLCS.js` are:
 >         typeName + '|' + msg.code + '|' + nodeName + '|' + elementId + '|' + msg.msg + '|' + html
 >       );
 ```
+
+The change at line 6527 makes the excerpt of an element (its start tag, `...`, and its end tag) without assigning to `innerHTML`, which a page that requires Trusted Types (`require-trusted-types-for 'script'`) forbids. It also copies only the element and not its descendants.
 
 ### Accessibility Checker
 
