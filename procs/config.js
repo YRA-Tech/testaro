@@ -18,13 +18,18 @@ const timeoutMultiplier = Number.parseFloat(process.env.TIMEOUT_MULTIPLIER) || 1
 // Multiplies a time limit by the configured amount.
 exports.applyMultiplier = (baseTimeout) => Math.round(baseTimeout * timeoutMultiplier);
 
-// Returns whether an environment variable is set to a true value, or the default if unset.
+// Returns whether an environment variable is set to a true value (true, 1, yes, on) or a false
+// one (false, 0, no, off), or the default if it is unset or set to anything else. A mistyped
+// value therefore leaves a flag at its default instead of turning a default-true flag off.
 const envFlag = (name, defaultValue = false) => {
-  const value = process.env[name];
-  if (value === undefined || value === '') {
-    return defaultValue;
+  const value = (process.env[name] || '').trim().toLowerCase();
+  if (['true', '1', 'yes', 'on'].includes(value)) {
+    return true;
   }
-  return ['true', '1', 'yes', 'on'].includes(value.toLowerCase());
+  if (['false', '0', 'no', 'off'].includes(value)) {
+    return false;
+  }
+  return defaultValue;
 };
 exports.envFlag = envFlag;
 
