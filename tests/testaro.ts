@@ -606,6 +606,10 @@ const testRule = async (
     if (! ('timedOut' in raceReport)) {
       ruleReport = raceReport;
     }
+    // If an abortable rule timed out, wait for it to finish cleaning up its resources.
+    else if (onTimeout) {
+      await testReport.catch(() => {});
+    }
   }
   // If an error is thrown by the test:
   catch(error) {
@@ -811,7 +815,7 @@ export const reporter = async (page: Page | undefined, report: Report, actIndex:
         const message = String(
           report.jobData?.abortMessage
           || act.data?.error
-          || `Launch or checkpoint replay failed before rule ${ruleResult.id}`
+          || `Launch or checkpoint replay failed before rule ${rule.id}`
         );
         data.rulePreventions[rule.id] = message;
         data.prevented = true;
@@ -882,6 +886,11 @@ export const reporter = async (page: Page | undefined, report: Report, actIndex:
     }
     // Wait for the tests of the concurrent rules to end and add them to the tests.
     ruleTests.push(... await Promise.all(concurrentTests));
+    if (ruleTests.length && ruleTests.every(test => test.ruleResult.prevented)) {
+      data.prevented = true;
+      standardResult.prevented = true;
+      data.error ||= 'All attempted Testaro rules were prevented';
+    }
     // Record the tests in the order of the rules.
     ruleTests
     .sort((a, b) => jobRules.indexOf(a.rule) - jobRules.indexOf(b.rule))

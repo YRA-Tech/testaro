@@ -535,6 +535,10 @@ const testRule = async (rule, ruleArgs, onTimeout) => {
         if (!('timedOut' in raceReport)) {
             ruleReport = raceReport;
         }
+        // If an abortable rule timed out, wait for it to finish cleaning up its resources.
+        else if (onTimeout) {
+            await testReport.catch(() => { });
+        }
     }
     // If an error is thrown by the test:
     catch (error) {
@@ -715,6 +719,7 @@ const reporter = async (page, report, actIndex) => {
                 // The launch recorded its reason on the act. Keep it: the data and result returned here replace the act's, so it would otherwise be lost. The rule is identified by its key in rulePreventions.
                 const message = String(report.jobData?.abortMessage
 <<<<<<< HEAD
+<<<<<<< HEAD
                     || `Launch or checkpoint replay failed before rule ${rule.id}`);
                 data.rulePreventions[rule.id] = message;
 =======
@@ -724,6 +729,11 @@ const reporter = async (page, report, actIndex) => {
                 ruleResult.error = message;
                 data.rulePreventions[ruleResult.id] = message;
 >>>>>>> main
+=======
+                    || act.data?.error
+                    || `Launch or checkpoint replay failed before rule ${rule.id}`);
+                data.rulePreventions[rule.id] = message;
+>>>>>>> motionConcurrent
                 data.prevented = true;
                 data.error = message;
                 standardResult.prevented = true;
@@ -792,6 +802,11 @@ const reporter = async (page, report, actIndex) => {
         }
         // Wait for the tests of the concurrent rules to end and add them to the tests.
         ruleTests.push(...await Promise.all(concurrentTests));
+        if (ruleTests.length && ruleTests.every(test => test.ruleResult.prevented)) {
+            data.prevented = true;
+            standardResult.prevented = true;
+            data.error ||= 'All attempted Testaro rules were prevented';
+        }
         // Record the tests in the order of the rules.
         ruleTests
             .sort((a, b) => jobRules.indexOf(a.rule) - jobRules.indexOf(b.rule))

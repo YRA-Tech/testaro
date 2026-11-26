@@ -266,6 +266,117 @@
           "IFRAME"
         ]
       ]
+    },
+    {
+      "type": "test",
+      "launch": {
+        "target": {
+          "url": "file://validation/tests/targets/motion/autoplay.html",
+          "what": "page with instructions to play automatically"
+        }
+      },
+      "which": "testaro",
+      "stopOnFail": false,
+      "withItems": false,
+      "rules": [
+        "y",
+        "motion"
+      ],
+      "expect": [
+        [
+          "standardResult.instances.length",
+          "=",
+          1
+        ],
+        [
+          "standardResult.instances.0.ruleID",
+          "=",
+          "motion"
+        ],
+        [
+          "standardResult.instances.0.count",
+          "=",
+          2
+        ]
+      ]
+    },
+    {
+      "type": "url",
+      "which": "file://validation/tests/targets/motion/userPlayback.html",
+      "what": "go to a page with user-requested playback"
+    },
+    {
+      "type": "checkpoint",
+      "which": "before playback",
+      "what": "the page before playback"
+    },
+    {
+      "type": "test",
+      "which": "testaro",
+      "withItems": true,
+      "rules": [
+        "y",
+        "motion"
+      ],
+      "args": {
+        "motion": [
+          0,
+          0,
+          0
+        ]
+      },
+      "stopOnFail": false,
+      "expect": [
+        [
+          "data.ruleData.motion.loadMs",
+          ">",
+          0
+        ],
+        [
+          "standardResult.instances.length",
+          "=",
+          0
+        ]
+      ]
+    },
+    {
+      "type": "button",
+      "selector": "#play",
+      "what": "Play video"
+    },
+    {
+      "type": "checkpoint",
+      "which": "after playback",
+      "what": "the page after user-requested playback"
+    },
+    {
+      "type": "test",
+      "which": "testaro",
+      "withItems": true,
+      "rules": [
+        "y",
+        "motion"
+      ],
+      "args": {
+        "motion": [
+          0,
+          0,
+          0
+        ]
+      },
+      "stopOnFail": false,
+      "expect": [
+        [
+          "data.ruleData.motion.autoplayers.length",
+          "=",
+          0
+        ],
+        [
+          "standardResult.instances.length",
+          "=",
+          0
+        ]
+      ]
     }
   ]
 }
