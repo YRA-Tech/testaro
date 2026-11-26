@@ -756,7 +756,11 @@ exports.launch = async (opts = {}) => {
     }
     // Otherwise, i.e. if the launch or navigation failed:
     else {
-      let unusedBrowserIDs = ['chromium', 'webkit', 'firefox'].filter(id => id !== tempBrowserID);
+      const navigation = getNavigation(report);
+      // The other browser types, to be tried in turn once retries are exhausted, unless the job or the deployment keeps the browser type that was specified (navigation.rotateBrowsers or NAV_ROTATE_BROWSERS false).
+      let unusedBrowserIDs = navigation.rotateBrowsers
+        ? ['chromium', 'webkit', 'firefox'].filter(id => id !== tempBrowserID)
+        : [];
       let {error} = launchResult;
       // A checkpoint replay failure is deterministic: do not retry it.
       let retriesLeft = error.includes('checkpoint replay failed') ? 0 : retries;
@@ -766,7 +770,7 @@ exports.launch = async (opts = {}) => {
       // the testaro tool's per-rule relaunch, compounds into long hangs. Stop at once.
       const navStatus = Number((/status(\d{3})/.exec(error) || [])[1]);
       if (
-        getNavigation(report).failFast4xx
+        navigation.failFast4xx
         && navStatus >= 400 && navStatus < 500 && navStatus !== 408 && navStatus !== 429
       ) {
         retriesLeft = 0;
@@ -846,7 +850,7 @@ exports.launch = async (opts = {}) => {
           actIndex === null ? true : abortAssertively,
           report,
           actIndex,
-          `Launch or navigation failed; retries and browser types exhausted (${error})`
+          `Launch or navigation failed; retries${navigation.rotateBrowsers ? ' and browser types' : ''} exhausted (${error})`
         );
       }
       // Return a failure.

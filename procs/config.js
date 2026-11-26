@@ -18,13 +18,18 @@ const timeoutMultiplier = Number.parseFloat(process.env.TIMEOUT_MULTIPLIER) || 1
 // Multiplies a time limit by the configured amount.
 exports.applyMultiplier = (baseTimeout) => Math.round(baseTimeout * timeoutMultiplier);
 
-// Returns whether an environment variable is set to a true value, or the default if unset.
+// Returns whether an environment variable is set to a true value (true, 1, yes, on) or a false
+// one (false, 0, no, off), or the default if it is unset or set to anything else. A mistyped
+// value therefore leaves a flag at its default instead of turning a default-true flag off.
 const envFlag = (name, defaultValue = false) => {
-  const value = process.env[name];
-  if (value === undefined || value === '') {
-    return defaultValue;
+  const value = (process.env[name] || '').trim().toLowerCase();
+  if (['true', '1', 'yes', 'on'].includes(value)) {
+    return true;
   }
-  return ['true', '1', 'yes', 'on'].includes(value.toLowerCase());
+  if (['false', '0', 'no', 'off'].includes(value)) {
+    return false;
+  }
+  return defaultValue;
 };
 exports.envFlag = envFlag;
 
@@ -38,14 +43,18 @@ exports.envFlag = envFlag;
 const waitStates = exports.waitStates = ['networkidle', 'load', 'domcontentloaded'];
 // Defaults for navigation: the load state to wait for (NAV_WAIT_UNTIL; networkidle, the
 // historical default, never arrives on pages whose network never quiets, so a deployment may
-// prefer load), the time limit in ms (NAV_TIMEOUT), and whether a 4xx response ends launch
+// prefer load), the time limit in ms (NAV_TIMEOUT), whether a 4xx response ends launch
 // retries at once (NAV_FAIL_FAST_4XX; a client error is a definitive refusal that retrying
-// and switching browsers cannot change).
+// and switching browsers cannot change), and whether a launch whose retries are exhausted
+// moves on to the other browser types (NAV_ROTATE_BROWSERS; true, the historical default,
+// gets a result from whichever browser can; false keeps the browser type that was specified,
+// for a caller that chose it on purpose or rotates browsers itself).
 const navTimeout = Number.parseInt(process.env.NAV_TIMEOUT);
 const navigationDefaults = {
   waitUntil: waitStates.includes(process.env.NAV_WAIT_UNTIL) ? process.env.NAV_WAIT_UNTIL : 'networkidle',
   timeout: navTimeout > 0 ? navTimeout : 10000,
-  failFast4xx: envFlag('NAV_FAIL_FAST_4XX')
+  failFast4xx: envFlag('NAV_FAIL_FAST_4XX'),
+  rotateBrowsers: envFlag('NAV_ROTATE_BROWSERS', true)
 };
 // Returns the navigation options of a job: its navigation property over the defaults.
 exports.getNavigation = report => {
@@ -55,7 +64,10 @@ exports.getNavigation = report => {
   return {
     waitUntil: waitStates.includes(own.waitUntil) ? own.waitUntil : navigationDefaults.waitUntil,
     timeout: Number.isInteger(own.timeout) && own.timeout > 0 ? own.timeout : navigationDefaults.timeout,
-    failFast4xx: typeof own.failFast4xx === 'boolean' ? own.failFast4xx : navigationDefaults.failFast4xx
+    failFast4xx: typeof own.failFast4xx === 'boolean' ? own.failFast4xx : navigationDefaults.failFast4xx,
+    rotateBrowsers: typeof own.rotateBrowsers === 'boolean'
+      ? own.rotateBrowsers
+      : navigationDefaults.rotateBrowsers
   };
 };
 // The scanner identity sent as the X-YRA-Scanner request header, so that web application
