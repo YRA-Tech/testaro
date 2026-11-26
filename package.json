@@ -11,6 +11,7 @@
     "tests": "node validation/executors/tests",
     "test": "node validation/executors/test",
     "run": "node validation/executors/run",
+    "headers": "node validation/executors/headers",
     "dirWatch": "node validation/executors/dirWatch",
     "netWatch": "node validation/executors/netWatch",
     "typecheck": "tsc --noEmit",

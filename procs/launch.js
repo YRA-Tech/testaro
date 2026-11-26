@@ -104,6 +104,69 @@ const settleWithin = promise => Promise.race([
     }
   })
 ]);
+// Returns the origin of a URL, or an empty string if it has none.
+const getOrigin = url => {
+  try {
+    const {origin} = new URL(url);
+    return origin === 'null' ? '' : origin;
+  }
+  catch {
+    return '';
+  }
+};
+/*
+  Makes the pages of a browser context identify the scanner to the site being tested, with an
+  X-YRA-Scanner request header.
+
+  The header cannot be an extra HTTP header of the context, which Playwright adds to every
+  request. On a request to another origin made in CORS mode (a web font, a fetch or
+  XMLHttpRequest call, a module script, a link or script with a crossorigin attribute), a
+  header that is not CORS-safelisted obliges the browser to ask the server's permission first,
+  in a preflight request. Servers that have never heard of the header refuse, and the browser
+  blocks the request, so the page would be tested without its fonts and with its calls to
+  other origins failing (issue #205).
+
+  So the header is added only to requests that reach the site being tested and that can cause
+  no preflight:
+  - a navigation of the page, with its redirects;
+  - a navigation of a frame to the origin of the page;
+  - a request to the origin of the page by a document of that origin.
+
+  This requires routing every request of the context through this process, which costs a
+  little time per request and disables the browser's HTTP cache. It is done only when a
+  scanner identity is configured.
+*/
+const identifyScanner = async (browserContext, scannerId) => {
+  await browserContext.route('**/*', async (route, request) => {
+    let isIdentifiable = false;
+    try {
+      const frame = request.frame();
+      const mainFrame = frame.page().mainFrame();
+      const pageOrigin = getOrigin(mainFrame.url());
+      const requestOrigin = getOrigin(request.url());
+      // If the request is a navigation:
+      if (request.isNavigationRequest()) {
+        // Identify the scanner if the page is navigating or a frame is navigating to its origin.
+        isIdentifiable = frame === mainFrame || Boolean(requestOrigin) && requestOrigin === pageOrigin;
+      }
+      // Otherwise, i.e. if it is a request for a resource:
+      else {
+        // Identify the scanner if a document of the origin of the page is requesting from it.
+        isIdentifiable = Boolean(requestOrigin)
+        && requestOrigin === pageOrigin
+        && requestOrigin === getOrigin(frame.url());
+      }
+    }
+    // If the request has no frame (a request by a service worker) or the page has closed:
+    catch {
+      // Do not identify the scanner.
+    }
+    // Let the request proceed, with the header if applicable. The page may close meanwhile.
+    await route.continue(
+      isIdentifiable ? {headers: {...request.headers(), 'X-YRA-Scanner': scannerId}} : {}
+    ).catch(() => {});
+  });
+};
 /*
   The browser shared by the launches of a job under browser or page isolation, if any. When set,
   launchOnce creates contexts in it instead of launching browsers, and browserClose closes only
@@ -483,10 +546,13 @@ const launchOnce = async opts => {
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
           'Accept-Language': 'en-US,en;q=0.9',
           'Accept-Encoding': 'gzip, deflate, br',
-          'DNT': '1',
-          'Upgrade-Insecure-Requests': '1',
-          // A stable scanner identity for firewalls, if configured (job scannerId or SCANNER_ID).
-          ...(getScannerId(report) ? {'X-YRA-Scanner': getScannerId(report)} : {})
+          'DNT': '1'
+          /*
+            No header here may be one that is not CORS-safelisted: Playwright adds these to
+            every request, and such a header makes every cross-origin CORS request of the page
+            fail its preflight (issue #205). Upgrade-Insecure-Requests was one; browsers send it
+            themselves on navigations. The scanner identity is another; see identifyScanner.
+          */
         },
         // Caller-specified context options (see contextOverrides above).
         ...contextOverrides
@@ -494,6 +560,12 @@ const launchOnce = async opts => {
       browserContext = await browser.newContext(contextOptions);
       // Prevent default timeouts.
       browserContext.setDefaultTimeout(0);
+      // If a scanner identity is configured (job scannerId or SCANNER_ID):
+      const scannerId = getScannerId(report);
+      if (scannerId) {
+        // Make the pages of the context identify the scanner to the site being tested.
+        await identifyScanner(browserContext, scannerId);
+      }
       // When a page (i.e. tab) is added to the browser context (i.e. window):
       browserContext.on('page', async page => {
         // Ensure the report has a jobData property.

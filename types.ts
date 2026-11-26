@@ -290,7 +290,8 @@ export interface Report {
   stealth?: boolean;
   // Branded Chromium channel to run instead of the bundled build (chrome or msedge).
   browserChannel?: 'bundled' | 'chrome' | 'msedge';
-  // Scanner identity sent as the X-YRA-Scanner request header (default SCANNER_ID, else none).
+  // Scanner identity sent as the X-YRA-Scanner request header to the site being tested (default
+  // SCANNER_ID, else none).
   scannerId?: string;
   // Whether to scroll the full page after navigation so lazily loaded content is present
   // (default PRESCAN_SCROLL, else false).

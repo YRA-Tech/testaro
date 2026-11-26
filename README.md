@@ -140,7 +140,7 @@ This makes the instance match the remote branch it tracks exactly, even if that 
 
 The `.env` file stores your decisions about the environment in which Testaro runs. The variables that can be defined there are documented in the `env.example` file.
 
-Deployment options let an operator set a fleet-wide policy that a job can override: the load state and time limit a navigation waits for, whether a 4xx response ends launch retries at once, and whether a launch that keeps failing moves on to the other browser types (`NAV_WAIT_UNTIL`, `NAV_TIMEOUT`, `NAV_FAIL_FAST_4XX`, `NAV_ROTATE_BROWSERS`, or a job's `navigation` property); a scanner identity sent as the `X-YRA-Scanner` request header (`SCANNER_ID` or a job's `scannerId`); a full-page scroll after navigation so lazily loaded content is present (`PRESCAN_SCROLL` or a job's `scroll`); a branded Chromium channel (a job's `browserChannel`); launch retries per rule of the `testaro` tool (`TESTARO_RULE_RETRIES` or a `testaro` test act's `retries`); and which rule engine the `ibm` tool runs (`IBM_ENGINE`: `archive`, the default, for the rule archive IBM deploys, which can lag the npm package; or `package`, for the engine released with the installed `accessibility-checker`, which IBM's published ACT report describes). The defaults keep the behavior of earlier versions.
+Deployment options let an operator set a fleet-wide policy that a job can override: the load state and time limit a navigation waits for, whether a 4xx response ends launch retries at once, and whether a launch that keeps failing moves on to the other browser types (`NAV_WAIT_UNTIL`, `NAV_TIMEOUT`, `NAV_FAIL_FAST_4XX`, `NAV_ROTATE_BROWSERS`, or a job's `navigation` property); a scanner identity sent as the `X-YRA-Scanner` request header to the site being tested (`SCANNER_ID` or a job's `scannerId`; it goes with the navigations of the page, including their redirects, and with the requests the page makes to its own origin, and not with requests to other origins, where it would make the browser block web fonts and `fetch` calls); a full-page scroll after navigation so lazily loaded content is present (`PRESCAN_SCROLL` or a job's `scroll`); a branded Chromium channel (a job's `browserChannel`); launch retries per rule of the `testaro` tool (`TESTARO_RULE_RETRIES` or a `testaro` test act's `retries`); and which rule engine the `ibm` tool runs (`IBM_ENGINE`: `archive`, the default, for the rule archive IBM deploys, which can lag the npm package; or `package`, for the engine released with the installed `accessibility-checker`, which IBM's published ACT report describes). The defaults keep the behavior of earlier versions.
 
 ## Jobs
 
@@ -180,7 +180,9 @@ Here is a sample job, showing properties that you can set:
   browserChannel: 'chrome', // Optional. Run an installed branded Chromium (chrome or msedge)
                             // instead of the bundled build; bundled or absent keeps the default.
   scannerId: 'MyScanner/1.0; +https://example.com/scanner', // Optional. Sent as the
-                            // X-YRA-Scanner request header (default SCANNER_ID, else no header).
+                            // X-YRA-Scanner request header to the site being tested: with
+                            // navigations of the page and with its requests to its own origin
+                            // (default SCANNER_ID, else no header).
   scroll: false, // Optional. Scroll the full page after navigation so lazily loaded content
                  // is present before tools run (default PRESCAN_SCROLL, else false).
   navigation: { // Optional. Load state to wait for (networkidle, load, or domcontentloaded),

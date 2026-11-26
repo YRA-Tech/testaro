@@ -72,7 +72,8 @@ exports.getNavigation = report => {
 };
 // The scanner identity sent as the X-YRA-Scanner request header, so that web application
 // firewalls can recognize the scanner by a stable value (unlike the emulated User-Agent):
-// the job's scannerId, else SCANNER_ID, else none.
+// the job's scannerId, else SCANNER_ID, else none. It is sent to the site being tested only
+// (see identifyScanner in launch.js).
 exports.getScannerId = report => (report && report.scannerId) || process.env.SCANNER_ID || '';
 // Whether to scroll the full height of a page after navigation, before cataloguing, imaging,
 // and each tool, so that lazily loaded content is present: the job's scroll property, else
