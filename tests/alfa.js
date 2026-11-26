@@ -66,7 +66,15 @@ const reporter = async (page, report, actIndex) => {
             await page.waitForLoadState('domcontentloaded', { timeout: (0, config_1.applyMultiplier)(6000) });
         }
         const doc = await page.evaluateHandle('document');
-        const alfaPage = await Playwright.toPage(doc);
+        /*
+          Get the alfa version of the page. A script in a page cannot read the rules of a stylesheet
+          from another origin unless the stylesheet was fetched with the crossorigin attribute, so alfa
+          would treat such a stylesheet as empty. So alfa is asked to reload each stylesheet link with
+          crossorigin="anonymous". That makes the rules readable when the server of the stylesheet
+          allows cross-origin requests. When it does not, the reload fails, and alfa restores the
+          original link, so the page keeps the styles it had.
+        */
+        const alfaPage = await Playwright.toPage(doc, { enforceAnonymousCrossOrigin: true });
         // Test the page content with the specified rules.
         const audit = Audit.of(alfaPage, alfaRules);
         // Get the evaluations.
