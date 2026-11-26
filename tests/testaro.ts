@@ -93,7 +93,7 @@ const allRules: RuleMeta[] = [
     needsAccessibleName: false,
     local: true,
     timeOut: 5,
-    defaultOn: true
+    defaultOn: false
   },
   {
     id: 'allCaps',
