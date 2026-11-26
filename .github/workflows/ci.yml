@@ -56,3 +56,7 @@ jobs:
           fi
       - run: npm ci
       - run: npm run tests
+      # The request headers that launches add, in all three browser types: the site being
+      # tested gets the scanner identity, and other origins get neither it nor a preflight
+      # request (issue #205).
+      - run: npm run headers
