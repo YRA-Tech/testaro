@@ -1,6 +1,9 @@
+import type { Page } from 'playwright';
 import type { Report, StandardInstance } from '../types';
-export declare const reporter: (_0: unknown, report: Report, _1: unknown, withItems: boolean) => Promise<{
+export declare const reporter: (page: Page, report: Report, _: unknown, withItems: boolean) => Promise<{
     data: {
+        candidateCount?: number;
+        distinctCandidateCount?: number;
         aiModelUsage?: {
             inputTokens: number;
             outputTokens: number;
