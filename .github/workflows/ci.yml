@@ -60,3 +60,7 @@ jobs:
       # tested gets the scanner identity, and other origins get neither it nor a preflight
       # request (issue #205).
       - run: npm run headers
+        env:
+          # Firefox does not start when the home folder is not owned by the current user, which
+          # is the case in a container job (GitHub sets HOME to /github/home).
+          HOME: /root
