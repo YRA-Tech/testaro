@@ -49,7 +49,8 @@ const accessibleNameNeeders = ['testaro'];
   Performs the test act at an index of a report and revises the report. Under page isolation,
   livePage is the live page of the current checkpoint, which tools that take a page use as it
   is (after preparation); otherwise each tool gets a page launched for it. The testaro tool
-  launches its own pages per rule (starting from livePage if given).
+  launches its own pages per rule (starting from livePage if given). Returns whether the tool
+  was left without a page (noPage), so that a caller need not infer it from the act's error.
 */
 exports.performTestAct = async ({report, actIndex, livePage = null}) => {
   const act = report.acts[actIndex];
@@ -81,7 +82,7 @@ exports.performTestAct = async ({report, actIndex, livePage = null}) => {
       // If the launch aborted the job, stop.
       if (report.jobData?.aborted) {
         await browserClose(page);
-        return;
+        return {noPage: ! page};
       }
     }
   }
@@ -134,12 +135,17 @@ exports.performTestAct = async ({report, actIndex, livePage = null}) => {
   }
   // Otherwise, i.e. if the page does not exist after the launch:
   else {
-    // Add this to the act.
+    // Add this to the act, keeping the reason that the launch recorded on the act (launch failure, navigation failure and its HTTP status or browser error, checkpoint replay failure). 'No page' is only the fallback for a missing page with no recorded reason.
     act.data ??= {};
     act.data.prevented = true;
-    act.data.error = report.jobData?.abortMessage || 'No page';
+    act.data.error = report.jobData?.abortMessage
+    || act.data.error
+    || act.result?.error
+    || 'No page';
     // Add the prevention to the job data.
     report.jobData.preventions[which] = act.data.error;
     console.log('ERROR: No page');
+    return {noPage: true};
   }
+  return {noPage: false};
 };

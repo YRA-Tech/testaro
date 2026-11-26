@@ -23,8 +23,6 @@ const {spawn} = require('child_process');
 
 const ruleDir = `${__dirname}/../../testaro`;
 const validatorDir = `${__dirname}/../tests/jobProperties`;
-// Rules that ask an AI model to classify candidate instances.
-const aiRuleIDs = ['allCaps'];
 // Validators of features other than rules, run after the rule validators.
 const featureValidatorIDs = ['checkpoint', 'checkpoint-browser', 'checkpoint-page', 'userPath'];
 // Maximum number of seconds allowed for the validation of one rule.
@@ -77,25 +75,26 @@ Promise.all([fs.readdir(ruleDir), fs.readdir(validatorDir)])
   const validatorIDs = validatorFileNames
   .filter(name => name.endsWith('.json'))
   .map(name => name.slice(0, -5));
+  // Returns the IDs of a rule's validators: its own, then any variants named <ruleID>-<variant>, such as one for a page that needs a job of its own.
+  const getRuleValidatorIDs = ruleID => validatorIDs.filter(
+    id => id === ruleID || id.startsWith(`${ruleID}-`)
+  )
+  .sort((a, b) => a.length - b.length || a.localeCompare(b));
   // Identify the rules without validators and the validators without rules.
-  const unvalidatedIDs = ruleIDs.filter(id => ! validatorIDs.includes(id));
+  const unvalidatedIDs = ruleIDs.filter(id => ! getRuleValidatorIDs(id).length);
   const orphanIDs = validatorIDs.filter(
-    id => ! ruleIDs.includes(id) && ! featureValidatorIDs.includes(id)
+    id => ! ruleIDs.includes(id.split('-')[0]) && ! featureValidatorIDs.includes(id)
   );
-  // Identify the AI-dependent rules to be skipped for lack of an API key.
-  const skippedIDs = process.env.ANTHROPIC_API_KEY
-    ? []
-    : ruleIDs.filter(id => aiRuleIDs.includes(id));
   // Initialize the results.
   const failedIDs = [];
   const knownFailedIDs = [];
   const recoveredIDs = [];
   let validatedCount = 0;
-  // For each rule with a validator, and then each feature validator:
+  // For each validator of each rule, and then each feature validator:
   const featureIDs = featureValidatorIDs.filter(id => validatorIDs.includes(id));
   for (
     const testID of ruleIDs
-    .filter(id => validatorIDs.includes(id) && ! skippedIDs.includes(id))
+    .flatMap(getRuleValidatorIDs)
     .concat(featureIDs)
   ) {
     // Validate the rule.
@@ -122,13 +121,6 @@ Promise.all([fs.readdir(ruleDir), fs.readdir(validatorDir)])
   if (recoveredIDs.length) {
     console.log(
       `Warning - rules now passing; remove them from knownFailures.json: ${recoveredIDs.join(', ')}`
-    );
-  }
-  if (skippedIDs.length) {
-    console.log(
-      `Warning - AI-dependent rules skipped because ANTHROPIC_API_KEY is not set: ${
-        skippedIDs.join(', ')
-      }`
     );
   }
   if (unvalidatedIDs.length) {

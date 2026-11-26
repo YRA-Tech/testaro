@@ -56,8 +56,8 @@ const catalogPage = async (page, report, { checkpoint, restoreDetails }) => {
         const cat = {};
         // Initialize a map of path IDs to catalog indexes.
         const pathIDs = {};
-        // Initialize a directory of text fragments.
-        const texts = {};
+        // Initialize a directory of text fragments. It has no prototype, because its keys are texts of the page: in a plain object, an element whose text is the name of an Object.prototype property (constructor, toString, valueOf) would find that inherited property instead of an empty entry, and the push below would throw.
+        const texts = Object.create(null);
         // Initialize the index of the current heading.
         let headingIndex = '';
         // For each element in the page:

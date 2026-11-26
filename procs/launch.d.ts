@@ -13,7 +13,7 @@
   files use. Delete this file when launch.js itself is converted (issue #73).
 */
 
-import type {Page, Response} from 'playwright';
+import type {Page} from 'playwright';
 import type {BrowserID, Report} from '../types';
 
 export interface LaunchOptions {
@@ -37,11 +37,13 @@ export interface LaunchOptions {
 
 // Launches a browser, navigates to a target, and returns the page, or undefined on failure.
 export function launch(opts?: LaunchOptions): Promise<Page | undefined>;
+// Prepares an already loaded page for a tool.
+export function preparePage(
+  page: Page, opts?: Pick<LaunchOptions, 'xPathNeed' | 'needsAccessibleName'>
+): Promise<void>;
 // Closes the browser of a page, with its context.
 export function browserClose(page: Page | null | undefined): Promise<void>;
 // Navigates a page to a URL.
 export function goTo(
   report: Report, page: Page, url: string, timeout: number, waitUntil: string
 ): Promise<unknown>;
-// Gets the nonce, if any, of a response.
-export function getNonce(response: Response): Promise<string>;

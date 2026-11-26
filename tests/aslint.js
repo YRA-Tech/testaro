@@ -173,31 +173,14 @@ const reporter = async (page, report, actIndex) => {
     const aslintRunner = await fs.readFile(`${__dirname}/../procs/aslint.js`, 'utf8');
     const aslintBundlePath = require.resolve('aslint-testaro/aslint.bundle.js');
     const aslintBundle = await fs.readFile(aslintBundlePath, 'utf8');
-    // Get the nonce, if any.
     const act = report.acts[actIndex];
-    const { jobData } = report;
-    const scriptNonce = (jobData && jobData.lastScriptNonce);
-    // Inject the ASLint bundle and runner into the head of the page.
-    await page.evaluate(args => {
-        const { scriptNonce, aslintBundle, aslintRunner } = args;
-        // Bundle.
-        const bundleEl = document.createElement('script');
-        bundleEl.id = 'aslintBundle';
-        if (scriptNonce) {
-            bundleEl.nonce = scriptNonce;
-            console.log(`Added nonce ${scriptNonce} to bundle`);
-        }
-        bundleEl.textContent = aslintBundle;
-        document.head.insertAdjacentElement('beforeend', bundleEl);
-        // Runner.
-        const runnerEl = document.createElement('script');
-        if (scriptNonce) {
-            runnerEl.nonce = scriptNonce;
-            console.log(`Added nonce ${scriptNonce} to runner`);
-        }
-        runnerEl.textContent = aslintRunner;
-        document.body.insertAdjacentElement('beforeend', runnerEl);
-    }, { scriptNonce, aslintBundle, aslintRunner })
+    /*
+      Run the ASLint bundle and then the runner in the page. A script element would be refused by
+      a page whose content security policy forbids inline scripts, so the script is instead
+      evaluated in the page, which no such policy prevents.
+    */
+    await page.evaluate(`${aslintBundle}\n;void 0;`)
+        .then(() => page.evaluate(`${aslintRunner}\n;void 0;`))
         .catch(error => {
         const message = `ERROR: ASLint injection failed (${error.message.slice(0, 400)})`;
         console.log(message);

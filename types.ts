@@ -295,12 +295,13 @@ export interface Report {
   // Whether to scroll the full page after navigation so lazily loaded content is present
   // (default PRESCAN_SCROLL, else false).
   scroll?: boolean;
-  // Navigation options (defaults NAV_WAIT_UNTIL, NAV_TIMEOUT, NAV_FAIL_FAST_4XX, else
-  // networkidle, 10000, false).
+  // Navigation options (defaults NAV_WAIT_UNTIL, NAV_TIMEOUT, NAV_FAIL_FAST_4XX,
+  // NAV_ROTATE_BROWSERS, else networkidle, 10000, false, true).
   navigation?: {
     waitUntil?: 'networkidle' | 'load' | 'domcontentloaded';
     timeout?: number;
     failFast4xx?: boolean;
+    rotateBrowsers?: boolean;
   };
   // Base64-encoded page images added by shoot with the report action.
   images?: string[];

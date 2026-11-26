@@ -19,7 +19,7 @@
 // Shared configuration for timeout multiplier.
 import type {Page} from 'playwright';
 import {applyMultiplier, ruleLaunchRetries} from '../procs/config';
-import {browserClose, launch} from '../procs/launch';
+import {browserClose, launch, preparePage} from '../procs/launch';
 // Function to get an empty standard result.
 import {getStandardResult} from '../procs/standard';
 import {ruleModules} from '../testaro/registry';
@@ -268,15 +268,6 @@ const allRules: RuleMeta[] = [
     defaultOn: true
   },
   {
-    id: 'linkAmb',
-    what: 'links with identical texts but different destinations',
-    contaminates: false,
-    needsAccessibleName: false,
-    local: false,
-    timeOut: 20,
-    defaultOn: true
-  },
-  {
     id: 'linkExt',
     what: 'links that automatically open new windows',
     contaminates: false,
@@ -456,6 +447,15 @@ const allRules: RuleMeta[] = [
     needsAccessibleName: true,
     local: true,
     timeOut: 5,
+    defaultOn: true
+  },
+  {
+    id: 'linkAmb',
+    what: 'links with identical accessible names but different destinations',
+    contaminates: false,
+    needsAccessibleName: true,
+    local: false,
+    timeOut: 20,
     defaultOn: true
   },
   {
@@ -805,11 +805,16 @@ export const reporter = async (page: Page | undefined, report: Report, actIndex:
             : ruleLaunchRetries
         });
       }
+      else if (ruleIndex === 0 && givenPage && jobRules[ruleIndex].needsAccessibleName) {
+        await preparePage(page!, {xPathNeed: 'none', needsAccessibleName: true});
+      }
       // If no page exists, the launch (or the replay of a checkpoint's acts) failed: the
       // target is unreachable, so prevent the act and stop testing rules.
       if (! page) {
+        // The launch recorded its reason on the act. Keep it: the data and result returned here replace the act's, so it would otherwise be lost. The rule is identified by its key in rulePreventions.
         const message = String(
           report.jobData?.abortMessage
+          || act.data?.error
           || `Launch or checkpoint replay failed before rule ${rule.id}`
         );
         data.rulePreventions[rule.id] = message;

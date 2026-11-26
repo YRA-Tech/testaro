@@ -62,13 +62,13 @@ const doTestAct = async (reportPath, actIndex) => {
   let error = '';
   try {
     // Perform the act, revising the report.
-    await performTestAct({report, actIndex});
-    // If the launch aborted the job or no page existed, report that.
+    const {noPage} = await performTestAct({report, actIndex});
+    // If the launch aborted the job or no page existed, report that. (The reason is in the act's data.error.)
     if (report.jobData?.aborted) {
       status = 'error';
       error = 'Page launch aborted';
     }
-    else if (act.data?.prevented && act.data.error === 'No page') {
+    else if (noPage) {
       status = 'error';
       error = 'ERROR: No page';
     }

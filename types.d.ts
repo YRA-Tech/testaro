@@ -186,6 +186,7 @@ export interface Report {
         waitUntil?: 'networkidle' | 'load' | 'domcontentloaded';
         timeout?: number;
         failFast4xx?: boolean;
+        rotateBrowsers?: boolean;
     };
     images?: string[];
     catalog?: Catalog;

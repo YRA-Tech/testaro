@@ -6525,8 +6525,8 @@
       }
       var html = '';
       if (msg.element.outerHTML) {
-        var node = msg.element.cloneNode(true);
-        node.innerHTML = '...';
+        var node = msg.element.cloneNode(false);
+        node.appendChild(document.createTextNode('...'));
         html = node.outerHTML;
       }
       messageStrings.add(
