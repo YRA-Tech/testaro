@@ -10,7 +10,7 @@
 /*
   aiMock.js
   Mock of the Anthropic Messages API for validators of AI-dependent rules, so that validation neither depends on nor pays for an external, nondeterministic service. A validator lists, in its aiMock property, one scripted response per expected request, in order. A response is one of:
-    {confidences: [[substring, confidence], ...], default, format}: an answer classifying each element sent, with the confidence of the first pair whose substring its text contains, else default (0 if omitted). With format 'pretty' the JSON array follows a sentence and is spread over lines; otherwise it is compact. In both formats, confidences of 0 and 1 are written as integers.
+    {confidences: [[substring, confidence], ...], default, omit: [substring, ...], format}: an answer classifying each element sent, with the confidence of the first pair whose substring its text contains, else default (0 if omitted), except the elements whose texts contain a substring in omit, which the answer leaves out, as models sometimes do. With format 'pretty' the JSON array follows a sentence and is spread over lines; otherwise it is compact. In both formats, confidences of 0 and 1 are written as integers.
     {error: message}: an API error with that message.
     {malformed: true}: an answer without a JSON array.
     {disconnect: true}: a closed connection without a response.
@@ -29,8 +29,10 @@ const getEntries = body => {
   return JSON.parse(prompt.slice(prompt.indexOf('Elements:\n') + 'Elements:\n'.length));
 };
 // Returns the text of an answer classifying elements as scripted.
-const getAnswerText = (entries, {confidences = [], default: fallback = 0, format}) => {
-  const classifications = entries.map(({index, text}) => {
+const getAnswerText = (entries, {confidences = [], default: fallback = 0, omit = [], format}) => {
+  const classifications = entries
+  .filter(({text}) => ! omit.some(substring => text.includes(substring)))
+  .map(({index, text}) => {
     const pair = confidences.find(([substring]) => text.includes(substring));
     return {index, confidence: pair ? pair[1] : fallback};
   });
