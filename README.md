@@ -140,7 +140,7 @@ This makes the instance match the remote branch it tracks exactly, even if that 
 
 The `.env` file stores your decisions about the environment in which Testaro runs. The variables that can be defined there are documented in the `env.example` file.
 
-Deployment options let an operator set a fleet-wide policy that a job can override: the load state and time limit a navigation waits for and whether a 4xx response ends launch retries at once (`NAV_WAIT_UNTIL`, `NAV_TIMEOUT`, `NAV_FAIL_FAST_4XX`, or a job's `navigation` property); a scanner identity sent as the `X-YRA-Scanner` request header (`SCANNER_ID` or a job's `scannerId`); a full-page scroll after navigation so lazily loaded content is present (`PRESCAN_SCROLL` or a job's `scroll`); a branded Chromium channel (a job's `browserChannel`); launch retries per rule of the `testaro` tool (`TESTARO_RULE_RETRIES` or a `testaro` test act's `retries`); and which rule engine the `ibm` tool runs (`IBM_ENGINE`: `archive`, the default, for the rule archive IBM deploys, which can lag the npm package; or `package`, for the engine released with the installed `accessibility-checker`, which IBM's published ACT report describes). The defaults keep the behavior of earlier versions.
+Deployment options let an operator set a fleet-wide policy that a job can override: the load state and time limit a navigation waits for, whether a 4xx response ends launch retries at once, and whether a launch that keeps failing moves on to the other browser types (`NAV_WAIT_UNTIL`, `NAV_TIMEOUT`, `NAV_FAIL_FAST_4XX`, `NAV_ROTATE_BROWSERS`, or a job's `navigation` property); a scanner identity sent as the `X-YRA-Scanner` request header (`SCANNER_ID` or a job's `scannerId`); a full-page scroll after navigation so lazily loaded content is present (`PRESCAN_SCROLL` or a job's `scroll`); a branded Chromium channel (a job's `browserChannel`); launch retries per rule of the `testaro` tool (`TESTARO_RULE_RETRIES` or a `testaro` test act's `retries`); and which rule engine the `ibm` tool runs (`IBM_ENGINE`: `archive`, the default, for the rule archive IBM deploys, which can lag the npm package; or `package`, for the engine released with the installed `accessibility-checker`, which IBM's published ACT report describes). The defaults keep the behavior of earlier versions.
 
 ## Jobs
 
@@ -184,12 +184,14 @@ Here is a sample job, showing properties that you can set:
   scroll: false, // Optional. Scroll the full page after navigation so lazily loaded content
                  // is present before tools run (default PRESCAN_SCROLL, else false).
   navigation: { // Optional. Load state to wait for (networkidle, load, or domcontentloaded),
-                // time limit in ms, and whether a 4xx response ends launch retries at once
-                // (defaults NAV_WAIT_UNTIL, NAV_TIMEOUT, NAV_FAIL_FAST_4XX, else networkidle,
-                // 10000, false).
+                // time limit in ms, whether a 4xx response ends launch retries at once, and
+                // whether a launch that keeps failing moves on to the other browser types
+                // (defaults NAV_WAIT_UNTIL, NAV_TIMEOUT, NAV_FAIL_FAST_4XX,
+                // NAV_ROTATE_BROWSERS, else networkidle, 10000, false, true).
     waitUntil: 'load',
     timeout: 30000,
-    failFast4xx: true
+    failFast4xx: true,
+    rotateBrowsers: false
   },
   creationTimeStamp: '241229T0537', // When job was created
   executionTimeStamp: '250110T1200', // When job will be ready to be performed
@@ -229,7 +231,7 @@ Here is a sample job, showing properties that you can set:
 
 The `device` property lets you choose among [about 125 devices recognized by Playwright](https://github.com/microsoft/playwright/blob/main/packages/playwright-core/src/server/deviceDescriptorsSource.json).
 
-The `browserID` property dictates the first browser type that Testaro uses for its requests. When requests with that browser type are repeatedly rejected, Testaro switches to a different browser type and also replaces the `browserID` property of the job with that new browser type. Targets and their edge-management platforms often block requests from one browser type but not another, so switching browser types can make a job succeed instead of failing or make it finish quickly instead of slowly.
+The `browserID` property dictates the first browser type that Testaro uses for its requests. When requests with that browser type are repeatedly rejected, Testaro switches to a different browser type and also replaces the `browserID` property of the job with that new browser type. Targets and their edge-management platforms often block requests from one browser type but not another, so switching browser types can make a job succeed instead of failing or make it finish quickly instead of slowly. A job whose browser type must not change (it was chosen on purpose, or the caller tries other browser types itself) sets `navigation.rotateBrowsers` to `false`, or the deployment sets `NAV_ROTATE_BROWSERS=false`: retries in the specified browser type still happen, and when they are exhausted the launch fails with its reason. The device options of the job (`device.windowOptions`, including the user agent) are not changed when the browser type is, so a caller that needs them to match the browser should switch browser types itself.
 
 The act types and their options are documented in the `etc` property of the [actSpecs.js](actSpecs.js) object and in the [actSpecs-doc.md](actSpecs-doc.md) file.
 
@@ -524,6 +526,12 @@ The changes in `htmlcs/HTMLCS.js` are:
 <         console.log('done');
 6500a6501
 >       return Array.from(messageStrings);
+6527,6528c6528,6529
+<         var node = msg.element.cloneNode(true);
+<         node.innerHTML = '...';
+---
+>         var node = msg.element.cloneNode(false);
+>         node.appendChild(document.createTextNode('...'));
 6531c6532,6534
 <       console.log('[HTMLCS] ' + typeName + '|' + msg.code + '|' + nodeName + '|' + elementId + '|' + msg.msg + '|' + html);
 ---
@@ -531,6 +539,8 @@ The changes in `htmlcs/HTMLCS.js` are:
 >         typeName + '|' + msg.code + '|' + nodeName + '|' + elementId + '|' + msg.msg + '|' + html
 >       );
 ```
+
+The change at line 6527 makes the excerpt of an element (its start tag, `...`, and its end tag) without assigning to `innerHTML`, which a page that requires Trusted Types (`require-trusted-types-for 'script'`) forbids. It also copies only the element and not its descendants.
 
 ### Accessibility Checker
 
@@ -621,7 +631,7 @@ Unlike any other rule engine, the `testaro` rule engine requires a `stopOnFail` 
 
 Tests of the `testaro` tests (i.e. _validation_) could previously be performed as documented in the `VALIDATION.md` file. This functionality has broken and its redesign is planned.
 
-One Testaro rule, `allCaps`, is currently being tested for in part with the assistance of the Claude Haiku artificial intelligence (AI) model. To obtain that assistance, you need an Anthropic API key, and its value must be assigned to the `ANTHROPIC_API_KEY` environment variable in the `.env` file. If no valid API key is set there, the rule will be tested for, but without AI assistance.
+One Testaro rule, `allCaps`, is currently being tested for in part with the assistance of the Claude Haiku artificial intelligence (AI) model. To obtain that assistance, you need an Anthropic API key, and its value must be assigned to the `ANTHROPIC_API_KEY` environment variable in the `.env` file. If no valid API key is set there, the rule will be tested for, but without AI assistance. Validation of the rule does not use the API: its validator scripts the responses of a local mock of the service (`validation/aiMock.js`), including failures, so no API key is needed for validation.
 
 ### WAVE
 

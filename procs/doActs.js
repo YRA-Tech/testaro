@@ -43,7 +43,7 @@ const path = require('path');
 const waits = Number.parseInt(process.env.WAITS) || 0;
 // Time limits in seconds on tools, accounting for page reloads by 6 Testaro tests.
 const timeLimits = {
-  alfa: 35,
+  alfa: 60,
   aslint: 45,
   axe: 30,
   ed11y: 30,

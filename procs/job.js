@@ -379,11 +379,12 @@ exports.isValidJob = job => {
         || (navigation.waitUntil !== undefined && ! waitStates.includes(navigation.waitUntil))
         || (navigation.timeout !== undefined && ! (Number.isInteger(navigation.timeout) && navigation.timeout > 0))
         || (navigation.failFast4xx !== undefined && typeof navigation.failFast4xx !== 'boolean')
+        || (navigation.rotateBrowsers !== undefined && typeof navigation.rotateBrowsers !== 'boolean')
       )
     ) {
       return {
         isValid: false,
-        error: 'Bad job navigation (waitUntil networkidle, load, or domcontentloaded; timeout a positive integer; failFast4xx a boolean)'
+        error: 'Bad job navigation (waitUntil networkidle, load, or domcontentloaded; timeout a positive integer; failFast4xx and rotateBrowsers booleans)'
       };
     }
     if (browserChannel !== undefined && ! ['bundled', 'chrome', 'msedge'].includes(browserChannel)) {

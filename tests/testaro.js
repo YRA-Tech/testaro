@@ -202,15 +202,6 @@ const allRules = [
         defaultOn: true
     },
     {
-        id: 'linkAmb',
-        what: 'links with identical texts but different destinations',
-        contaminates: false,
-        needsAccessibleName: false,
-        local: false,
-        timeOut: 20,
-        defaultOn: true
-    },
-    {
         id: 'linkExt',
         what: 'links that automatically open new windows',
         contaminates: false,
@@ -391,6 +382,15 @@ const allRules = [
         needsAccessibleName: true,
         local: true,
         timeOut: 5,
+        defaultOn: true
+    },
+    {
+        id: 'linkAmb',
+        what: 'links with identical accessible names but different destinations',
+        contaminates: false,
+        needsAccessibleName: true,
+        local: false,
+        timeOut: 20,
         defaultOn: true
     },
     {
@@ -594,10 +594,15 @@ const reporter = async (page, report, actIndex) => {
                         : config_1.ruleLaunchRetries
                 });
             }
+            else if (ruleIndex === 0 && givenPage && jobRules[ruleIndex].needsAccessibleName) {
+                await (0, launch_1.preparePage)(page, { xPathNeed: 'none', needsAccessibleName: true });
+            }
             // If no page exists, the launch (or the replay of a checkpoint's acts) failed: the
             // target is unreachable, so prevent the act and stop testing rules.
             if (!page) {
+                // The launch recorded its reason on the act. Keep it: the data and result returned here replace the act's, so it would otherwise be lost. The rule is identified by its key in rulePreventions.
                 const message = String(report.jobData?.abortMessage
+                    || act.data?.error
                     || `Launch or checkpoint replay failed before rule ${ruleResult.id}`);
                 ruleResult.prevented = true;
                 ruleResult.error = message;

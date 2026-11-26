@@ -16,8 +16,9 @@
 
 // IMPORTS
 
-const {doActs} = require('./procs/doActs');
+// Load the .env file before any Testaro module. The procs modules read their environment variables once, when they are first required, so a module required earlier would miss the values in .env.
 require('dotenv').config({quiet: true});
+const {doActs} = require('./procs/doActs');
 const {getIsolation, isValidJob} = require('./procs/job');
 const {getCatalog} = require('./procs/catalog');
 const {nowString} = require('./procs/dateTime');

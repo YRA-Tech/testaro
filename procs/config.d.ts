@@ -15,7 +15,7 @@
 
 // Multiplies a base timeout by the configured timeout multiplier.
 export function applyMultiplier(baseTimeout: number): number;
-// Whether an environment variable is set to a true value, or the default if unset.
+// Whether an environment variable is set to a true value; the default if unset or unrecognized.
 export function envFlag(name: string, defaultValue?: boolean): boolean;
 // Load states a navigation can wait for, from strictest to loosest.
 export const waitStates: string[];
@@ -24,6 +24,7 @@ export function getNavigation(report: unknown): {
   waitUntil: 'networkidle' | 'load' | 'domcontentloaded';
   timeout: number;
   failFast4xx: boolean;
+  rotateBrowsers: boolean;
 };
 // The scanner identity header value of a job, or '' for none.
 export function getScannerId(report: unknown): string;

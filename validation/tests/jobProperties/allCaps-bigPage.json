@@ -1,0 +1,166 @@
+{
+  "rule": "allCaps",
+  "timeLimit": 120,
+  "aiMock": [
+    {
+      "confidences": [],
+      "default": 0.9
+    },
+    {
+      "confidences": [],
+      "default": 0.9
+    },
+    {
+      "confidences": [],
+      "default": 0.1
+    }
+  ],
+  "acts": [
+    {
+      "type": "launch",
+      "target": {
+        "url": "file://validation/tests/targets/allCaps/bigPage.html",
+        "what": "page with 120 all-capital candidates"
+      }
+    },
+    {
+      "type": "test",
+      "which": "testaro",
+      "withItems": true,
+      "stopOnFail": false,
+      "rules": [
+        "y",
+        "allCaps"
+      ],
+      "expect": [
+        [
+          "standardResult.totals.0",
+          "=",
+          120
+        ],
+        [
+          "standardResult.instances.length",
+          "=",
+          101
+        ],
+        [
+          "standardResult.instances.0.what",
+          "i",
+          "90% confidence"
+        ],
+        [
+          "standardResult.instances.0.tagName",
+          "=",
+          "P"
+        ],
+        [
+          "standardResult.instances.99.what",
+          "i",
+          "90% confidence"
+        ],
+        [
+          "standardResult.instances.100.what",
+          "i",
+          "Elements have all-capital text"
+        ],
+        [
+          "standardResult.instances.100.count",
+          "=",
+          20
+        ],
+        [
+          "standardResult.instances.100.outcome",
+          "=",
+          "cantTell"
+        ],
+        [
+          "standardResult.outcomeTotals.cantTell",
+          "=",
+          120
+        ],
+        [
+          "data.ruleData.allCaps.leftOut.count",
+          "=",
+          20
+        ],
+        [
+          "data.ruleData.allCaps.leftOut.estimatedViolations",
+          "=",
+          20
+        ],
+        [
+          "data.ruleData.allCaps.aiError"
+        ]
+      ]
+    },
+    {
+      "type": "test",
+      "which": "testaro",
+      "withItems": false,
+      "stopOnFail": false,
+      "rules": [
+        "y",
+        "allCaps"
+      ],
+      "expect": [
+        [
+          "standardResult.totals.0",
+          "=",
+          120
+        ],
+        [
+          "standardResult.instances.length",
+          "=",
+          1
+        ],
+        [
+          "standardResult.instances.0.count",
+          "=",
+          120
+        ],
+        [
+          "data.ruleData.allCaps.leftOut.count",
+          "=",
+          20
+        ],
+        [
+          "data.ruleData.allCaps.leftOut.estimatedViolations",
+          "=",
+          20
+        ]
+      ]
+    },
+    {
+      "type": "test",
+      "which": "testaro",
+      "withItems": true,
+      "stopOnFail": false,
+      "rules": [
+        "y",
+        "allCaps"
+      ],
+      "expect": [
+        [
+          "standardResult.totals.0",
+          "=",
+          0
+        ],
+        [
+          "standardResult.instances.length",
+          "=",
+          0
+        ],
+        [
+          "data.ruleData.allCaps.leftOut.count",
+          "=",
+          20
+        ],
+        [
+          "data.ruleData.allCaps.leftOut.estimatedViolations",
+          "=",
+          0
+        ]
+      ]
+    }
+  ]
+}
