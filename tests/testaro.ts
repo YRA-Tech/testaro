@@ -600,7 +600,6 @@ process.on('unhandledRejection', reason => {
 
 // FUNCTIONS
 
-<<<<<<< HEAD
 // Tests a rule within its time limit and returns the rule, its test result, and its report.
 const testRule = async (
   rule: RuleMeta, ruleArgs: unknown[], onTimeout?: () => void
@@ -672,7 +671,6 @@ const testRule = async (
   }
   return {rule, ruleResult, ruleReport};
 };
-=======
 // The rules selected by a test act, or why the selection is invalid.
 export interface RuleSelection {
   // IDs of the rules to be tested for, in allRules order (empty if the selection is invalid).
@@ -753,8 +751,6 @@ export const selectRules = (act: RuleSpec): RuleSelection => {
   }
   return choose(new Set([...defaultIDs, ...onIDs].filter(id => ! offIDs.includes(id))));
 };
-
->>>>>>> main
 // Conducts and reports Testaro tests.
 export const reporter = async (page: Page | undefined, report: Report, actIndex: number) => {
   const act = report.acts[actIndex] as TestaroAct;
@@ -813,7 +809,6 @@ export const reporter = async (page: Page | undefined, report: Report, actIndex:
     }
   };
   const {standardResult} = result;
-<<<<<<< HEAD
   // Adds a rule test to the act data and the standard result.
   const recordRuleTest = ({rule, ruleResult, ruleReport}: RuleTest) => {
     // If the test ended with a report:
@@ -851,23 +846,10 @@ export const reporter = async (page: Page | undefined, report: Report, actIndex:
       data.rulePreventions[rule.id] = ruleResult.error;
     }
   };
-  const allRuleIDs = allRules.map(rule => rule.id);
-  if (
-    // If the rule specification has at least 2 items
-    ruleSpec.length > 1
-    // and the first item is y or n
-    && ['y', 'n'].includes(ruleSpec[0])
-    // and all subsequent items are rule IDs to be included (if y) or excluded (if n):
-    && ruleSpec.slice(1).every(ruleID => (allRuleIDs as string[]).includes(ruleID))
-  ) {
-    // Get the rules to be tested for and their execution order.
-    const excludeIDs = ruleSpec.slice(1);
-    const jobRuleIDs = ruleSpec[0] === 'y'
-    ? excludeIDs
-    : allRules
-      .filter(rule => rule.defaultOn && ! excludeIDs.includes(rule.id))
-      .map(rule => rule.id);
-    const jobRules = allRules.filter(rule => jobRuleIDs.includes(rule.id));
+  // If the rule selection is valid:
+  if (! selection.error) {
+    // Get the rules to be tested for, in their execution order.
+    const jobRules = allRules.filter(rule => selection.ruleIDs.includes(rule.id));
     // Separate the rules that run concurrently on their own pages from the serial rules.
     const concurrentRules = jobRules.filter(rule => rule.concurrent);
     const serialRules = jobRules.filter(rule => ! rule.concurrent);
@@ -891,12 +873,6 @@ export const reporter = async (page: Page | undefined, report: Report, actIndex:
     });
     // Initialize the tests of the serial rules.
     const ruleTests: RuleTest[] = [];
-=======
-  // If the rule selection is valid:
-  if (! selection.error) {
-    // Get the rules to be tested for, in their execution order.
-    const jobRules = allRules.filter(rule => selection.ruleIDs.includes(rule.id));
->>>>>>> main
     let justPrevented = false;
     // For each serial rule to be tested for:
     for (let ruleIndex = 0; ruleIndex < serialRules.length; ruleIndex++) {
