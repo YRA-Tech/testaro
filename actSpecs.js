@@ -140,7 +140,7 @@ exports.actSpecs = {
       'Create and dispose of a full-page screenshot as a base-64-encoded PNG',
       {
         exclusionSelector: [false, 'string', 'hasLength', 'CSS selector for an element to mask'],
-        colorType: [false, 'number', '', '0=grayscale, 2=RGB, 4=grayscale alpha, 6=RGBA'],
+        colorType: [false, 'number', '', '0=grayscale, 2=RGB, 4=grayscale alpha, 6=RGBA (default)'],
         action: [true, 'string', 'hasLength', 'disposition: return, report, file'],
         what: [false, 'string', 'hasLength', 'comment']
       }
