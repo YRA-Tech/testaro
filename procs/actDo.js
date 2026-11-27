@@ -289,16 +289,12 @@ const doInteractionAct = async ({ page, report, act, actIndex, actCount = 0, int
         // Otherwise, if the act is a screenshot:
         else if (type === 'shoot') {
             const { exclusionSelector, colorType, action } = act;
-            // Make and dispose of a full-page screenshot.
-            /*
-              Typing shows two defects, kept as they are (no behavior change in issue #73; see #215): shoot reads
-              exclusionSelector (a selector), not exclusion (a locator), so the exclusion is ignored;
-              and an invalid colorType is passed as null rather than omitted, so it is not defaulted.
-            */
+            // Make and dispose of a full-page screenshot, masking any excluded element. Without a valid
+            // colorType, the image is RGBA (6), as it was when the act passed no valid one to shoot.
             const shotInfo = await (0, shoot_1.shoot)(page, report, {
-                exclusion: exclusionSelector ? page.locator(exclusionSelector) : null,
-                colorType: [0, 2, 4, 6].includes(colorType) ? colorType : null,
-                action: ['return', 'report', 'file'].includes(action) ? action : 'report'
+                exclusionSelector: exclusionSelector || null,
+                colorType: [0, 2, 4, 6].includes(colorType) ? colorType : 6,
+                action: (['return', 'report', 'file'].includes(action) ? action : 'report')
             });
             // Add the PNG base-64 encoding, image index, or file path to the act result.
             act.result = shotInfo !== ''
@@ -393,25 +389,21 @@ const doInteractionAct = async ({ page, report, act, actIndex, actCount = 0, int
                     // Perform and report the move.
                     const move = isClick ? 'click' : 'Enter keypress';
                     try {
-                        // Kept as it is (issue #73; see #215): this awaits isClick, not the move, so a failed move is
-                        // not caught here and success is recorded before the move settles.
-                        await isClick
+                        await (isClick
                             ? selection.click({ timeout: 4000 })
-                            : selection.press('Enter', { timeout: 4000 });
+                            : selection.press('Enter', { timeout: 4000 }));
                         act.result.success = true;
                         act.result.move = move;
                     }
                     // If the move fails:
                     catch (error) {
-                        // Report this.
+                        // Report this. (A search act has already recorded success for its text entry.)
+                        act.result.success = false;
                         (0, error_1.addError)(true, false, report, actIndex, `ERROR: ${move} failed`);
                     }
                     if (act.result.success) {
                         try {
-                            // Kept as it is (issue #73; see #215): a browser context emits no networkidle event, so this
-                            // wait always times out and idleTimely is always false.
-                            // @ts-expect-error networkidle is not a BrowserContext event.
-                            await page.context().waitForEvent('networkidle', { timeout: 10000 });
+                            await page.waitForLoadState('networkidle', { timeout: 10000 });
                             act.result.idleTimely = true;
                         }
                         catch (error) {
@@ -463,10 +455,7 @@ const doInteractionAct = async ({ page, report, act, actIndex, actCount = 0, int
                 }
                 // Otherwise, if it is focusing the element, perform it.
                 else if (type === 'focus') {
-                    // Kept as it is (issue #73; see #215): ElementHandle.focus takes no options, so the timeout is
-                    // ignored.
-                    // @ts-expect-error focus takes no arguments.
-                    await selection.focus({ timeout: 2000 });
+                    await selection.focus();
                     act.result.success = true;
                     act.result.move = 'focused';
                 }
@@ -479,7 +468,7 @@ const doInteractionAct = async ({ page, report, act, actIndex, actCount = 0, int
                     // If the destination is a new page:
                     if (target && target !== '_self') {
                         // Click the link and wait for the network to be idle.
-                        doAndWait(true);
+                        await doAndWait(true);
                     }
                     // Otherwise, i.e. if the destination is in the current page:
                     else {
@@ -549,27 +538,42 @@ const doInteractionAct = async ({ page, report, act, actIndex, actCount = 0, int
                     attributes.labelRefs = labelRefs || '';
                     // If the text contains a placeholder for an environment variable:
                     let { what } = act;
+                    let unsetKey = '';
                     if (/__[A-Z]+__/.test(what)) {
-                        // Replace it.
+                        // Replace it, unless the variable is not set.
                         const envKey = /__([A-Z]+)__/.exec(what)[1];
                         const envValue = process.env[envKey];
-                        // Kept as it is (issue #73; see #215): an unset variable is replaced with the text "undefined".
-                        what = what.replace(/__[A-Z]+__/, envValue);
+                        if (envValue === undefined) {
+                            unsetKey = envKey;
+                        }
+                        else {
+                            what = what.replace(/__[A-Z]+__/, envValue);
+                        }
                     }
-                    // Enter the text, replacing any existing value if the act says so.
-                    if (act.clear) {
-                        await selection.fill(what);
+                    // If the variable is not set, fail the act, naming the variable but no value.
+                    if (unsetKey) {
+                        act.result.success = false;
+                        act.result.error = 'unsetVariable';
+                        act.result.message = `ERROR: Environment variable ${unsetKey} is not set`;
+                        console.log(act.result.message);
                     }
+                    // Otherwise:
                     else {
-                        await selection.type(what);
-                    }
-                    report.jobData.presses += what.length;
-                    act.result.success = true;
-                    act.result.move = 'entered';
-                    // If the input is a search input:
-                    if (type === 'search') {
-                        // Press the Enter key and wait for a network to be idle.
-                        doAndWait(false);
+                        // Enter the text, replacing any existing value if the act says so.
+                        if (act.clear) {
+                            await selection.fill(what);
+                        }
+                        else {
+                            await selection.type(what);
+                        }
+                        report.jobData.presses += what.length;
+                        act.result.success = true;
+                        act.result.move = 'entered';
+                        // If the input is a search input:
+                        if (type === 'search') {
+                            // Press the Enter key and wait for a network to be idle.
+                            await doAndWait(false);
+                        }
                     }
                 }
                 // Otherwise, i.e. if the move is unknown, add the failure to the act.
@@ -622,7 +626,8 @@ const doInteractionAct = async ({ page, report, act, actIndex, actCount = 0, int
                 // Press the specified navigation key.
                 await page.keyboard.press(navKey);
                 presses++;
-                // Identify the newly current element or a failure.
+                // Identify the newly current element or a failure, which the status is then set to. (This
+                // function runs in the page, where status would mean window.status.)
                 const currentJSHandle = await page.evaluateHandle(actCount => {
                     // Initialize it as the focused element.
                     let currentElement = document.activeElement;
@@ -648,7 +653,6 @@ const doInteractionAct = async ({ page, report, act, actIndex, actCount = 0, int
                             if (currentElement.dataset.pressesReached === actCount.toString(10)) {
                                 // Report the error.
                                 console.log(`ERROR: ${currentElement.tagName} element reached again`);
-                                status = 'ERROR';
                                 return 'ERROR: locallyExhausted';
                             }
                             // Otherwise, i.e. if it is newly reached within this act:
@@ -661,14 +665,12 @@ const doInteractionAct = async ({ page, report, act, actIndex, actCount = 0, int
                         // Otherwise, i.e. if there is no current element:
                         else {
                             // Report the error.
-                            status = 'ERROR';
                             return 'noActiveElement';
                         }
                     }
                     // Otherwise, i.e. if there is no focus in the page:
                     else {
                         // Report the error.
-                        status = 'ERROR';
                         return 'ERROR: globallyExhausted';
                     }
                 }, actCount);
