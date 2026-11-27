@@ -94,6 +94,15 @@ const allRules = [
         defaultOn: true
     },
     {
+        id: 'buttonStyles',
+        what: 'buttons with style-property values that are not the most common among buttons',
+        contaminates: false,
+        needsAccessibleName: false,
+        local: false,
+        timeOut: 10,
+        defaultOn: true
+    },
+    {
         id: 'captionLoc',
         what: 'caption elements that are not first children of table elements',
         contaminates: false,
@@ -154,6 +163,15 @@ const allRules = [
         needsAccessibleName: false,
         local: false,
         timeOut: 5,
+        defaultOn: true
+    },
+    {
+        id: 'headingStyles',
+        what: 'headings with style-property values that are not the most common among headings of their levels',
+        contaminates: false,
+        needsAccessibleName: false,
+        local: false,
+        timeOut: 10,
         defaultOn: true
     },
     {
@@ -226,6 +244,15 @@ const allRules = [
         needsAccessibleName: false,
         local: true,
         timeOut: 5,
+        defaultOn: true
+    },
+    {
+        id: 'linkStyles',
+        what: 'links with style-property values that are not the most common among links of their kinds in their regions',
+        contaminates: false,
+        needsAccessibleName: false,
+        local: false,
+        timeOut: 10,
         defaultOn: true
     },
     {
@@ -302,12 +329,12 @@ const allRules = [
     },
     {
         id: 'styleDiff',
-        what: 'style inconsistencies',
+        what: 'style inconsistencies (superseded by buttonStyles, headingStyles, and linkStyles)',
         contaminates: false,
         needsAccessibleName: false,
         local: false,
         timeOut: 5,
-        defaultOn: true
+        defaultOn: false
     },
     {
         id: 'targetsNear',

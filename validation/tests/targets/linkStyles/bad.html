@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<!--
+  © 2026 Jonathan Robert Pool.
+
+  Licensed under the MIT License. See LICENSE file at the project root or
+  https://opensource.org/license/mit/ for details.
+
+  SPDX-License-Identifier: MIT
+-->
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <title>Page with inconsistent link styles</title>
+    <meta name="description" content="tester">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+      a {
+        color: rgb(0, 0, 238);
+        text-decoration-line: underline;
+      }
+      nav a {
+        text-decoration-line: none;
+      }
+      .red {
+        color: rgb(255, 0, 0);
+      }
+      .plain {
+        text-decoration-line: none;
+      }
+      .wavy {
+        text-decoration-style: wavy;
+      }
+    </style>
+  </head>
+  <body>
+    <nav aria-label="site">
+      <ul>
+        <li><a href="#a">Home</a></li>
+        <li><a class="red" href="#b">About</a></li>
+        <li><a href="#c">Contact</a></li>
+      </ul>
+    </nav>
+    <main>
+      <h1>Page with inconsistent link styles</h1>
+      <p>This paragraph contains <a href="#d">a first link</a>, <a class="plain" href="#e">a second link without an underline</a>, and <a href="#f">a third link</a>.</p>
+      <section aria-label="tie">
+        <p>This named section is a region. It contains <a href="#g">a link with a solid underline</a> and <a class="wavy" href="#h">a link with a wavy underline</a>.</p>
+      </section>
+    </main>
+  </body>
+</html>

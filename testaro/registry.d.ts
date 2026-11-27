@@ -6,7 +6,7 @@ export interface RuleReport {
 export interface RuleModule {
     reporter: (...args: any[]) => Promise<RuleReport>;
 }
-export type RuleID = 'adbID' | 'allCapStyle' | 'allCaps' | 'allHidden' | 'allSlanted' | 'altScheme' | 'attVal' | 'autocomplete' | 'bulk' | 'buttonMenu' | 'captionLoc' | 'datalistRef' | 'distortion' | 'docType' | 'dupAtt' | 'elements' | 'embAc' | 'focAll' | 'focAndOp' | 'focInd' | 'focVis' | 'headEl' | 'headingAmb' | 'hovInd' | 'hover' | 'hr' | 'imageLink' | 'labClash' | 'legendLoc' | 'lineHeight' | 'linkAmb' | 'linkExt' | 'linkOldAtt' | 'linkTo' | 'linkUl' | 'miniText' | 'motion' | 'nonTable' | 'optRoleSel' | 'phOnly' | 'pseudoP' | 'radioSet' | 'role' | 'secHeading' | 'styleDiff' | 'tabNav' | 'targetsNear' | 'textNodes' | 'textSem' | 'title' | 'titledEl' | 'zIndex';
+export type RuleID = 'adbID' | 'allCapStyle' | 'allCaps' | 'allHidden' | 'allSlanted' | 'altScheme' | 'attVal' | 'autocomplete' | 'bulk' | 'buttonMenu' | 'buttonStyles' | 'captionLoc' | 'datalistRef' | 'distortion' | 'docType' | 'dupAtt' | 'elements' | 'embAc' | 'focAll' | 'focAndOp' | 'focInd' | 'focVis' | 'headEl' | 'headingAmb' | 'headingStyles' | 'hovInd' | 'hover' | 'hr' | 'imageLink' | 'labClash' | 'legendLoc' | 'lineHeight' | 'linkAmb' | 'linkExt' | 'linkOldAtt' | 'linkStyles' | 'linkTo' | 'linkUl' | 'miniText' | 'motion' | 'nonTable' | 'optRoleSel' | 'phOnly' | 'pseudoP' | 'radioSet' | 'role' | 'secHeading' | 'styleDiff' | 'tabNav' | 'targetsNear' | 'textNodes' | 'textSem' | 'title' | 'titledEl' | 'zIndex';
 export declare const ruleModules: {
     adbID: () => typeof import('./adbID');
     allCapStyle: () => typeof import('./allCapStyle');
@@ -18,6 +18,7 @@ export declare const ruleModules: {
     autocomplete: () => typeof import('./autocomplete');
     bulk: () => typeof import('./bulk');
     buttonMenu: () => typeof import('./buttonMenu');
+    buttonStyles: () => typeof import('./buttonStyles');
     captionLoc: () => typeof import('./captionLoc');
     datalistRef: () => typeof import('./datalistRef');
     distortion: () => typeof import('./distortion');
@@ -31,6 +32,7 @@ export declare const ruleModules: {
     focVis: () => typeof import('./focVis');
     headEl: () => typeof import('./headEl');
     headingAmb: () => typeof import('./headingAmb');
+    headingStyles: () => typeof import('./headingStyles');
     hovInd: () => typeof import('./hovInd');
     hover: () => typeof import('./hover');
     hr: () => typeof import('./hr');
@@ -41,6 +43,7 @@ export declare const ruleModules: {
     linkAmb: () => typeof import('./linkAmb');
     linkExt: () => typeof import('./linkExt');
     linkOldAtt: () => typeof import('./linkOldAtt');
+    linkStyles: () => typeof import('./linkStyles');
     linkTo: () => typeof import('./linkTo');
     linkUl: () => typeof import('./linkUl');
     miniText: () => typeof import('./miniText');

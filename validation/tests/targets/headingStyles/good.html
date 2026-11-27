@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<!--
+  © 2026 Jonathan Robert Pool.
+
+  Licensed under the MIT License. See LICENSE file at the project root or
+  https://opensource.org/license/mit/ for details.
+
+  SPDX-License-Identifier: MIT
+-->
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <title>Page with consistent heading styles</title>
+    <meta name="description" content="tester">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+      body {
+        font: 16px serif;
+        color: rgb(0, 0, 0);
+      }
+      .ariaH2 {
+        font-size: 1.5em;
+        font-weight: bold;
+      }
+      .h3Size {
+        font-size: 1.17em;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Page with consistent heading styles</h1>
+      <section>
+        <h1>Heading of a section</h1>
+        <p>This level-1 heading is in a section element, but has the same size as the first one.</p>
+      </section>
+      <h2>First level-2 heading</h2>
+      <p>This page has 3 level-2 headings with the same style, one of them with a heading role.</p>
+      <h2>Second level-2 heading</h2>
+      <div class="ariaH2" role="heading" aria-level="2">Third level-2 heading</div>
+      <h3>First level-3 heading</h3>
+      <p>The level-3 headings differ in style from the level-2 headings, but headings are compared only with others of the same level.</p>
+      <h2 class="h3Size" aria-level="3">Second level-3 heading</h2>
+      <p>The second level-3 heading is an h2 element with an aria-level attribute.</p>
+      <p>Headings with deviant styles that are not tested, because one is hidden and one has a presentation role, follow.</p>
+      <h2 style="color: red; display: none">Hidden heading</h2>
+      <h2 style="color: red" role="presentation">Presentational heading</h2>
+    </main>
+  </body>
+</html>

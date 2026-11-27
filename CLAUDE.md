@@ -90,7 +90,7 @@ Key variables:
 
 ## Code style
 
-The rule modules, the tool adapters, `procs/testaro.ts`, `procs/catalog.ts`, `procs/xPath.ts`, `procs/standard.ts`, and `types.ts` are TypeScript sources; their `.js` and `.d.ts` outputs are committed. Edit the `.ts` file, then run `npm run build:ts` (and `npm run build:registry` after adding or removing a rule module) and commit the regenerated outputs; CI fails if they drift. Files without a `.ts` counterpart are still plain JavaScript. See `CONTRIBUTING.md`.
+The rule modules, the tool adapters, `procs/testaro.ts`, `procs/catalog.ts`, `procs/xPath.ts`, `procs/standard.ts`, `procs/styleConsistency.ts`, and `types.ts` are TypeScript sources; their `.js` and `.d.ts` outputs are committed. Edit the `.ts` file, then run `npm run build:ts` (and `npm run build:registry` after adding or removing a rule module) and commit the regenerated outputs; CI fails if they drift. Files without a `.ts` counterpart are still plain JavaScript. See `CONTRIBUTING.md`.
 
 ESLint (`eslint.config.mjs`): 2-space indent, single quotes, semicolons, Stroustrup brace style (`else`/`catch` on a new line after `}`), `no-use-before-define`. Emitted `.js` files are excluded from linting. The vendored `htmlcs/HTMLCS.js`, `ed11y`, `surea11y`, and `pour` bundles are excluded from linting; `htmlcs/HTMLCS.js` must not be reformatted.
 
