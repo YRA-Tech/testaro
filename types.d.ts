@@ -221,6 +221,12 @@ export interface Report {
     };
     [key: string]: unknown;
 }
+export type TestActMessage = {
+    status: 'ok';
+} | {
+    status: 'error';
+    error: string;
+};
 export type BadWhat = null | undefined | false | '' | string | {
     description: string;
     data?: unknown;

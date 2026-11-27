@@ -345,6 +345,10 @@ export interface Report {
   [key: string]: unknown;
 }
 
+// The message the child process of a test act under process isolation (procs/doTestAct) sends
+// its parent (procs/doActs): ok, or an error naming what failed.
+export type TestActMessage = {status: 'ok'} | {status: 'error'; error: string};
+
 /*
   The classification a getBadWhat predicate returns for a candidate element:
   falsy for no violation, a description string for a violation, or an object
