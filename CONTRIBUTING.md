@@ -88,6 +88,19 @@ Continuous integration enforces this: it regenerates the registry, compiles, and
 
 Files that have not been converted yet are still plain JavaScript with no `.ts` counterpart; edit those directly, as before. Some of them have a hand-written `x.d.ts` neighbor that describes the module to converted TypeScript files. If you change such a module's exported interface, update its `.d.ts` to match.
 
+### Converting a file
+
+A conversion must not change behavior. The plan for the remaining files, and how each conversion is checked, is in [docs/typescript-phase-4-plan.md](docs/typescript-phase-4-plan.md). Two tools check the emitted JavaScript against the hand-written JavaScript it replaces, at `origin/main` unless `--base` names another ref:
+
+```bash
+node validation/executors/emitDiff procs/x.js
+node validation/executors/serializedDiff procs/x.js
+```
+
+`emitDiff` compares the two token by token, ignoring comments, whitespace, and what tsc's CommonJS emit adds without changing behavior (the module plumbing, and formatting such as parentheses around a single arrow-function parameter). It prints every other difference; parentheses left by an erased type assertion are expected, and anything else needs an explanation in the pull request. `serializedDiff` checks the functions that a file sends into a page to run there (with `page.evaluate`, `addInitScript`, and the like, or `toString()`): they must be unchanged, and none may refer to `exports`, `require`, or a tsc module alias such as `config_1`, which do not exist in the page. Both exit with 1 on a difference.
+
+A file whose text is run in a page rather than loaded as a module, such as `procs/aslint.js`, is not converted: tsc's emit would begin it with `"use strict"`, which would change how the page runs it.
+
 ## License agreement
 
 From 12 February 2024 through 30 September 2025, contributors of code to Testaro executed the [CVS Health OSS Project Contributor License Agreement](https://forms.office.com/pages/responsepage.aspx?id=uGG7-v46dU65NKR_eCuM1xbiih2MIwxBuRvO0D_wqVFUQ1k0OE5SVVJWWkY4MTVJMkY3Sk9GM1FHRC4u) for Testaro before any pull request was approved and merged.
