@@ -1,8 +1,8 @@
 # TypeScript Phase 4: the engine
 
-**Status:** Proposed · **Owner:** Jeff Witt · **Written:** 2026-11-27 · **Updated:** 2026-11-27
+**Status:** Active · **Owner:** Jeff Witt · **Written:** 2026-11-27 · **Updated:** 2026-11-27
 
-Phases 0–3 of the migration in issue #73 merged on 22–23 August 2026. This plan covers Phase 4, the engine. Nothing in it has started.
+Phases 0–3 of the migration in issue #73 merged on 22–23 August 2026. This plan covers Phase 4, the engine. Its decisions were confirmed on 27 November 2026; no batch has started.
 
 ## Where things stand
 
@@ -47,7 +47,7 @@ Bottom-up, so that no converted file needs a new hand-written declaration file. 
 
 | PR | Files | Lines | Depends on | Deletes | Notes |
 |---|---|---|---|---|---|
-| 4.1 | `config`, `dateTime`, `error`, `getSource`, `nu`, `shoot`, `aslint` | 592 | — | `config.d.ts`, `getSource.d.ts`, `nu.d.ts`, `shoot.d.ts` | Leaves. `config` is imported by the worker. Adds the emit-diff tool (decision 4). |
+| 4.1 | `config`, `dateTime`, `error`, `getSource`, `nu`, `shoot`, `aslint` | 592 | — | `config.d.ts`, `getSource.d.ts`, `nu.d.ts`, `shoot.d.ts` | Leaves. `config` is imported by the worker. Adds the verification tools (decision 4). |
 | 4.2 | `xPathScript`, `scope`, `userPath`, `flow`, `checkpoint` | 723 | 4.1 | `xPathScript.d.ts` | `xPathScript` runs in the page (hazard 1). `userPath` is imported by the worker. |
 | 4.3 | `actDo` | 802 | 4.1 | — | 6 in-page callbacks (1), the cycle with `launch` (2), calls through `exports` (4). Uses `launch.d.ts`, extended where it lacks what `actDo` calls. |
 | 4.4 | `testAct`, `doTestAct`, adapter registry | 257 + registry | 4.1 | — | Builds the adapter registry (6) and declares the child's messages (5). |
@@ -83,13 +83,15 @@ Each PR repeats the three checks the earlier phases used (#98, #115, #120), plus
    CI also runs the 60 validators and the unit tests on every PR.
 4. **Worker smoke test.** For PRs that change a file the worker imports (4.1, 4.2, 4.5, 4.8), the branch is packed with `npm pack`, installed in a checkout of `yra-web-scan-worker`, and the worker's tests and one local scan are run, before the PR merges.
 
-## Decisions to confirm
+## Decisions
 
-1. **Act types.** Add a discriminated union with one type per act type in 4.5, as the RFC planned, and check `actSpecs` against it with `satisfies`. The alternative is to keep today's permissive `Act` and declare local interfaces where they are needed, as `tests/testaro.ts` does for its act. *Recommended: the union.* It is what lets `actDo` and `doActs` be checked against the act they handle.
-2. **Out of scope.** Leave the validation harness, the ACT harness and the build inputs in JavaScript for Phase 4. *Recommended.*
-3. **Order around #160 and #170.** Start 4.1–4.4 now, and hold 4.5–4.8 until both PRs merge or close. If they are still open when 4.4 merges, decide then whether to wait or convert and rebase them. *Recommended.*
-4. **Commit the verification tools.** The emit diff and the serialized-code check were one-off scripts in the earlier phases. Phase 4 runs them in 8 PRs, so commit them under `validation/executors/` in 4.1. *Recommended.*
-5. **Releases.** Each batch changes no behavior, so each can ship in a patch release, but it is simpler to release when it suits other work, with the worker smoke test before any release that includes 4.1, 4.2, 4.5 or 4.8. *Recommended: release with other work.*
+All five were confirmed by Jeff Witt on 27 November 2026.
+
+1. **Act types.** Add a discriminated union with one type per act type in 4.5, as the RFC planned, and check `actSpecs` against it with `satisfies`. The alternative is to keep today's permissive `Act` and declare local interfaces where they are needed, as `tests/testaro.ts` does for its act. *Decided: the union.* It is what lets `actDo` and `doActs` be checked against the act they handle.
+2. **Out of scope.** Leave the validation harness, the ACT harness and the build inputs in JavaScript for Phase 4. *Decided.*
+3. **Order around #160 and #170.** Start 4.1–4.4 now, and hold 4.5–4.8 until both PRs merge or close. If they are still open when 4.4 merges, decide then whether to wait or convert and rebase them. *Decided.*
+4. **Commit the verification tools.** The emit diff and the serialized-code check were one-off scripts in the earlier phases. Phase 4 runs them in 8 PRs, so commit them under `validation/executors/` in 4.1. *Decided.*
+5. **Releases.** Each batch changes no behavior, so each can ship in a patch release, but it is simpler to release when it suits other work, with the worker smoke test before any release that includes 4.1, 4.2, 4.5 or 4.8. *Decided: release with other work.*
 
 ## Effort
 
