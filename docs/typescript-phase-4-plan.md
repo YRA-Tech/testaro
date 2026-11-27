@@ -8,7 +8,7 @@ Phases 0–3 of the migration in issue #73 merged on 22–23 August 2026. This p
 
 Phases 0–3 converted the shared types (`types.ts`), four core procs (`testaro`, `xPath`, `catalog`, `standard`), all 52 rule modules with their generated registry, and all 11 tool adapters. Of testaro's 111 first-party JavaScript files (vendored bundles and test fixtures excluded), 71 are now emitted from TypeScript, and 6 uses of `any` remain.
 
-What is left is the engine: the code that validates a job, launches browsers, performs acts, forks a process per test act, records checkpoints and flow, and polls for jobs. It is about 5,600 lines in 25 files, and it has grown since the RFC, because the checkpoint work of September (`actDo`, `checkpoint`, `flow`, `scope`, `userPath`, `testAct`) was written in JavaScript.
+What is left is the engine: the code that validates a job, launches browsers, performs acts, forks a process per test act, records checkpoints and flow, and polls for jobs. It is about 5,500 lines in 24 files, and it has grown since the RFC, because the checkpoint work of September (`actDo`, `checkpoint`, `flow`, `scope`, `userPath`, `testAct`) was written in JavaScript.
 
 Converted TypeScript reaches into the engine through six hand-written declaration files (`procs/config.d.ts`, `getSource.d.ts`, `launch.d.ts`, `nu.d.ts`, `shoot.d.ts`, `xPathScript.d.ts`). Nothing checks them against the JavaScript they describe, so they can drift without any error.
 
@@ -22,6 +22,8 @@ It converts each engine file to strict TypeScript, under the rules the earlier p
 - **Strict from the first PR.** `strict: true` applies to each file as it converts.
 
 It does not convert the validation harness (`validation/`), the ACT harness (`validation/act/`), or the build inputs (`procs/generateRuleRegistry.js`, `src/nameComputation.js`, `aceconfig.js`). They are tooling, not the engine, and Phase 5 can decide whether they convert.
+
+It also does not convert `procs/aslint.js`, which this plan first listed in 4.1. It is not a module: `tests/aslint` reads its text and evaluates it in the page, after the ASLint bundle. tsc's emit begins every file with `"use strict"`, so converting it would run it in strict mode in the page, which would change its behavior. It stays JavaScript, like the vendored bundles.
 
 ## Who depends on these files
 
@@ -47,7 +49,7 @@ Bottom-up, so that no converted file needs a new hand-written declaration file. 
 
 | PR | Files | Lines | Depends on | Deletes | Notes |
 |---|---|---|---|---|---|
-| 4.1 | `config`, `dateTime`, `error`, `getSource`, `nu`, `shoot`, `aslint` | 592 | — | `config.d.ts`, `getSource.d.ts`, `nu.d.ts`, `shoot.d.ts` | Leaves. `config` is imported by the worker. Adds the verification tools (decision 4). |
+| 4.1 | `config`, `dateTime`, `error`, `getSource`, `nu`, `shoot` | 499 | — | `config.d.ts`, `getSource.d.ts`, `nu.d.ts`, `shoot.d.ts` | Leaves. `config` is imported by the worker. Adds the verification tools (decision 4). |
 | 4.2 | `xPathScript`, `scope`, `userPath`, `flow`, `checkpoint` | 723 | 4.1 | `xPathScript.d.ts` | `xPathScript` runs in the page (hazard 1). `userPath` is imported by the worker. |
 | 4.3 | `actDo` | 802 | 4.1 | — | 6 in-page callbacks (1), the cycle with `launch` (2), calls through `exports` (4). Uses `launch.d.ts`, extended where it lacks what `actDo` calls. |
 | 4.4 | `testAct`, `doTestAct`, adapter registry | 257 + registry | 4.1 | — | Builds the adapter registry (6) and declares the child's messages (5). |
@@ -95,7 +97,7 @@ All five were confirmed by Jeff Witt on 27 November 2026.
 
 ## Effort
 
-8 PRs, about 5,600 lines of JavaScript. Phases 2 and 3 converted about 60 smaller, uniform files in two days; the engine files are larger, stateful and individually different, so allow about a PR a day for the work, plus review. The waits for #160 and #170 are likely to set the calendar more than the work does.
+8 PRs, about 5,500 lines of JavaScript. Phases 2 and 3 converted about 60 smaller, uniform files in two days; the engine files are larger, stateful and individually different, so allow about a PR a day for the work, plus review. The waits for #160 and #170 are likely to set the calendar more than the work does.
 
 ## After Phase 4
 
