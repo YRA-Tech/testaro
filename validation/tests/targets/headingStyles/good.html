@@ -35,9 +35,12 @@
         <p>This level-1 heading is in a section element, but has the same size as the first one.</p>
       </section>
       <h2>First level-2 heading</h2>
-      <p>This page has 3 level-2 headings with the same style, one of them with a heading role.</p>
+      <p>This page has 4 visible level-2 headings with the same style, 2 of them with heading roles, and 2 invisible ones with deviant styles, which are not tested.</p>
       <h2>Second level-2 heading</h2>
       <div class="ariaH2" role="heading" aria-level="2">Third level-2 heading</div>
+      <div class="ariaH2" role=" heading " aria-level="2">Fourth level-2 heading, with a spaced role</div>
+      <h2 style="color: red; visibility: hidden">Unseen heading</h2>
+      <h2 style="color: red; opacity: 0">Transparent heading</h2>
       <h3>First level-3 heading</h3>
       <p>The level-3 headings differ in style from the level-2 headings, but headings are compared only with others of the same level.</p>
       <h2 class="h3Size" aria-level="3">Second level-3 heading</h2>

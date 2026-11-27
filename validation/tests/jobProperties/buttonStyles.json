@@ -24,6 +24,11 @@
           "standardResult.instances.length",
           "=",
           0
+        ],
+        [
+          "data.ruleData.buttonStyles.counts.button",
+          "=",
+          6
         ]
       ],
       "rules": [

@@ -16,7 +16,7 @@ const styleConsistency_1 = require("../procs/styleConsistency");
 */
 // CONSTANTS
 // Selector of links.
-const linkSelector = 'a[href], [role=link]';
+const linkSelector = 'a[href], [role~=link]';
 // Style properties to be compared.
 const styleProps = [
     'color',
@@ -52,8 +52,6 @@ const reporter = async (page, report, _, withItems) => {
         };
         // Landmark elements, each with an index identifying its region.
         const regionIndexes = new Map();
-        // Removes spacing characters from a text.
-        const despace = (text) => (text || '').replace(/\s/g, '');
         // Returns the parent of an element in the flat tree, if any.
         const getParent = (element) => {
             const root = element.getRootNode();
@@ -61,8 +59,18 @@ const reporter = async (page, report, _, withItems) => {
                 || element.parentElement
                 || (root instanceof ShadowRoot ? root.host : null);
         };
-        // Returns whether an element has an accessible name from its attributes.
-        const isNamed = (element) => ['aria-label', 'aria-labelledby', 'title'].some(attName => (element.getAttribute(attName) || '').trim());
+        // Returns whether an element has an accessible name from its aria-label, aria-labelledby, or title attribute, with aria-labelledby counting only if it references an element with a nonempty text or aria-label.
+        const isNamed = (element) => {
+            if (['aria-label', 'title'].some(attName => (element.getAttribute(attName) || '').trim())) {
+                return true;
+            }
+            const root = element.getRootNode();
+            return (element.getAttribute('aria-labelledby') || '').trim().split(/\s+/).some(id => {
+                const labeler = id ? root.getElementById(id) : null;
+                return Boolean(labeler
+                    && ((labeler.textContent || '').trim() || (labeler.getAttribute('aria-label') || '').trim()));
+            });
+        };
         // Returns the landmark role of an element, or null if it is not a landmark.
         const getLandmarkRole = (element) => {
             const explicitRole = (element.getAttribute('role') || '').trim().split(/\s+/)[0];
@@ -100,17 +108,35 @@ const reporter = async (page, report, _, withItems) => {
             }
             return [-1, null];
         };
-        // Returns whether a link is the entire content of an item of a list.
+        // Returns whether a node is significant content, i.e. not a comment or a text node of only spacing characters.
+        const isSignificant = (node) => node.nodeType === Node.ELEMENT_NODE
+            || node.nodeType === Node.TEXT_NODE && (node.textContent || '').trim() !== '';
+        // Returns whether a link is the entire content of an item of a list, i.e. the item contains nothing else, though the link may be wrapped in elements that contain nothing else.
         const isListLink = (link) => {
-            const item = link.closest('li');
-            return Boolean(item
-                && ['UL', 'OL', 'MENU'].includes(item.parentElement?.tagName || '')
-                && despace(item.textContent) === despace(link.textContent));
+            let content = link;
+            let container = link.parentElement;
+            while (container) {
+                const significantNodes = Array.from(container.childNodes).filter(isSignificant);
+                if (significantNodes.length !== 1 || significantNodes[0] !== content) {
+                    return false;
+                }
+                if (container.tagName === 'LI') {
+                    return ['UL', 'OL', 'MENU'].includes(container.parentElement?.tagName || '');
+                }
+                content = container;
+                container = container.parentElement;
+            }
+            return false;
         };
         return elements.map(element => {
             const role = (element.getAttribute('role') || '').trim();
             const isLinkRole = !role || role.split(/\s+/)[0] === 'link';
-            if (isLinkRole && element.checkVisibility()) {
+            const isVisible = element.checkVisibility({
+                contentVisibilityAuto: true,
+                opacityProperty: true,
+                visibilityProperty: true
+            });
+            if (isLinkRole && isVisible) {
                 const [regionIndex, regionRole] = getRegion(element);
                 const styleDec = window.getComputedStyle(element);
                 return {
