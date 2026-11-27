@@ -1,0 +1,159 @@
+{
+  "rule": "ruleSelection",
+  "timeLimit": 60,
+  "acts": [
+    {
+      "type": "launch",
+      "target": {
+        "url": "file://validation/tests/targets/titledEl/index.html",
+        "what": "page with valid and invalid title attributes"
+      }
+    },
+    {
+      "type": "test",
+      "which": "testaro",
+      "what": "explicit list",
+      "withItems": true,
+      "stopOnFail": false,
+      "rules": [
+        "titledEl"
+      ],
+      "expect": [
+        [
+          "data.prevented",
+          "=",
+          false
+        ],
+        [
+          "data.ruleTestTimes.length",
+          "=",
+          1
+        ],
+        [
+          "data.ruleTestTimes.0.0",
+          "=",
+          "titledEl"
+        ],
+        [
+          "data.ruleWarnings"
+        ],
+        [
+          "standardResult.instances.0.ruleID",
+          "=",
+          "titledEl"
+        ]
+      ]
+    },
+    {
+      "type": "test",
+      "which": "testaro",
+      "what": "deprecated leading y",
+      "withItems": true,
+      "stopOnFail": false,
+      "rules": [
+        "y",
+        "titledEl"
+      ],
+      "expect": [
+        [
+          "data.prevented",
+          "=",
+          false
+        ],
+        [
+          "data.ruleTestTimes.length",
+          "=",
+          1
+        ],
+        [
+          "data.ruleWarnings.0",
+          "i",
+          "deprecated"
+        ]
+      ]
+    },
+    {
+      "type": "test",
+      "which": "testaro",
+      "what": "defaults with all but one forced off, and an unknown rule forced off",
+      "withItems": true,
+      "stopOnFail": false,
+      "rulesForcedOff": [
+        "adbID",
+        "allCaps",
+        "allHidden",
+        "allSlanted",
+        "altScheme",
+        "bulk",
+        "captionLoc",
+        "datalistRef",
+        "distortion",
+        "docType",
+        "embAc",
+        "headEl",
+        "headingAmb",
+        "hr",
+        "imageLink",
+        "labClash",
+        "legendLoc",
+        "lineHeight",
+        "linkExt",
+        "linkOldAtt",
+        "linkTo",
+        "linkUl",
+        "miniText",
+        "nonTable",
+        "optRoleSel",
+        "pseudoP",
+        "radioSet",
+        "role",
+        "secHeading",
+        "styleDiff",
+        "targetsNear",
+        "textSem",
+        "zIndex",
+        "motion",
+        "dupAtt",
+        "autocomplete",
+        "linkAmb",
+        "phOnly",
+        "buttonMenu",
+        "focAll",
+        "focAndOp",
+        "focInd",
+        "focVis",
+        "hover",
+        "hovInd",
+        "tabNav",
+        "shoot0"
+      ],
+      "expect": [
+        [
+          "data.prevented",
+          "=",
+          false
+        ],
+        [
+          "data.ruleTestTimes.length",
+          "=",
+          1
+        ],
+        [
+          "data.ruleTestTimes.0.0",
+          "=",
+          "titledEl"
+        ],
+        [
+          "data.rulesInvalid.0",
+          "=",
+          "shoot0"
+        ],
+        [
+          "data.ruleWarnings.0",
+          "i",
+          "shoot0"
+        ]
+      ]
+    }
+  ]
+}

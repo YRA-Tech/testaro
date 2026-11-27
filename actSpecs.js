@@ -157,7 +157,7 @@ exports.actSpecs = {
       {
         which: [true, 'string', 'isTest', 'tool name'],
         launch: [false, 'object', '', 'new target, browserID, and/or what, if any'],
-        rules: [false, 'array', 'areStrings', 'rule IDs or (for testaro, nuVal, or nuVnu) specifications, if not all'],
+        rules: [false, 'array', 'areStrings', 'rule IDs (for testaro, exactly the rules to test for) or (for nuVal or nuVnu) specifications, if not all'],
         scope: [false, 'string', 'isScope', 'page (default) or changed (only the subtrees changed since the previous checkpoint, for rules and tools that can be so restricted)']
       }
     ],
@@ -225,6 +225,8 @@ exports.actSpecs = {
         withItems: [true, 'boolean', '', 'itemize'],
         stopOnFail: [true, 'boolean', '', 'whether testing is to stop after first failure'],
         args: [false, 'object', 'areArrays', 'extra arguments of rules taking any'],
+        rulesForcedOn: [false, 'array', 'areStrings', 'IDs of rules to test for in addition to the default rules (not with rules)'],
+        rulesForcedOff: [false, 'array', 'areStrings', 'IDs of default rules not to test for (not with rules)'],
         retries: [false, 'number', '', 'launch retries per rule (default TESTARO_RULE_RETRIES, else 2)']
       }
     ],
