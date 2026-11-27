@@ -47,6 +47,7 @@ exports.ruleModules = {
     linkAmb: () => require('./linkAmb'),
     linkExt: () => require('./linkExt'),
     linkOldAtt: () => require('./linkOldAtt'),
+    linkStyles: () => require('./linkStyles'),
     linkTo: () => require('./linkTo'),
     linkUl: () => require('./linkUl'),
     miniText: () => require('./miniText'),

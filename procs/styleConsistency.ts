@@ -9,7 +9,7 @@
 
 /*
   styleConsistency
-  Shared procedure of the Testaro rules that report elements whose style-property values are not the plurality values among the elements of their groups (buttonStyles, headingStyles). A value is the plurality value of a property in a group if more elements of the group have it than have any other value. If 2 or more values tie for most common, every element of the group is a violator on that property.
+  Shared procedure of the Testaro rules that report elements whose style-property values are not the plurality values among the elements of their groups (buttonStyles, headingStyles, linkStyles). A value is the plurality value of a property in a group if more elements of the group have it than have any other value. If 2 or more values tie for most common, every element of the group is a violator on that property.
 */
 
 // IMPORTS

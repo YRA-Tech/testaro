@@ -247,6 +247,15 @@ const allRules = [
         defaultOn: true
     },
     {
+        id: 'linkStyles',
+        what: 'links with style-property values that are not the most common among links of their kinds in their regions',
+        contaminates: false,
+        needsAccessibleName: false,
+        local: false,
+        timeOut: 10,
+        defaultOn: false
+    },
+    {
         id: 'linkUl',
         what: 'missing underlines on inline links',
         contaminates: false,

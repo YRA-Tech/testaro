@@ -64,6 +64,7 @@ export type RuleID =
   | 'linkAmb'
   | 'linkExt'
   | 'linkOldAtt'
+  | 'linkStyles'
   | 'linkTo'
   | 'linkUl'
   | 'miniText'
@@ -123,6 +124,7 @@ export const ruleModules = {
   linkAmb: () => require('./linkAmb') as typeof import('./linkAmb'),
   linkExt: () => require('./linkExt') as typeof import('./linkExt'),
   linkOldAtt: () => require('./linkOldAtt') as typeof import('./linkOldAtt'),
+  linkStyles: () => require('./linkStyles') as typeof import('./linkStyles'),
   linkTo: () => require('./linkTo') as typeof import('./linkTo'),
   linkUl: () => require('./linkUl') as typeof import('./linkUl'),
   miniText: () => require('./miniText') as typeof import('./miniText'),
