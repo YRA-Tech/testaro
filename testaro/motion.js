@@ -19,7 +19,7 @@ const { PNG } = require('pngjs');
 
   For minimal accessibility, standards require motion to be brief, or else stoppable by the user. But stopping motion can be difficult or impossible, and, by the time a user manages to stop motion, the motion may have caused annoyance or harm. For superior accessibility, a page contains no motion until and unless the user authorizes it.
 
-  The rule is concurrent (see allRules in tests/testaro.ts): it runs while the serial rules run, on a page of its own. That page has a tall viewport (a multiple of the device viewport height, capped so the image stays within browser limits), so that motion below the fold, including motion that a page starts only when it becomes visible, is in view. After the page loads, the rule waits for a grace period, makes the first image, and makes two more images after two unequal, non-integer intervals, so that periodic motion is unlikely to coincide with both intervals and look still. Any change after the grace period is motion as a user sees it, including content that arrives late. A change between the second and third images is continuing motion; a change only between the first and second is a one-time change after loading. The larger the changed area, measured as a fraction of one device screen (and so possibly exceeding 1), the greater the ordinal severity, and continuing motion is one level more severe. A changed area smaller than a minimum is disregarded as noise.
+  The rule is concurrent (see allRules in tests/testaro.ts): it runs while the serial rules run, on a page of its own. That page has a tall viewport (a multiple of the device viewport height, capped so the image stays within browser limits), so that motion below the fold, including motion that a page starts only when it becomes visible, is in view. After the page loads, the rule waits for a grace period, makes the first image, and makes two more images at times measured from the first, chosen so that carousels advancing at the default speeds of common libraries are likely to change between each pair of images. The images are compared after the third is made, so the comparisons do not delay the images. Any change after the grace period is motion as a user sees it, including content that arrives late. A change between the second and third images is continuing motion; a change only between the first and second is a one-time change after loading. The larger the changed area, measured as a fraction of one device screen (and so possibly exceeding 1), the greater the ordinal severity, and continuing motion is one level more severe. A changed area smaller than a minimum is disregarded as noise.
 
   Motion may be invisible to the images, because a player refuses to play in an automated browser (for example a video service that blocks bots) or cannot decode the media in the browser type tested. So, after the third image, the rule also reports each rendered element that the page instructs to play automatically: a video element with an autoplay attribute or property (or playing although started by a script), an embedded YouTube, Vimeo, Wistia, or Dailymotion player whose URL requests autoplay, and a Lottie player with an autoplay attribute. The instruction suffices for a violation, whether or not the motion appears in the images. An iframe that merely permits autoplay (allow="autoplay") is not reported. The severity depends on the element's area, as for observed changes, and is one level higher, because playing media is continuing motion.
 
@@ -30,9 +30,9 @@ const { PNG } = require('pngjs');
 // CONSTANTS
 // Default time in milliseconds after loading before the first image.
 const defaultGraceMs = 1500;
-// Default times in milliseconds between the first and second and between the second and third images, unequal and non-integer in seconds so periodic motion is unlikely to coincide with both.
-const defaultFirstIntervalMs = 5300;
-const defaultSecondIntervalMs = 3800;
+// Default times in milliseconds from the first to the second and from the second to the third image. With the grace period, they put the images at 1.5, 6.4, and 11.9 seconds after loading. Carousel libraries advance by default every 3 seconds (Slick, Swiper, Flickity) or 5 seconds (Bootstrap, Owl, Splide), plus a transition. For carousels of 2 to 5 slides with those periods and some common custom ones, starting up to 1.5 seconds after loading, these times were found by simulation to detect some change in about 99% of cases, and continuing motion (a change between the second and third images) in about 90%, more robustly to delayed images than the other schedules ending within 12 seconds.
+const defaultFirstIntervalMs = 4900;
+const defaultSecondIntervalMs = 5500;
 // Multiple of the device viewport height that is the height of the tall viewport.
 const viewportMultiple = 8;
 // Maximum height of the tall viewport in device pixels, below the browser capture limit.
@@ -265,34 +265,28 @@ const reporter = async (_page, report, actIndex, _withItems, signal, graceMs = d
         // Wait for the rest of the grace period.
         await sleep(Math.max(0, graceMs - sinceAnchor), signal);
         const firstShotAt = Date.now();
+        // Schedule the images from the first one, so that the time spent making an image does not lengthen the next interval.
+        const shotOffsets = [0, firstIntervalMs, firstIntervalMs + secondIntervalMs];
         const shotTimes = [];
-        const changes = [];
-        let priorPNG = null;
-        const intervals = [firstIntervalMs, secondIntervalMs];
+        const pngs = [];
         // For each image:
-        for (let shotIndex = 0; shotIndex <= intervals.length; shotIndex++) {
-            // If it is not the first, wait for the interval before it.
-            if (shotIndex) {
-                await sleep(intervals[shotIndex - 1], signal);
-            }
+        for (const shotOffset of shotOffsets) {
+            // Wait until it is due, or make it at once if an earlier image took too long.
+            await sleep(Math.max(0, firstShotAt + shotOffset - Date.now()), signal);
+            // Record when it was begun, in milliseconds since the anchor of the grace period.
+            shotTimes.push(Math.round(Date.now() - firstShotAt + Math.max(graceMs, sinceAnchor)));
             // Make it.
-            const png = await page.screenshot({
+            pngs.push(await page.screenshot({
                 fullPage: false,
                 scale: 'css',
                 type: 'png',
                 timeout: (0, config_1.applyMultiplier)(10000)
-            });
-            shotTimes.push(Math.round(Date.now() - firstShotAt + Math.max(graceMs, sinceAnchor)));
-            // If it is not the first, compare it with the prior one.
-            if (priorPNG) {
-                changes.push(getChangeCount(priorPNG, png) / screenArea);
-            }
-            // Keep only it for the next comparison.
-            priorPNG = png;
+            }));
         }
-        priorPNG = null;
         data.shotTimes = shotTimes;
-        // The changed areas between consecutive images, as fractions of a screen.
+        // Compare consecutive images only after all are made, because comparison blocks the process and would delay the images. The changed areas are fractions of a screen.
+        const changes = pngs.slice(1).map((png, index) => getChangeCount(pngs[index], png) / screenArea);
+        pngs.length = 0;
         data.changes = changes;
         // Disregard changes too small to be motion.
         const [firstChange, secondChange] = changes.map(change => change < minChange ? 0 : change);

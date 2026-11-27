@@ -363,7 +363,8 @@ const allRules = [
         local: false,
         // The budget covers its own launch, the grace period, two intervals, three tall-viewport images, and two comparisons. It runs concurrently with the serial rules, so a generous budget does not lengthen the act.
         timeOut: 60,
-        defaultOn: true
+        // Off by default, because it costs a second visit per act and can mistake late loading for motion; a deployment may schedule it less often than its ordinary scans.
+        defaultOn: false
     },
     {
         id: 'dupAtt',
@@ -765,8 +766,10 @@ const reporter = async (page, report, actIndex) => {
                         : config_1.ruleLaunchRetries
                 });
             }
-            else if (ruleIndex === 0 && givenPage && jobRules[ruleIndex].needsAccessibleName) {
-                await (0, launch_1.preparePage)(page, { xPathNeed: 'none', needsAccessibleName: true });
+            // Otherwise, if the first serial rule runs on the given live page, which no launch for this act prepared:
+            else if (ruleIndex === 0 && givenPage) {
+                // Give it the XPath script that doTest uses and, if the rule needs them, accessible names.
+                await (0, launch_1.preparePage)(page, { xPathNeed: 'script', needsAccessibleName: rule.needsAccessibleName });
             }
             // If no page exists, the launch (or the replay of a checkpoint's acts) failed: the
             // target is unreachable, so prevent the act and stop testing rules.

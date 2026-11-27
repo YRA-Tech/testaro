@@ -20,6 +20,13 @@
       "which": "testaro",
       "stopOnFail": false,
       "withItems": true,
+      "args": {
+        "motion": [
+          500,
+          1500,
+          1700
+        ]
+      },
       "expect": [
         [
           "standardResult.instances.length",
@@ -62,6 +69,13 @@
       "which": "testaro",
       "stopOnFail": false,
       "withItems": true,
+      "args": {
+        "motion": [
+          500,
+          1000,
+          1000
+        ]
+      },
       "expect": [
         [
           "standardResult.instances.length",
@@ -90,6 +104,13 @@
       "which": "testaro",
       "stopOnFail": false,
       "withItems": true,
+      "args": {
+        "motion": [
+          500,
+          4000,
+          1000
+        ]
+      },
       "expect": [
         [
           "standardResult.instances.length",
@@ -133,6 +154,13 @@
       "which": "testaro",
       "stopOnFail": false,
       "withItems": true,
+      "args": {
+        "motion": [
+          500,
+          1000,
+          1000
+        ]
+      },
       "expect": [
         [
           "standardResult.instances.length",
@@ -223,6 +251,13 @@
         "y",
         "motion"
       ],
+      "args": {
+        "motion": [
+          500,
+          1000,
+          1000
+        ]
+      },
       "expect": [
         [
           "standardResult.instances.length",
@@ -281,6 +316,13 @@
         "y",
         "motion"
       ],
+      "args": {
+        "motion": [
+          500,
+          1000,
+          1000
+        ]
+      },
       "expect": [
         [
           "standardResult.instances.length",
