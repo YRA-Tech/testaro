@@ -35,6 +35,12 @@ export default defineConfig([
     // Files emitted by tsc from TypeScript sources (issue #73); lint the .ts sources instead.
     'types.js',
     'procs/catalog.js',
+    'procs/config.js',
+    'procs/dateTime.js',
+    'procs/error.js',
+    'procs/getSource.js',
+    'procs/nu.js',
+    'procs/shoot.js',
     'procs/standard.js',
     'procs/testaro.js',
     'procs/xPath.js',

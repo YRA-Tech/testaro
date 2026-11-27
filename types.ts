@@ -323,7 +323,8 @@ export interface Report {
   flow?: Flow;
   jobData?: {
     aborted?: boolean;
-    abortedAct?: number;
+    // The index of the act during which the job was aborted, or none.
+    abortedAct?: number | 'none';
     endTime?: string;
     elapsedSeconds?: number;
     visitLatency?: number;

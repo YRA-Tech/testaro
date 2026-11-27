@@ -202,7 +202,7 @@ export interface Report {
     flow?: Flow;
     jobData?: {
         aborted?: boolean;
-        abortedAct?: number;
+        abortedAct?: number | 'none';
         endTime?: string;
         elapsedSeconds?: number;
         visitLatency?: number;
