@@ -611,7 +611,14 @@ The Testaro rules are classified by an `allRules` array defined in the `tests/te
 
 If you do not specify rules when using the `testaro` rule engine, Testaro will test for its default rules, in the order in which they appear in the array.
 
-The optional `rules` argument for a `testaro` test act is an array whose first item is either `'y'` or `'n'` and whose remaining items are rule IDs. If `'y'`, then only the specified rules’ tests are performed. If `'n'`, then all the default rules are tested for, **except** for the specified rules.
+A `testaro` test act can select its rules in either of two ways:
+
+- `rules`: an array of rule IDs. Exactly these rules are tested for, whether or not they are default rules.
+- `rulesForcedOn` and `rulesForcedOff`: arrays of rule IDs that adjust the default rules. The default rules are tested for, plus those in `rulesForcedOn`, minus those in `rulesForcedOff`. For example, `rulesForcedOff: ['motion']` tests for every default rule except `motion`, and `rulesForcedOn: ['textNodes']` tests for every default rule and `textNodes`. Either property may be used alone.
+
+Rules are always tested for in the order of the `allRules` array, whatever the order in which they are named. The rule specification is invalid, and the act is prevented without testing for any rule, if `rules` is combined with `rulesForcedOn` or `rulesForcedOff`, if a rule is in both `rulesForcedOn` and `rulesForcedOff`, if `rules` is empty, or if `rules` or `rulesForcedOn` names a rule that does not exist. The act’s `data.error` says why, and `data.rulesInvalid` lists any rules that do not exist. A rule in `rulesForcedOff` that does not exist is ignored, because not testing for it is harmless; it is listed in `data.rulesInvalid` and in a warning in `data.ruleWarnings`.
+
+The earlier form of `rules`, whose first item is `'y'` (only the listed rules) or `'n'` (the default rules except the listed rules), is still accepted but deprecated, and an act that uses it gets a warning in `data.ruleWarnings`. Replace `['y', …]` with the list of rule IDs alone, and `['n', …]` with `rulesForcedOff`. The earlier form will be removed in a future major version.
 
 The `testaro` rule engine (like the `ibm` rule engine) has a `withItems` property. If you set it to `false`, the `standardResult` object will contain an `instances` property with summaries that identify issues and instance counts. If you set it to `true`, some of the instances will be itemized.
 

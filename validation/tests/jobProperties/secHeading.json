@@ -87,7 +87,6 @@
         ]
       ],
       "rules": [
-        "y",
         "secHeading"
       ]
     },
@@ -134,7 +133,6 @@
         ]
       ],
       "rules": [
-        "y",
         "secHeading"
       ]
     }
