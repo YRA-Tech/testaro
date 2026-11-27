@@ -47,6 +47,8 @@ export default defineConfig([
     'procs/flow.js',
     'procs/checkpoint.js',
     'procs/actDo.js',
+    'procs/testAct.js',
+    'procs/doTestAct.js',
     'procs/standard.js',
     'procs/testaro.js',
     'procs/xPath.js',
