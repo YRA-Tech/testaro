@@ -1,0 +1,45 @@
+{
+  "rule": "motion",
+  "timeLimit": 60,
+  "isolation": "page",
+  "acts": [
+    {
+      "type": "launch",
+      "target": {
+        "url": "file://validation/tests/targets/autocomplete/bad.html",
+        "what": "page with incorrect autocomplete attributes"
+      }
+    },
+    {
+      "type": "test",
+      "which": "testaro",
+      "what": "motion first, then a serial rule that needs accessible names, on the shared live page",
+      "withItems": true,
+      "stopOnFail": false,
+      "rules": [
+        "motion",
+        "autocomplete"
+      ],
+      "args": {
+        "motion": [
+          0,
+          500,
+          700
+        ]
+      },
+      "expect": [
+        [
+          "data.rulePreventions.autocomplete"
+        ],
+        [
+          "data.rulePreventions.motion"
+        ],
+        [
+          "standardResult.totals.2",
+          "=",
+          3
+        ]
+      ]
+    }
+  ]
+}
