@@ -20,6 +20,9 @@ npm test <ruleID>
 # Validate all Testaro rules
 npm run tests
 
+# Validate the request headers that launches add (optionally name the browser types)
+npm run headers
+
 # Run a job from JOBDIR/todo (optionally prefix-match by timestamp)
 node call run [jobIDStart]
 

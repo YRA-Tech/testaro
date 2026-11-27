@@ -1,6 +1,6 @@
 {
   "name": "testaro",
-  "version": "78.7.0",
+  "version": "78.8.1",
   "description": "Run 1300 web accessibility tests from 12 tools and get a standardized report",
   "main": "run.js",
   "scripts": {
@@ -11,6 +11,7 @@
     "tests": "node validation/executors/tests",
     "test": "node validation/executors/test",
     "run": "node validation/executors/run",
+    "headers": "node validation/executors/headers",
     "dirWatch": "node validation/executors/dirWatch",
     "netWatch": "node validation/executors/netWatch",
     "typecheck": "tsc --noEmit",
