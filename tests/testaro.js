@@ -100,7 +100,7 @@ const allRules = [
         needsAccessibleName: false,
         local: false,
         timeOut: 10,
-        defaultOn: false
+        defaultOn: true
     },
     {
         id: 'captionLoc',
@@ -172,7 +172,7 @@ const allRules = [
         needsAccessibleName: false,
         local: false,
         timeOut: 10,
-        defaultOn: false
+        defaultOn: true
     },
     {
         id: 'hr',
@@ -253,7 +253,7 @@ const allRules = [
         needsAccessibleName: false,
         local: false,
         timeOut: 10,
-        defaultOn: false
+        defaultOn: true
     },
     {
         id: 'linkUl',
@@ -329,12 +329,12 @@ const allRules = [
     },
     {
         id: 'styleDiff',
-        what: 'style inconsistencies',
+        what: 'style inconsistencies (superseded by buttonStyles, headingStyles, and linkStyles)',
         contaminates: false,
         needsAccessibleName: false,
         local: false,
         timeOut: 5,
-        defaultOn: true
+        defaultOn: false
     },
     {
         id: 'targetsNear',
