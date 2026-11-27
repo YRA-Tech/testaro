@@ -72,7 +72,6 @@
         ]
       ],
       "rules": [
-        "y",
         "lineHeight"
       ]
     },
@@ -114,7 +113,6 @@
         ]
       ],
       "rules": [
-        "y",
         "lineHeight"
       ]
     }

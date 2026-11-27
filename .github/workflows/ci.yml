@@ -31,6 +31,8 @@ jobs:
       # Postinstall scripts only download browsers and a JRE, which linting does not need.
       - run: npm ci --ignore-scripts
       - run: npm run lint
+      # Unit tests that need no browser.
+      - run: npm run test:unit
 
   validate:
     name: Validate Testaro rules

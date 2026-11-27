@@ -32,7 +32,6 @@
       ],
       "withItems": true,
       "rules": [
-        "y",
         "role"
       ]
     },
@@ -144,7 +143,6 @@
       ],
       "withItems": true,
       "rules": [
-        "y",
         "role"
       ]
     }

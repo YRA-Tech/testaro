@@ -10,6 +10,7 @@
     "renew": "git fetch origin && git reset --hard @{upstream} && npm ci && npx playwright install && npm run build",
     "tests": "node validation/executors/tests",
     "test": "node validation/executors/test",
+    "test:unit": "node --test validation/*.test.js",
     "run": "node validation/executors/run",
     "headers": "node validation/executors/headers",
     "dirWatch": "node validation/executors/dirWatch",
