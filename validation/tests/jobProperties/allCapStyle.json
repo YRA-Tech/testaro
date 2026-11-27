@@ -107,7 +107,6 @@
         ]
       ],
       "rules": [
-        "y",
         "allCapStyle"
       ]
     },
@@ -154,7 +153,6 @@
         ]
       ],
       "rules": [
-        "y",
         "allCapStyle"
       ]
     }

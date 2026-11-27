@@ -77,7 +77,6 @@
         ]
       ],
       "rules": [
-        "y",
         "attVal"
       ],
       "args": {
@@ -117,7 +116,6 @@
         ]
       ],
       "rules": [
-        "y",
         "attVal"
       ],
       "args": {
@@ -147,7 +145,6 @@
         ]
       ],
       "rules": [
-        "y",
         "attVal"
       ],
       "args": {
@@ -172,7 +169,6 @@
         ]
       ],
       "rules": [
-        "y",
         "attVal"
       ],
       "args": {

@@ -162,7 +162,6 @@
         ]
       ],
       "rules": [
-        "y",
         "targetsNear"
       ]
     },
@@ -229,7 +228,6 @@
         ]
       ],
       "rules": [
-        "y",
         "targetsNear"
       ]
     }

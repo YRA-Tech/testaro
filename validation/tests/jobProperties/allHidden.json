@@ -42,7 +42,6 @@
       ],
       "withItems": true,
       "rules": [
-        "y",
         "allHidden"
       ]
     },
@@ -84,7 +83,6 @@
       ],
       "withItems": true,
       "rules": [
-        "y",
         "allHidden"
       ]
     },
@@ -127,7 +125,6 @@
       ],
       "withItems": true,
       "rules": [
-        "y",
         "allHidden"
       ]
     },
@@ -190,7 +187,6 @@
       ],
       "withItems": true,
       "rules": [
-        "y",
         "allHidden"
       ]
     },
@@ -253,7 +249,6 @@
       ],
       "withItems": true,
       "rules": [
-        "y",
         "allHidden"
       ]
     },
@@ -296,7 +291,6 @@
       ],
       "withItems": true,
       "rules": [
-        "y",
         "allHidden"
       ]
     },
@@ -359,7 +353,6 @@
       ],
       "withItems": true,
       "rules": [
-        "y",
         "allHidden"
       ]
     },
@@ -422,7 +415,6 @@
       ],
       "withItems": true,
       "rules": [
-        "y",
         "allHidden"
       ]
     }
