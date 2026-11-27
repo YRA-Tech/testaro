@@ -93,11 +93,8 @@ export const curate = async (
   // failures nuVal leaves nuData={}, so result becomes {}
   // and `result.messages.filter(...)` below throws
   // "Cannot read properties of undefined (reading 'filter')".
-  // The typeof test keeps the behavior of the code before it ran in strict mode (issue #73). If
-  // nuData is a string, as when vnu-jar resolves with the raw JSON of a page without messages,
-  // result is a string too. The assignment to a property of a string was then silently ignored,
-  // and the act failed on result.messages.filter below; in strict mode the assignment itself
-  // would throw, with a different error. The failure itself is a pre-existing bug (issue #212).
+  // The typeof test keeps a primitive result from throwing in strict mode (issue #73). nuVnu
+  // parses vnu-jar's raw output before calling this (#212), so result is normally an object.
   if (result && typeof result === 'object' && ! Array.isArray(result.messages)) {
     result.messages = [];
   }
