@@ -43,6 +43,9 @@
     <main>
       <h1>Page with inconsistent link styles</h1>
       <p>This paragraph contains <a href="#d">a first link</a>, <a class="plain" href="#e">a second link without an underline</a>, and <a href="#f">a third link</a>.</p>
+      <section aria-labelledby="missing">
+        <p>This section references no label, so it is not a landmark, and <a class="red" href="#i">its red link</a> is compared with the other links in the main region.</p>
+      </section>
       <section aria-label="tie">
         <p>This named section is a region. It contains <a href="#g">a link with a solid underline</a> and <a class="wavy" href="#h">a link with a wavy underline</a>.</p>
       </section>

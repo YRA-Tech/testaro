@@ -22,7 +22,7 @@ import type {Report} from '../types';
 // CONSTANTS
 
 // Selector of headings.
-const headingSelector = 'h1, h2, h3, h4, h5, h6, [role=heading]';
+const headingSelector = 'h1, h2, h3, h4, h5, h6, [role~=heading]';
 // Style properties to be compared.
 const styleProps = [
   'font-family',
@@ -48,7 +48,12 @@ export const reporter = async (page: Page, report: Report, _: unknown, withItems
   const headingData = await loc.evaluateAll((elements, styleProps) => elements.map(element => {
     const role = (element.getAttribute('role') || '').trim();
     const isHeadingRole = ! role || role.split(/\s+/)[0] === 'heading';
-    if (isHeadingRole && element.checkVisibility()) {
+    const isVisible = element.checkVisibility({
+      contentVisibilityAuto: true,
+      opacityProperty: true,
+      visibilityProperty: true
+    });
+    if (isHeadingRole && isVisible) {
       const ariaLevel = (element.getAttribute('aria-level') || '').trim();
       const tagLevel = /^H[1-6]$/.test(element.tagName) ? Number(element.tagName[1]) : 2;
       const level = /^[1-9]\d*$/.test(ariaLevel) ? Number(ariaLevel) : tagLevel;

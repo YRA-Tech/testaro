@@ -30,7 +30,8 @@
   <body>
     <main>
       <h1>Page with consistent button styles</h1>
-      <p>This paragraph contains buttons of several types with a uniform style: <button class="btn" type="button">Native</button> <input class="btn" type="button" value="Input"> <input class="btn" type="submit" value="Submit"> <span class="btn" role="button" tabindex="0">Span</span>.</p>
+      <p>This paragraph contains buttons of several types with a uniform style: <button class="btn" type="button">Native</button> <input class="btn" type="button" value="Input"> <input class="btn" type="submit" value="Submit"> <span class="btn" role="button" tabindex="0">Span</span> <span class="btn" role=" button " tabindex="0">Spaced role</span> <span class="btn" role="button link" tabindex="0">Fallback role</span>.</p>
+      <p>It also contains buttons with deviant styles that are not tested, because they are invisible: <button class="btn" type="button" style="color: red; visibility: hidden">Unseen</button> <button class="btn" type="button" style="color: red; opacity: 0">Transparent</button>.</p>
       <p>It also contains buttons with deviant styles that are not tested, because one is hidden, one is disabled, and one has a tab role: <button class="btn" type="button" style="color: red; display: none">Hidden</button> <button class="btn" type="button" style="color: red" disabled>Disabled</button> <button class="btn" type="button" style="color: red" role="tab">Tab</button>.</p>
     </main>
   </body>

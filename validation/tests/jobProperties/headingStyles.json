@@ -24,6 +24,11 @@
           "standardResult.instances.length",
           "=",
           0
+        ],
+        [
+          "data.ruleData.headingStyles.counts.2",
+          "=",
+          4
         ]
       ],
       "rules": [

@@ -28,7 +28,7 @@ const buttonSelector = [
   'input[type=submit]',
   'input[type=reset]',
   'input[type=image]',
-  '[role=button]'
+  '[role~=button]'
 ].join(', ');
 // Style properties to be compared.
 const styleProps = [
@@ -65,7 +65,12 @@ export const reporter = async (page: Page, report: Report, _: unknown, withItems
     const role = (element.getAttribute('role') || '').trim();
     const isButtonRole = ! role || role.split(/\s+/)[0] === 'button';
     const isDisabled = element.matches(':disabled') || element.getAttribute('aria-disabled') === 'true';
-    if (isButtonRole && ! isDisabled && element.checkVisibility()) {
+    const isVisible = element.checkVisibility({
+      contentVisibilityAuto: true,
+      opacityProperty: true,
+      visibilityProperty: true
+    });
+    if (isButtonRole && ! isDisabled && isVisible) {
       const styleDec = window.getComputedStyle(element);
       return styleProps.map(styleProp => styleDec.getPropertyValue(styleProp));
     }
