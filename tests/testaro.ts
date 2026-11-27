@@ -402,7 +402,7 @@ const allRules: RuleMeta[] = [
   },
   {
     id: 'styleDiff',
-    what: 'style inconsistencies (superseded by buttonStyles, headingStyles, and linkStyles)',
+    what: 'style inconsistencies (to be superseded by revisions of buttonStyles, headingStyles, and linkStyles)',
     contaminates: false,
     needsAccessibleName: false,
     local: false,
