@@ -173,7 +173,7 @@ const allRules: RuleMeta[] = [
     needsAccessibleName: false,
     local: false,
     timeOut: 10,
-    defaultOn: true
+    defaultOn: false
   },
   {
     id: 'captionLoc',
@@ -245,7 +245,7 @@ const allRules: RuleMeta[] = [
     needsAccessibleName: false,
     local: false,
     timeOut: 10,
-    defaultOn: true
+    defaultOn: false
   },
   {
     id: 'hr',
@@ -326,7 +326,7 @@ const allRules: RuleMeta[] = [
     needsAccessibleName: false,
     local: false,
     timeOut: 10,
-    defaultOn: true
+    defaultOn: false
   },
   {
     id: 'linkUl',
@@ -407,7 +407,7 @@ const allRules: RuleMeta[] = [
     needsAccessibleName: false,
     local: false,
     timeOut: 5,
-    defaultOn: false
+    defaultOn: true
   },
   {
     id: 'targetsNear',
