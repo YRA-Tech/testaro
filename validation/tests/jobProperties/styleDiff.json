@@ -32,7 +32,6 @@
         ]
       ],
       "rules": [
-        "y",
         "styleDiff"
       ]
     },
@@ -149,7 +148,6 @@
         ]
       ],
       "rules": [
-        "y",
         "styleDiff"
       ]
     }

@@ -87,7 +87,6 @@
         ]
       ],
       "rules": [
-        "y",
         "datalistRef"
       ]
     },
@@ -129,7 +128,6 @@
         ]
       ],
       "rules": [
-        "y",
         "datalistRef"
       ]
     }

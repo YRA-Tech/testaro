@@ -10,7 +10,7 @@
   SPDX-License-Identifier: MIT
 */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.reporter = void 0;
+exports.reporter = exports.selectRules = void 0;
 const config_1 = require("../procs/config");
 const launch_1 = require("../procs/launch");
 // Function to get an empty standard result.
@@ -564,6 +564,70 @@ const testRule = async (rule, ruleArgs, onTimeout) => {
     }
     return { rule, ruleResult, ruleReport };
 };
+/*
+  Returns the rules that a testaro test act selects.
+  - With neither rules nor rulesForcedOn nor rulesForcedOff: the default rules.
+  - With rules: exactly the listed rules.
+  - With rulesForcedOn and/or rulesForcedOff: the default rules, plus those forced on, minus those forced off.
+  The selection is invalid if rules is combined with either forced property, if a rule is forced both on and off, if rules is empty, or if rules or rulesForcedOn names an unknown rule. An unknown rule in rulesForcedOff is ignored with a warning, because not testing for a rule that does not exist is harmless, while invalidating the selection would stop every rule of the act.
+  For compatibility, rules may still begin with 'y' (only the listed rules) or 'n' (the default rules except the listed ones). That form is deprecated, and a warning says so.
+  Rules are always tested for in allRules order, whatever the order in which they are named.
+*/
+const selectRules = (act) => {
+    const { rules, rulesForcedOn, rulesForcedOff } = act;
+    const allRuleIDs = allRules.map(rule => rule.id);
+    const defaultIDs = allRules.filter(rule => rule.defaultOn).map(rule => rule.id);
+    const selection = { ruleIDs: [], error: '', unknownIDs: [], warnings: [] };
+    const getUnknown = (ids) => ids.filter(id => !allRuleIDs.includes(id));
+    const invalidate = (error) => {
+        selection.error = error;
+        return selection;
+    };
+    const choose = (ids) => {
+        selection.ruleIDs = allRules.filter(rule => ids.has(rule.id)).map(rule => rule.id);
+        return selection;
+    };
+    // If an explicit list is combined with forced rules:
+    if (rules && (rulesForcedOn || rulesForcedOff)) {
+        return invalidate('rules cannot be combined with rulesForcedOn or rulesForcedOff');
+    }
+    // Otherwise, if there is an explicit list:
+    if (rules) {
+        const legacyMode = ['y', 'n'].includes(rules[0]) ? rules[0] : '';
+        const listedIDs = legacyMode ? rules.slice(1) : rules;
+        if (!listedIDs.length) {
+            return invalidate('rules names no rules');
+        }
+        selection.unknownIDs = getUnknown(listedIDs);
+        if (selection.unknownIDs.length) {
+            return invalidate(`unknown rules: ${selection.unknownIDs.join(', ')}`);
+        }
+        if (legacyMode) {
+            selection.warnings.push(legacyMode === 'y'
+                ? 'The leading \'y\' of rules is deprecated: list only the rule IDs'
+                : 'The leading \'n\' of rules is deprecated: use rulesForcedOff instead');
+        }
+        return choose(new Set(legacyMode === 'n' ? defaultIDs.filter(id => !listedIDs.includes(id)) : listedIDs));
+    }
+    // Otherwise, start from the default rules and apply any forced rules.
+    const onIDs = rulesForcedOn ?? [];
+    const offIDs = rulesForcedOff ?? [];
+    const conflictIDs = onIDs.filter(id => offIDs.includes(id));
+    if (conflictIDs.length) {
+        return invalidate(`rules forced both on and off: ${conflictIDs.join(', ')}`);
+    }
+    const unknownOnIDs = getUnknown(onIDs);
+    const unknownOffIDs = getUnknown(offIDs);
+    selection.unknownIDs = [...unknownOnIDs, ...unknownOffIDs];
+    if (unknownOnIDs.length) {
+        return invalidate(`unknown rules: ${unknownOnIDs.join(', ')}`);
+    }
+    if (unknownOffIDs.length) {
+        selection.warnings.push(`Unknown rules in rulesForcedOff were ignored: ${unknownOffIDs.join(', ')}`);
+    }
+    return choose(new Set([...defaultIDs, ...onIDs].filter(id => !offIDs.includes(id))));
+};
+exports.selectRules = selectRules;
 // Conducts and reports Testaro tests.
 const reporter = async (page, report, actIndex) => {
     const act = report.acts[actIndex];
@@ -574,18 +638,21 @@ const reporter = async (page, report, actIndex) => {
     const url = target.url;
     const browserID = act.launch ? act.launch.browserID || report.browserID : report.browserID;
     const argRules = args ? Object.keys(args) : null;
-    // Get the specification of rules to be tested for or, by default, all rules with defaultOn true.
-    const ruleSpec = act.rules
-        || ['y', ...allRules.filter(rule => rule.defaultOn).map(rule => rule.id)];
+    // Get the rules to be tested for.
+    const selection = (0, exports.selectRules)(act);
+    selection.warnings.forEach(warning => console.log(`WARNING: ${warning}`));
     // Initialize the act data.
     const data = {
         prevented: false,
         error: '',
         rulePreventions: {},
-        rulesInvalid: [],
+        rulesInvalid: selection.unknownIDs,
         ruleTestTimes: [],
         ruleData: {}
     };
+    if (selection.warnings.length) {
+        data.ruleWarnings = selection.warnings;
+    }
     // The changed subtree roots the act is scoped to, if any (report.scope, set by the acts loop).
     const scopeRoots = report.scope?.roots ?? null;
     if (scopeRoots) {
@@ -634,22 +701,10 @@ const reporter = async (page, report, actIndex) => {
             data.rulePreventions[rule.id] = ruleResult.error;
         }
     };
-    const allRuleIDs = allRules.map(rule => rule.id);
-    if (
-    // If the rule specification has at least 2 items
-    ruleSpec.length > 1
-        // and the first item is y or n
-        && ['y', 'n'].includes(ruleSpec[0])
-        // and all subsequent items are rule IDs to be included (if y) or excluded (if n):
-        && ruleSpec.slice(1).every(ruleID => allRuleIDs.includes(ruleID))) {
-        // Get the rules to be tested for and their execution order.
-        const excludeIDs = ruleSpec.slice(1);
-        const jobRuleIDs = ruleSpec[0] === 'y'
-            ? excludeIDs
-            : allRules
-                .filter(rule => rule.defaultOn && !excludeIDs.includes(rule.id))
-                .map(rule => rule.id);
-        const jobRules = allRules.filter(rule => jobRuleIDs.includes(rule.id));
+    // If the rule selection is valid:
+    if (!selection.error) {
+        // Get the rules to be tested for, in their execution order.
+        const jobRules = allRules.filter(rule => selection.ruleIDs.includes(rule.id));
         // Separate the rules that run concurrently on their own pages from the serial rules.
         const concurrentRules = jobRules.filter(rule => rule.concurrent);
         const serialRules = jobRules.filter(rule => !rule.concurrent);
@@ -801,12 +856,12 @@ const reporter = async (page, report, actIndex) => {
         // Sort the rule test times.
         data.ruleTestTimes.sort((a, b) => b[1] - a[1]);
     }
-    // Otherwise, i.e. if the rule specification is invalid:
+    // Otherwise, i.e. if the rule selection is invalid:
     else {
         // Report this and stop testing.
         standardResult.prevented = true;
         data.prevented = true;
-        const message = 'ERROR: Testaro rule specification invalid';
+        const message = `ERROR: Testaro rule specification invalid (${selection.error})`;
         data.error = message;
         console.log(message);
     }

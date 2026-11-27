@@ -107,7 +107,6 @@
         ]
       ],
       "rules": [
-        "y",
         "titledEl"
       ]
     },
@@ -164,7 +163,6 @@
         ]
       ],
       "rules": [
-        "y",
         "titledEl"
       ]
     }

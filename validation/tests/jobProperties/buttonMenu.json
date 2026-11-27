@@ -123,7 +123,6 @@
         ]
       ],
       "rules": [
-        "y",
         "buttonMenu"
       ]
     },
@@ -191,7 +190,6 @@
         ]
       ],
       "rules": [
-        "y",
         "buttonMenu"
       ]
     },
@@ -231,7 +229,6 @@
         ]
       ],
       "rules": [
-        "y",
         "buttonMenu"
       ]
     },
@@ -278,7 +275,6 @@
         ]
       ],
       "rules": [
-        "y",
         "buttonMenu"
       ]
     }

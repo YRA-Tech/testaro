@@ -22,7 +22,6 @@
       ],
       "withItems": true,
       "rules": [
-        "y",
         "textNodes"
       ],
       "args": {
@@ -42,7 +41,6 @@
       ],
       "withItems": true,
       "rules": [
-        "y",
         "textNodes"
       ],
       "args": {
@@ -67,7 +65,6 @@
       ],
       "withItems": true,
       "rules": [
-        "y",
         "textNodes"
       ],
       "args": {
@@ -151,7 +148,6 @@
       ],
       "withItems": true,
       "rules": [
-        "y",
         "textNodes"
       ],
       "args": {
@@ -216,7 +212,6 @@
       ],
       "withItems": true,
       "rules": [
-        "y",
         "textNodes"
       ],
       "args": {

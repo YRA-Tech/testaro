@@ -92,7 +92,6 @@
         ]
       ],
       "rules": [
-        "y",
         "distortion"
       ]
     },
@@ -124,7 +123,6 @@
         ]
       ],
       "rules": [
-        "y",
         "distortion"
       ]
     }

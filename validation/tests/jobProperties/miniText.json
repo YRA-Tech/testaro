@@ -87,7 +87,6 @@
         ]
       ],
       "rules": [
-        "y",
         "miniText"
       ]
     },
@@ -129,7 +128,6 @@
         ]
       ],
       "rules": [
-        "y",
         "miniText"
       ]
     }
