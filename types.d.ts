@@ -202,7 +202,7 @@ export interface Report {
     flow?: Flow;
     jobData?: {
         aborted?: boolean;
-        abortedAct?: number;
+        abortedAct?: number | 'none';
         endTime?: string;
         elapsedSeconds?: number;
         visitLatency?: number;
@@ -215,10 +215,18 @@ export interface Report {
         visitTimeoutCount?: number;
         preventions?: Partial<Record<ToolID, unknown>>;
         toolTimes?: Partial<Record<ToolID, number>>;
+        presses?: number;
+        amountRead?: number;
         [key: string]: unknown;
     };
     [key: string]: unknown;
 }
+export type TestActMessage = {
+    status: 'ok';
+} | {
+    status: 'error';
+    error: string;
+};
 export type BadWhat = null | undefined | false | '' | string | {
     description: string;
     data?: unknown;

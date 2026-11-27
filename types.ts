@@ -323,7 +323,8 @@ export interface Report {
   flow?: Flow;
   jobData?: {
     aborted?: boolean;
-    abortedAct?: number;
+    // The index of the act during which the job was aborted, or none.
+    abortedAct?: number | 'none';
     endTime?: string;
     elapsedSeconds?: number;
     visitLatency?: number;
@@ -336,10 +337,17 @@ export interface Report {
     visitTimeoutCount?: number;
     preventions?: Partial<Record<ToolID, unknown>>;
     toolTimes?: Partial<Record<ToolID, number>>;
+    // The key presses performed and the amount of text read by interaction acts.
+    presses?: number;
+    amountRead?: number;
     [key: string]: unknown;
   };
   [key: string]: unknown;
 }
+
+// The message the child process of a test act under process isolation (procs/doTestAct) sends
+// its parent (procs/doActs): ok, or an error naming what failed.
+export type TestActMessage = {status: 'ok'} | {status: 'error'; error: string};
 
 /*
   The classification a getBadWhat predicate returns for a candidate element:

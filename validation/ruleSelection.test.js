@@ -22,8 +22,9 @@ test('with no rule properties, the default rules are selected', () => {
   const selection = selectRules({});
   assert.equal(selection.error, '');
   assert.ok(defaultIDs.length > 0);
-  assert.ok(defaultIDs.includes('motion'));
+  assert.ok(defaultIDs.includes('hover'));
   assert.ok(! defaultIDs.includes('textNodes'));
+  assert.ok(! defaultIDs.includes('motion'));
 });
 
 test('rules selects exactly the listed rules, in allRules order', () => {
@@ -43,8 +44,8 @@ test('a leading y is accepted with a deprecation warning', () => {
 });
 
 test('a leading n excludes the listed rules from the defaults, with a deprecation warning', () => {
-  const selection = selectRules({rules: ['n', 'motion', 'hover']});
-  assert.deepEqual(selection.ruleIDs, defaultIDs.filter(id => ! ['motion', 'hover'].includes(id)));
+  const selection = selectRules({rules: ['n', 'focAll', 'hover']});
+  assert.deepEqual(selection.ruleIDs, defaultIDs.filter(id => ! ['focAll', 'hover'].includes(id)));
   assert.match(selection.warnings[0], /rulesForcedOff/);
 });
 
@@ -55,24 +56,24 @@ test('rulesForcedOn adds rules to the defaults', () => {
 });
 
 test('rulesForcedOff removes rules from the defaults', () => {
-  const selection = selectRules({rulesForcedOff: ['motion']});
-  assert.deepEqual(selection.ruleIDs, defaultIDs.filter(id => id !== 'motion'));
+  const selection = selectRules({rulesForcedOff: ['hover']});
+  assert.deepEqual(selection.ruleIDs, defaultIDs.filter(id => id !== 'hover'));
 });
 
 test('rulesForcedOn and rulesForcedOff combine', () => {
-  const selection = selectRules({rulesForcedOn: ['textNodes'], rulesForcedOff: ['motion']});
+  const selection = selectRules({rulesForcedOn: ['textNodes'], rulesForcedOff: ['hover']});
   assert.ok(selection.ruleIDs.includes('textNodes'));
-  assert.ok(! selection.ruleIDs.includes('motion'));
+  assert.ok(! selection.ruleIDs.includes('hover'));
 });
 
 test('forcing a default rule on, or a non-default rule off, changes nothing', () => {
-  assert.deepEqual(selectRules({rulesForcedOn: ['motion'], rulesForcedOff: ['textNodes']}).ruleIDs, defaultIDs);
+  assert.deepEqual(selectRules({rulesForcedOn: ['hover'], rulesForcedOff: ['motion']}).ruleIDs, defaultIDs);
 });
 
 test('an unknown rule in rulesForcedOff is ignored with a warning', () => {
-  const selection = selectRules({rulesForcedOff: ['shoot0', 'motion']});
+  const selection = selectRules({rulesForcedOff: ['shoot0', 'hover']});
   assert.equal(selection.error, '');
-  assert.deepEqual(selection.ruleIDs, defaultIDs.filter(id => id !== 'motion'));
+  assert.deepEqual(selection.ruleIDs, defaultIDs.filter(id => id !== 'hover'));
   assert.deepEqual(selection.unknownIDs, ['shoot0']);
   assert.match(selection.warnings[0], /shoot0/);
 });
