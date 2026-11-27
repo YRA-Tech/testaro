@@ -43,34 +43,6 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-/*
-  doTestAct
-  Performs the tests of an act, under process isolation.
-  This file is designed to be run as a child process: it reads the temporary report, performs
-  the act with procs/testAct.js, writes the revised report, and messages the parent with a
-  TestActMessage (types.ts). Compiled to doTestAct.js by tsc (issue #73); edit this file, not
-  the emitted one. The imports follow the error handlers, as the requires did, so that an error
-  while loading the modules is handled.
-
-  Kept as it is (issue #73; see #217): each process event has two handlers, and the first exits
-  the process, so the second, which messages the parent, never runs.
-*/
-// ERROR LOGGING
-// Log uncaught exceptions.
-process.on('uncaughtException', error => {
-    console.error(`ERROR:\n${error.stack || 'Uncaught exception'}`);
-    process.exit(1);
-});
-// Log unhandled rejections.
-process.on('unhandledRejection', reason => {
-    console.error(`ERROR:\n${reason?.stack || 'Unhandled rejection'}`);
-    process.exit(1);
-});
-// IMPORTS
-// Module to perform file operations.
-const fs = __importStar(require("fs/promises"));
-// Function to perform a test act.
-const testAct_1 = require("./testAct");
 // FUNCTIONS
 // Sends a message to the parent process.
 const sendMessage = (message) => {
@@ -80,9 +52,34 @@ const sendMessage = (message) => {
         }
     }
     catch (error) {
-        console.log(`ERROR: process.send threw ${error.message} trying to send message ${message} to parent`);
+        console.log(`ERROR: process.send threw ${error.message} trying to send message ${JSON.stringify(message)} to parent`);
     }
 };
+// ERROR LOGGING
+// Log an uncaught exception, tell the parent, and exit.
+process.on('uncaughtException', error => {
+    console.error(`ERROR:\n${error.stack || 'Uncaught exception'}`);
+    sendMessage({
+        status: 'error',
+        error: 'uncaughtException'
+    });
+    process.exit(1);
+});
+// Log an unhandled rejection, tell the parent, and exit.
+process.on('unhandledRejection', reason => {
+    console.error(`ERROR:\n${reason?.stack || 'Unhandled rejection'}`);
+    sendMessage({
+        status: 'error',
+        error: 'unhandledRejection'
+    });
+    process.exit(1);
+});
+// IMPORTS
+// Module to perform file operations.
+const fs = __importStar(require("fs/promises"));
+// Function to perform a test act.
+const testAct_1 = require("./testAct");
+// FUNCTIONS
 // Performs tests of a test act.
 const doTestAct = async (reportPath, actIndex) => {
     // Get the temporary report.
@@ -115,23 +112,6 @@ const doTestAct = async (reportPath, actIndex) => {
     sendMessage(status === 'ok' ? { status } : { status, error });
     process.exit(status === 'ok' ? 0 : 1);
 };
-process.on('uncaughtException', error => {
-    console.log(`ERROR: uncaughtException (${error.message})`);
-    sendMessage({
-        status: 'error',
-        error: 'uncaughtException'
-    });
-    process.exit(1);
-});
-process.on('unhandledRejection', error => {
-    const message = error && error.message ? error.message : String(error);
-    console.log(`ERROR: unhandledRejection (${message})`);
-    sendMessage({
-        status: 'error',
-        error: 'unhandledRejection'
-    });
-    process.exit(1);
-});
 const args = process.argv;
 // Perform the specified test act.
 doTestAct(args[2], Number.parseInt(args[3]));

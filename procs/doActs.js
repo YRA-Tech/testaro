@@ -526,8 +526,15 @@ exports.doActs = async (report, opts = {}) => {
               }
             });
           });
-          // If the child process sent a message:
-          if (actResult.kind === 'message') {
+          // Whether the child process failed before writing the report and said so (#217).
+          const childFailure = actResult.kind === 'message'
+          && actResult.message
+          && actResult.message.status === 'error'
+          && ['uncaughtException', 'unhandledRejection'].includes(actResult.message.error)
+            ? actResult.message.error
+            : '';
+          // If the child process sent a message after writing the report:
+          if (actResult.kind === 'message' && ! childFailure) {
             // Get the revised tempReport file.
             tempReportJSON = await fs.readFile(reportPath, 'utf8');
             try {
@@ -554,7 +561,7 @@ exports.doActs = async (report, opts = {}) => {
               break;
             }
           }
-          // Otherwise, i.e. if the child process closed abnormally:
+          // Otherwise, i.e. if the child process failed or closed abnormally:
           else {
             // Report this and, if so configured, that the job was aborted.
             const {code, error, kind, signal} = actResult;
@@ -566,6 +573,9 @@ exports.doActs = async (report, opts = {}) => {
                 actIndex,
                 `Timed out at ${Math.round(limitMs / 1000)} seconds`
               );
+            }
+            else if (childFailure) {
+              addError(true, abortAssertively, tempReport, actIndex, `Failed with ${childFailure}`);
             }
             else if (kind === 'close') {
               addError(
