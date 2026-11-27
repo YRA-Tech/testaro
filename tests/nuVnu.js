@@ -93,6 +93,15 @@ const reporter = async (page, report, actIndex) => {
             try {
                 // Get Nu Html Checker output on it.
                 nuData = await vnu.check(['--format', 'json', '--stdout', pagePath]);
+                /*
+                  vnu-jar resolves with the checker's raw standard output, a JSON string, when the
+                  checker exits normally, i.e. finds no errors (it may still report warnings and
+                  information). Parse it, as the rejected case below does (#212). Output that is not
+                  JSON is caught below and reported as an error.
+                */
+                if (typeof nuData === 'string') {
+                    nuData = JSON.parse(nuData);
+                }
             }
             // If any error was thrown:
             catch (error) {
