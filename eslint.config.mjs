@@ -36,6 +36,7 @@ export default defineConfig([
     'types.js',
     'procs/catalog.js',
     'procs/standard.js',
+    'procs/styleConsistency.js',
     'procs/testaro.js',
     'procs/xPath.js',
     'testaro/*.js',

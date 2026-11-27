@@ -53,6 +53,7 @@ export type RuleID =
   | 'focVis'
   | 'headEl'
   | 'headingAmb'
+  | 'headingStyles'
   | 'hovInd'
   | 'hover'
   | 'hr'
@@ -111,6 +112,7 @@ export const ruleModules = {
   focVis: () => require('./focVis') as typeof import('./focVis'),
   headEl: () => require('./headEl') as typeof import('./headEl'),
   headingAmb: () => require('./headingAmb') as typeof import('./headingAmb'),
+  headingStyles: () => require('./headingStyles') as typeof import('./headingStyles'),
   hovInd: () => require('./hovInd') as typeof import('./hovInd'),
   hover: () => require('./hover') as typeof import('./hover'),
   hr: () => require('./hr') as typeof import('./hr'),

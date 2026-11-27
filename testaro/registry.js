@@ -36,6 +36,7 @@ exports.ruleModules = {
     focVis: () => require('./focVis'),
     headEl: () => require('./headEl'),
     headingAmb: () => require('./headingAmb'),
+    headingStyles: () => require('./headingStyles'),
     hovInd: () => require('./hovInd'),
     hover: () => require('./hover'),
     hr: () => require('./hr'),

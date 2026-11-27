@@ -8,13 +8,14 @@
 
 // IMPORTS
 
-import type {Locator, Page} from 'playwright';
-import {getBasicResult} from '../procs/testaro';
+import type {Page} from 'playwright';
+import {getStyleResult} from '../procs/styleConsistency';
+import type {StyledElement} from '../procs/styleConsistency';
 import type {Report} from '../types';
 
 /*
   buttonStyles
-  This test reports style differences among buttons. It assumes that an accessible page gives all its buttons the same values on particular style properties, listed in the 'styleProps' array. A violation is a button’s value on one of those properties that is not the plurality value of that property among the buttons of the page, i.e. not more common than every other value. If 2 or more values tie for most common, every button is a violator on that property. Buttons that are not rendered, are disabled, or have explicit roles other than button are not tested, since their styles may legitimately differ. The values compared are those of the page as loaded, not those in focus or hover states. This test uses the getBasicResult function because a button’s verdict depends on the styles of all the buttons.
+  This test reports style differences among buttons. It assumes that an accessible page gives all its buttons the same values on particular style properties, listed in the 'styleProps' array. A violation is a button’s value on one of those properties that is not the plurality value of that property among the buttons of the page, i.e. not more common than every other value. If 2 or more values tie for most common, every button is a violator on that property. Buttons that are not rendered, are disabled, or have explicit roles other than button are not tested, since their styles may legitimately differ. The values compared are those of the page as loaded, not those in focus or hover states. This test uses the getBasicResult function (through getStyleResult) because a button’s verdict depends on the styles of all the buttons.
   Compiled to buttonStyles.js by tsc (issue #73); edit this file, not the emitted one.
 */
 
@@ -56,8 +57,6 @@ const styleProps = [
 
 // FUNCTIONS
 
-// Returns a quoted value.
-const quote = (value: string) => `“${value}”`;
 // Runs the test and returns the result.
 export const reporter = async (page: Page, report: Report, _: unknown, withItems: boolean) => {
   const loc = page.locator(buttonSelector);
@@ -72,58 +71,16 @@ export const reporter = async (page: Page, report: Report, _: unknown, withItems
     }
     return null;
   }), styleProps);
-  const buttonIndexes = buttonValues
-  .map((values, index) => values ? index : -1)
-  .filter(index => index > -1);
-  // Initialize the distributions of values of the style properties on which buttons differ.
-  const distributions: Record<string, Record<string, number>> = {};
-  const violations: {loc: Locator; what: string}[] = [];
-  // For each style property:
-  styleProps.forEach((styleProp, propIndex) => {
-    // Get the distribution of its values among the buttons.
-    const counts: Record<string, number> = Object.create(null);
-    buttonIndexes.forEach(index => {
-      const value = buttonValues[index]![propIndex];
-      counts[value] = (counts[value] || 0) + 1;
-    });
-    // If the buttons differ on it:
-    if (Object.keys(counts).length > 1) {
-      // Add its distribution to the data.
-      distributions[styleProp] = {...counts};
+  // Treat the testable buttons as one group.
+  const buttons: StyledElement[] = [];
+  buttonValues.forEach((values, index) => {
+    if (values) {
+      buttons.push({index, group: 'button', values});
     }
   });
-  // For each testable button:
-  buttonIndexes.forEach(index => {
-    // For each style property on which buttons differ:
-    styleProps.forEach((styleProp, propIndex) => {
-      const counts = distributions[styleProp];
-      if (counts) {
-        const value = buttonValues[index]![propIndex];
-        // Get the most common values.
-        const maxCount = Math.max(...Object.values(counts));
-        const topValues = Object.keys(counts).filter(topValue => counts[topValue] === maxCount);
-        // If the button’s value is not the plurality value:
-        if (topValues.length > 1 || topValues[0] !== value) {
-          // Add a violation, describing the plurality value or the tied values.
-          const isTied = topValues.includes(value);
-          const otherValues = topValues
-          .filter(topValue => topValue !== value)
-          .map(quote)
-          .join(' or ');
-          const tiedOther = buttonIndexes.length > 2 ? 'other buttons have' : 'another button has';
-          violations.push({
-            loc: loc.nth(index),
-            what: `Element ${styleProp} value is ${quote(value)}, but ${isTied ? tiedOther : 'more buttons have'} ${otherValues}`
-          });
-        }
-      }
-    });
-  });
   // Get and return a result.
-  const data = {
-    buttonCount: buttonIndexes.length,
-    distributions
-  };
   const whats = 'Buttons have style-property values that are not the most common among buttons';
-  return await getBasicResult(report, withItems, 'buttonStyles', 0, whats, data, violations);
+  return await getStyleResult(
+    report, withItems, 'buttonStyles', whats, loc, styleProps, buttons, () => ['button', 'buttons']
+  );
 };

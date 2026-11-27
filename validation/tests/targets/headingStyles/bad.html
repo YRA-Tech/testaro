@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<!--
+  © 2026 Jonathan Robert Pool.
+
+  Licensed under the MIT License. See LICENSE file at the project root or
+  https://opensource.org/license/mit/ for details.
+
+  SPDX-License-Identifier: MIT
+-->
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <title>Page with inconsistent heading styles</title>
+    <meta name="description" content="tester">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+      body {
+        font: 16px serif;
+        color: rgb(0, 0, 0);
+      }
+      .aside {
+        color: rgb(255, 0, 0);
+      }
+      .spaced {
+        letter-spacing: 1px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Page with inconsistent heading styles</h1>
+      <h2>First level-2 heading</h2>
+      <p>This page has 4 level-2 headings.</p>
+      <h2>Second level-2 heading</h2>
+      <div class="aside">
+        <h2>Third level-2 heading</h2>
+        <p>The third level-2 heading inherits a deviant color from its parent.</p>
+      </div>
+      <div role="heading" aria-level="2">Fourth level-2 heading</div>
+      <p>The fourth level-2 heading has a heading role but the size and weight of body text.</p>
+      <h3>First level-3 heading</h3>
+      <p>This page has 2 level-3 headings with different letter spacings, so neither is the most common.</p>
+      <h3 class="spaced">Second level-3 heading</h3>
+    </main>
+  </body>
+</html>

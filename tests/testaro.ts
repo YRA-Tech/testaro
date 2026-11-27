@@ -224,6 +224,15 @@ const allRules: RuleMeta[] = [
     defaultOn: true
   },
   {
+    id: 'headingStyles',
+    what: 'headings with style-property values that are not the most common among headings of their levels',
+    contaminates: false,
+    needsAccessibleName: false,
+    local: false,
+    timeOut: 10,
+    defaultOn: false
+  },
+  {
     id: 'hr',
     what: 'hr element instead of styles used for vertical segmentation',
     contaminates: false,
