@@ -718,22 +718,9 @@ const reporter = async (page, report, actIndex) => {
             if (!page) {
                 // The launch recorded its reason on the act. Keep it: the data and result returned here replace the act's, so it would otherwise be lost. The rule is identified by its key in rulePreventions.
                 const message = String(report.jobData?.abortMessage
-<<<<<<< HEAD
-<<<<<<< HEAD
-                    || `Launch or checkpoint replay failed before rule ${rule.id}`);
-                data.rulePreventions[rule.id] = message;
-=======
-                    || act.data?.error
-                    || `Launch or checkpoint replay failed before rule ${ruleResult.id}`);
-                ruleResult.prevented = true;
-                ruleResult.error = message;
-                data.rulePreventions[ruleResult.id] = message;
->>>>>>> main
-=======
                     || act.data?.error
                     || `Launch or checkpoint replay failed before rule ${rule.id}`);
                 data.rulePreventions[rule.id] = message;
->>>>>>> motionConcurrent
                 data.prevented = true;
                 data.error = message;
                 standardResult.prevented = true;
