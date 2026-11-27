@@ -35,6 +35,13 @@ export interface LaunchOptions {
   independentBrowser?: boolean;
 }
 
+// The result of a navigation by goTo: success, or failure with the reason.
+export interface NavResult {
+  success: boolean;
+  error?: string;
+  [key: string]: unknown;
+}
+
 // Launches a browser, navigates to a target, and returns the page, or undefined on failure.
 export function launch(opts?: LaunchOptions): Promise<Page | undefined>;
 // Prepares an already loaded page for a tool.
@@ -46,4 +53,6 @@ export function browserClose(page: Page | null | undefined): Promise<void>;
 // Navigates a page to a URL.
 export function goTo(
   report: Report, page: Page, url: string, timeout: number, waitUntil: string
-): Promise<unknown>;
+): Promise<NavResult>;
+// Waits for a number of milliseconds, or until the signal aborts; resolves to ''.
+export function wait(ms: number, signal?: AbortSignal): Promise<string>;

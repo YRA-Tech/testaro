@@ -337,6 +337,9 @@ export interface Report {
     visitTimeoutCount?: number;
     preventions?: Partial<Record<ToolID, unknown>>;
     toolTimes?: Partial<Record<ToolID, number>>;
+    // The key presses performed and the amount of text read by interaction acts.
+    presses?: number;
+    amountRead?: number;
     [key: string]: unknown;
   };
   [key: string]: unknown;

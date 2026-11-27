@@ -215,6 +215,8 @@ export interface Report {
         visitTimeoutCount?: number;
         preventions?: Partial<Record<ToolID, unknown>>;
         toolTimes?: Partial<Record<ToolID, number>>;
+        presses?: number;
+        amountRead?: number;
         [key: string]: unknown;
     };
     [key: string]: unknown;
