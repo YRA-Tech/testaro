@@ -78,7 +78,6 @@
         ]
       ],
       "rules": [
-        "y",
         "legendLoc"
       ]
     },
@@ -125,7 +124,6 @@
         ]
       ],
       "rules": [
-        "y",
         "legendLoc"
       ]
     }

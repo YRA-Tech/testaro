@@ -34,7 +34,7 @@
       "which": "testaro",
       "withItems": true,
       "stopOnFail": false,
-      "rules": ["y", "allCaps"],
+      "rules": ["allCaps"],
       "expect": [
         ["standardResult.totals.0", "=", 6],
         ["standardResult.instances.length", "=", 6],
@@ -51,7 +51,7 @@
       "which": "testaro",
       "withItems": true,
       "stopOnFail": false,
-      "rules": ["y", "allCaps"],
+      "rules": ["allCaps"],
       "expect": [
         ["standardResult.totals.0", "=", 3],
         ["standardResult.instances.length", "=", 3],

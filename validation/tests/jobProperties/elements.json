@@ -22,7 +22,6 @@
       ],
       "withItems": true,
       "rules": [
-        "y",
         "elements"
       ],
       "args": {
@@ -42,7 +41,6 @@
       ],
       "withItems": true,
       "rules": [
-        "y",
         "elements"
       ],
       "args": {
@@ -62,7 +60,6 @@
       ],
       "withItems": true,
       "rules": [
-        "y",
         "elements"
       ],
       "args": {
@@ -83,7 +80,6 @@
       ],
       "withItems": true,
       "rules": [
-        "y",
         "elements"
       ],
       "args": {
@@ -134,7 +130,6 @@
       ],
       "withItems": true,
       "rules": [
-        "y",
         "elements"
       ],
       "args": {
@@ -165,7 +160,6 @@
       ],
       "withItems": true,
       "rules": [
-        "y",
         "elements"
       ],
       "args": {
@@ -191,7 +185,6 @@
       ],
       "withItems": true,
       "rules": [
-        "y",
         "elements"
       ],
       "args": {
@@ -223,7 +216,6 @@
       ],
       "withItems": true,
       "rules": [
-        "y",
         "elements"
       ],
       "args": {
@@ -284,7 +276,6 @@
       ],
       "withItems": true,
       "rules": [
-        "y",
         "elements"
       ],
       "args": {

@@ -31,7 +31,6 @@
       "which": "testaro",
       "withItems": true,
       "rules": [
-        "y",
         "altScheme",
         "linkTo",
         "phOnly"
@@ -89,7 +88,6 @@
       "which": "testaro",
       "withItems": true,
       "rules": [
-        "y",
         "altScheme",
         "linkTo",
         "phOnly"
@@ -159,7 +157,6 @@
       "which": "testaro",
       "withItems": true,
       "rules": [
-        "y",
         "altScheme",
         "linkTo",
         "phOnly"

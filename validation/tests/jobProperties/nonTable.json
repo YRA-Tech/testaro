@@ -127,7 +127,6 @@
         ]
       ],
       "rules": [
-        "y",
         "nonTable"
       ]
     },
@@ -179,7 +178,6 @@
         ]
       ],
       "rules": [
-        "y",
         "nonTable"
       ]
     }

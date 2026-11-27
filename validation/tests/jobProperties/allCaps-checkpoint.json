@@ -33,7 +33,6 @@
       "withItems": true,
       "stopOnFail": false,
       "rules": [
-        "y",
         "allCaps"
       ],
       "what": "before the action, at checkpoint 0",
@@ -76,7 +75,6 @@
       "withItems": true,
       "stopOnFail": false,
       "rules": [
-        "y",
         "allCaps"
       ],
       "what": "after the action, at checkpoint 1",
@@ -114,7 +112,6 @@
       "withItems": true,
       "stopOnFail": false,
       "rules": [
-        "y",
         "allCaps"
       ],
       "what": "after the action, at checkpoint 1, scoped to the changed subtree",
@@ -162,7 +159,6 @@
       "withItems": true,
       "stopOnFail": false,
       "rules": [
-        "y",
         "allCaps"
       ],
       "what": "after navigation to another page",

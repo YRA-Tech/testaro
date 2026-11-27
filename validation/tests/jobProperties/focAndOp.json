@@ -182,7 +182,6 @@
         ]
       ],
       "rules": [
-        "y",
         "focAndOp"
       ]
     },
@@ -244,7 +243,6 @@
         ]
       ],
       "rules": [
-        "y",
         "focAndOp"
       ]
     },
@@ -276,7 +274,6 @@
         ]
       ],
       "rules": [
-        "y",
         "focAndOp"
       ]
     }

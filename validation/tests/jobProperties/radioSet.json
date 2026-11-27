@@ -107,7 +107,6 @@
         ]
       ],
       "rules": [
-        "y",
         "radioSet"
       ]
     },
@@ -154,7 +153,6 @@
         ]
       ],
       "rules": [
-        "y",
         "radioSet"
       ]
     },
@@ -182,7 +180,6 @@
         ]
       ],
       "rules": [
-        "y",
         "radioSet"
       ]
     }

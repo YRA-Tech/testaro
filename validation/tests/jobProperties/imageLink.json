@@ -82,7 +82,6 @@
         ]
       ],
       "rules": [
-        "y",
         "imageLink"
       ]
     },
@@ -124,7 +123,6 @@
         ]
       ],
       "rules": [
-        "y",
         "imageLink"
       ]
     }

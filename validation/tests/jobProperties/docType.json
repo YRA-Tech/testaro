@@ -27,7 +27,6 @@
       ],
       "withItems": true,
       "rules": [
-        "y",
         "docType"
       ]
     },
@@ -79,7 +78,6 @@
       ],
       "withItems": true,
       "rules": [
-        "y",
         "docType"
       ]
     }

@@ -29,7 +29,6 @@
       "withItems": true,
       "stopOnFail": false,
       "rules": [
-        "y",
         "allCaps"
       ],
       "expect": [
@@ -99,7 +98,6 @@
       "withItems": false,
       "stopOnFail": false,
       "rules": [
-        "y",
         "allCaps"
       ],
       "expect": [
@@ -136,7 +134,6 @@
       "withItems": true,
       "stopOnFail": false,
       "rules": [
-        "y",
         "allCaps"
       ],
       "expect": [
