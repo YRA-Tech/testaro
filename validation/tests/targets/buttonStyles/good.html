@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<!--
+  © 2026 Jonathan Robert Pool.
+
+  Licensed under the MIT License. See LICENSE file at the project root or
+  https://opensource.org/license/mit/ for details.
+
+  SPDX-License-Identifier: MIT
+-->
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <title>Page with consistent button styles</title>
+    <meta name="description" content="tester">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+      .btn {
+        display: inline-block;
+        font: normal 400 16px/1.5 sans-serif;
+        color: rgb(0, 0, 0);
+        background-color: rgb(220, 220, 220);
+        border: 1px solid rgb(0, 0, 0);
+        border-radius: 4px;
+        padding: 4px 8px;
+        min-width: 44px;
+        min-height: 44px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Page with consistent button styles</h1>
+      <p>This paragraph contains buttons of several types with a uniform style: <button class="btn" type="button">Native</button> <input class="btn" type="button" value="Input"> <input class="btn" type="submit" value="Submit"> <span class="btn" role="button" tabindex="0">Span</span>.</p>
+      <p>It also contains buttons with deviant styles that are not tested, because one is hidden, one is disabled, and one has a tab role: <button class="btn" type="button" style="color: red; display: none">Hidden</button> <button class="btn" type="button" style="color: red" disabled>Disabled</button> <button class="btn" type="button" style="color: red" role="tab">Tab</button>.</p>
+    </main>
+  </body>
+</html>

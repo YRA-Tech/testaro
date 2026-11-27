@@ -152,6 +152,15 @@ const allRules: RuleMeta[] = [
     defaultOn: true
   },
   {
+    id: 'buttonStyles',
+    what: 'buttons with style-property values that are not the most common among buttons',
+    contaminates: false,
+    needsAccessibleName: false,
+    local: false,
+    timeOut: 10,
+    defaultOn: false
+  },
+  {
     id: 'captionLoc',
     what: 'caption elements that are not first children of table elements',
     contaminates: false,

@@ -22,6 +22,7 @@ exports.ruleModules = {
     autocomplete: () => require('./autocomplete'),
     bulk: () => require('./bulk'),
     buttonMenu: () => require('./buttonMenu'),
+    buttonStyles: () => require('./buttonStyles'),
     captionLoc: () => require('./captionLoc'),
     datalistRef: () => require('./datalistRef'),
     distortion: () => require('./distortion'),

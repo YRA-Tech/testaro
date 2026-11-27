@@ -39,6 +39,7 @@ export type RuleID =
   | 'autocomplete'
   | 'bulk'
   | 'buttonMenu'
+  | 'buttonStyles'
   | 'captionLoc'
   | 'datalistRef'
   | 'distortion'
@@ -96,6 +97,7 @@ export const ruleModules = {
   autocomplete: () => require('./autocomplete') as typeof import('./autocomplete'),
   bulk: () => require('./bulk') as typeof import('./bulk'),
   buttonMenu: () => require('./buttonMenu') as typeof import('./buttonMenu'),
+  buttonStyles: () => require('./buttonStyles') as typeof import('./buttonStyles'),
   captionLoc: () => require('./captionLoc') as typeof import('./captionLoc'),
   datalistRef: () => require('./datalistRef') as typeof import('./datalistRef'),
   distortion: () => require('./distortion') as typeof import('./distortion'),

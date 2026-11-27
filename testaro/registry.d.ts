@@ -6,7 +6,7 @@ export interface RuleReport {
 export interface RuleModule {
     reporter: (...args: any[]) => Promise<RuleReport>;
 }
-export type RuleID = 'adbID' | 'allCapStyle' | 'allCaps' | 'allHidden' | 'allSlanted' | 'altScheme' | 'attVal' | 'autocomplete' | 'bulk' | 'buttonMenu' | 'captionLoc' | 'datalistRef' | 'distortion' | 'docType' | 'dupAtt' | 'elements' | 'embAc' | 'focAll' | 'focAndOp' | 'focInd' | 'focVis' | 'headEl' | 'headingAmb' | 'hovInd' | 'hover' | 'hr' | 'imageLink' | 'labClash' | 'legendLoc' | 'lineHeight' | 'linkAmb' | 'linkExt' | 'linkOldAtt' | 'linkTo' | 'linkUl' | 'miniText' | 'motion' | 'nonTable' | 'optRoleSel' | 'phOnly' | 'pseudoP' | 'radioSet' | 'role' | 'secHeading' | 'styleDiff' | 'tabNav' | 'targetsNear' | 'textNodes' | 'textSem' | 'title' | 'titledEl' | 'zIndex';
+export type RuleID = 'adbID' | 'allCapStyle' | 'allCaps' | 'allHidden' | 'allSlanted' | 'altScheme' | 'attVal' | 'autocomplete' | 'bulk' | 'buttonMenu' | 'buttonStyles' | 'captionLoc' | 'datalistRef' | 'distortion' | 'docType' | 'dupAtt' | 'elements' | 'embAc' | 'focAll' | 'focAndOp' | 'focInd' | 'focVis' | 'headEl' | 'headingAmb' | 'hovInd' | 'hover' | 'hr' | 'imageLink' | 'labClash' | 'legendLoc' | 'lineHeight' | 'linkAmb' | 'linkExt' | 'linkOldAtt' | 'linkTo' | 'linkUl' | 'miniText' | 'motion' | 'nonTable' | 'optRoleSel' | 'phOnly' | 'pseudoP' | 'radioSet' | 'role' | 'secHeading' | 'styleDiff' | 'tabNav' | 'targetsNear' | 'textNodes' | 'textSem' | 'title' | 'titledEl' | 'zIndex';
 export declare const ruleModules: {
     adbID: () => typeof import('./adbID');
     allCapStyle: () => typeof import('./allCapStyle');
@@ -18,6 +18,7 @@ export declare const ruleModules: {
     autocomplete: () => typeof import('./autocomplete');
     bulk: () => typeof import('./bulk');
     buttonMenu: () => typeof import('./buttonMenu');
+    buttonStyles: () => typeof import('./buttonStyles');
     captionLoc: () => typeof import('./captionLoc');
     datalistRef: () => typeof import('./datalistRef');
     distortion: () => typeof import('./distortion');
