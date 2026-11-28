@@ -78,7 +78,7 @@ exports.actSpecs = {
                     true, 'array', '', 'act result property tree in a.b.c format; if to exist, also one of “<=>!” and criterion'
                 ],
                 jump: [false, 'number', '', 'offset of next command from this one, or 0 to stop'],
-                next: [false, 'string', 'hasLength', 'name of next command'],
+                next: [false, 'string', 'hasLength', 'value of the name property of the act to perform next (any act may have a name)'],
                 what: [false, 'string', 'hasLength', 'comment']
             }
         ],

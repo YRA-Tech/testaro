@@ -155,6 +155,15 @@ export const isTrue = (
   object: Record<string, unknown> | undefined, specs: Expectation, catalog?: Catalog
 ): [unknown, boolean | undefined] => {
   const property = specs[0];
+  /*
+    A property path that is not a nonempty string cannot be evaluated: it is unfulfilled. An
+    empty path would make the actual value the object itself, so an act's expectation of it
+    would put the act inside its own expectations, and the report could not be serialized
+    (#228). A path that is not a string would make split throw.
+  */
+  if (typeof property !== 'string' || ! property.length) {
+    return [null, false];
+  }
   const propertyTree = property.split('.');
   // Test-act expectations reference results by property path. Most fixtures use the
   // bare standardResult.* path, whose value lives at act.result.standardResult; a few
@@ -167,10 +176,8 @@ export const isTrue = (
   ) {
     base = object.result as Record<string, unknown>;
   }
-  // Kept as it is (issue #73; see #228): if the object is undefined (a next act after an act
-  // without a result) and the property is not empty, this throws. If the property is empty, the
-  // actual value is the object itself, so an act's expectation of it makes the act circular.
-  let actual: unknown = property.length ? base![propertyTree[0]] : base;
+  // An undefined object has no properties.
+  let actual: unknown = base?.[propertyTree[0]];
   // Identify the actual value of the specified property.
   while (propertyTree.length > 1 && actual !== undefined) {
     propertyTree.shift();
@@ -349,9 +356,11 @@ export const doActs = async (report: Report, opts: DoActsOptions = {}): Promise<
         console.log(`>> ${condition[0]}${logSuffix}`);
         // Identify the act to be checked: the last non-next act before this one.
         const ifActIndex = acts.slice(0, actIndex).map(act => act.type !== 'next').lastIndexOf(true);
-        // Determine whether its jump condition is true.
-        const truth = ifActIndex > -1
-          ? isTrue(acts[ifActIndex].result, condition, tempReport.catalog)
+        // Determine whether its jump condition is true. It is not if there is no such act, or the
+        // act has no result: a launch act, or an act that an earlier next act jumped over (#228).
+        const ifResult = ifActIndex > -1 ? acts[ifActIndex].result : undefined;
+        const truth = ifResult
+          ? isTrue(ifResult, condition, tempReport.catalog)
           : [null, false];
         // Add the result to the act.
         act.result = {
@@ -375,11 +384,8 @@ export const doActs = async (report: Report, opts: DoActsOptions = {}): Promise<
           }
           // Otherwise, if there is a named next act:
           else if (act.next) {
-            // Set the new index accordingly, or stop if it does not exist.
-            // Kept as it is (issue #73; see #228): the callback's act shadows the next act, so
-            // this finds the first act whose name equals its own next property, which is the
-            // first act with neither, not the act named by the next act.
-            const nextIndex = acts.findIndex(act => act.name === act.next);
+            // Set the new index to that of the act with that name, or stop if none exists.
+            const nextIndex = acts.findIndex(candidate => candidate.name === act.next);
             if (nextIndex === -1) {
               break;
             }
@@ -497,7 +503,19 @@ export const doActs = async (report: Report, opts: DoActsOptions = {}): Promise<
             addError(true, false, tempReport, actIndex, `ERROR: ${reason}`);
             act.endTime = Date.now();
             actCount++;
-            // Kept as it is (issue #73; see #228): this skips the actEnd progress event.
+            // Record the tool time and signal the end of the act, as for any other test act (#228).
+            const {toolTimes} = tempReport.jobData!;
+            toolTimes![act.which as ToolID] ??= 0;
+            toolTimes![act.which as ToolID]! += Math.round((act.endTime - startTime) / 1000);
+            emitProgress({
+              event: 'actEnd',
+              index: actIndex,
+              type,
+              which,
+              checkpoint: act.checkpoint,
+              outcome: 'prevented',
+              elapsedMs: act.endTime - startTime
+            });
             continue;
           }
         }
@@ -626,7 +644,7 @@ export const doActs = async (report: Report, opts: DoActsOptions = {}): Promise<
             catch (error) {
               // Report this.
               console.log(
-                `ERROR: Tool sent message ${actResult.message}. Report is no longer JSON (${(error as Error).message}) but is instead a(n) ${typeof tempReportJSON} of length ${tempReportJSON.length}:\n${tempReportJSON}`
+                `ERROR: Tool sent message ${JSON.stringify(actResult.message)}. Report is no longer JSON (${(error as Error).message}) but is instead a(n) ${typeof tempReportJSON} of length ${tempReportJSON.length}:\n${tempReportJSON}`
               );
               // Report this and that the job was aborted.
               addError(
@@ -634,7 +652,7 @@ export const doActs = async (report: Report, opts: DoActsOptions = {}): Promise<
                 true,
                 tempReport,
                 actIndex,
-                `Non-JSON temporary report file after message ${actResult.message}`
+                `Non-JSON temporary report file after message ${JSON.stringify(actResult.message)}`
               );
               // Stop processing acts.
               break;
@@ -662,7 +680,7 @@ export const doActs = async (report: Report, opts: DoActsOptions = {}): Promise<
                 abortAssertively,
                 tempReport,
                 actIndex,
-                `Closed with code ${code} and signal ${signal})`
+                `Closed with code ${code} and signal ${signal}`
               );
             }
             else {
