@@ -28,6 +28,7 @@ import * as fs from 'fs/promises';
 import {doJob} from './run';
 import {dirWatch} from './dirWatch';
 import {netWatch} from './netWatch';
+import {isSafeJobID} from './procs/job';
 import type {Report} from './types';
 
 // CONSTANTS
@@ -58,11 +59,19 @@ const callRun = async (jobIDStart: string | undefined) => {
     const {id} = report;
     // Run the job.
     report = await doJob(report);
-    // Archive it.
-    await fs.rename(`${todoDir}/${jobFileName}`, `${jobDir}/done/${id}.json`);
-    // Save the report.
-    await fs.writeFile(`${rawDir}/${id}.json`, `${JSON.stringify(report, null, 2)}\n`);
-    console.log(`Job completed and report ${id} saved in ${rawDir}`);
+    // If its ID can name a file (the ID of an invalid job may not):
+    if (isSafeJobID(id)) {
+      // Archive it.
+      await fs.rename(`${todoDir}/${jobFileName}`, `${jobDir}/done/${id}.json`);
+      // Save the report.
+      await fs.writeFile(`${rawDir}/${id}.json`, `${JSON.stringify(report, null, 2)}\n`);
+      console.log(`Job completed and report ${id} saved in ${rawDir}`);
+    }
+    // Otherwise, i.e. if the ID could name a file outside the directories:
+    else {
+      // Leave the job where it is, and report this.
+      console.log(`ERROR: Job ID ${JSON.stringify(id)} cannot name a file, so the job was not archived and its report was not saved`);
+    }
   }
   // Otherwise, i.e. if the job does not exist.
   else {

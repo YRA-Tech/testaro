@@ -9,7 +9,7 @@
 
 /*
   dirWatch.test.js
-  Unit tests of dirWatch (dirWatch.ts). They need no browser: doJob is replaced with a mock. They cover the dirWatch defect of #231: a job whose report could not be saved stayed in the todo directory (the error handler threw a ReferenceError), so a watch that continues after a job ran it again at once, forever. The same was true of a job file that is not JSON and of a job that fails. Each such job file is now moved to the failed directory.
+  Unit tests of dirWatch (dirWatch.ts). They need no browser: doJob is replaced with a mock. They cover the dirWatch defect of #231: a job whose report could not be saved stayed in the todo directory (the error handler threw a ReferenceError), so a watch that continues after a job ran it again at once, forever. The same was true of a job file that is not JSON and of a job that fails. Each such job file is now moved to the failed directory. A report is not saved under a job ID that could name a file outside the report directory.
 */
 
 const test = require('node:test');
@@ -118,3 +118,15 @@ test('a job that fails is moved to failed', async () => {
   assert.deepEqual(filesIn('todo'), []);
   assert.deepEqual(filesIn('failed'), ['261128T1200-d.json']);
 });
+
+test('a report whose job ID could name a file outside the directories is not saved, and the job is moved to failed', async () => {
+  // From reports/raw and from jobs/done, ../../ leads to the test's own directory.
+  setUp('261128T1200-e.json', job('../../escape'));
+  const log = await watchOnce();
+  assert.deepEqual(jobs.ids, ['../../escape']);
+  assert.match(log, /Job ID "\.\.\/\.\.\/escape" cannot name a file/);
+  assert.equal(fs.existsSync(path.join(root, 'escape.json')), false);
+  assert.deepEqual(filesIn('done'), []);
+  assert.deepEqual(filesIn('failed'), ['261128T1200-e.json']);
+});
+

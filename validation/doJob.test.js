@@ -9,7 +9,7 @@
 
 /*
   doJob.test.js
-  Unit tests of doJob (run.ts). They need no browser: doActs and getCatalog are replaced with mocks. They cover the doJob defects of #231: the temporary directory was named by the job ID, so an ID containing "../" named a directory elsewhere, which doJob deleted at the end of the job; doJob added a message listener to the process for every job; and a job whose job data was not an object was reported as invalid without recording the abort. A directory that these tests could delete if doJob regressed is one the tests create for the purpose.
+  Unit tests of doJob (run.ts). They need no browser: doActs and getCatalog are replaced with mocks. They cover the doJob defects of #231: the temporary directory was named by the job ID, so an ID containing "../" named a directory elsewhere, which doJob deleted at the end of the job (such an ID now makes the job invalid, and the directory name is reduced to safe characters besides); doJob added a message listener to the process for every job; and a job whose job data was not an object was reported as invalid without recording the abort. A directory that these tests could delete if doJob regressed is one the tests create for the purpose.
 */
 
 const test = require('node:test');
@@ -79,20 +79,28 @@ test('two jobs with the same ID at once get directories of their own', async () 
   assert.notEqual(acts.seen[0].tmpDir, acts.seen[1].tmpDir);
 });
 
-test('a job ID containing ../ cannot name a directory outside tmp/', async () => {
+test('a job ID containing ../ makes the job invalid, and doJob creates or deletes nothing for it', async () => {
   const victim = fs.mkdtempSync(path.join(os.tmpdir(), 'testaro-victim-'));
   fs.writeFileSync(path.join(victim, 'canary.txt'), 'canary');
   try {
     acts.seen = [];
-    await doJob(validJob(path.relative(tmpBase, victim)));
-    const [{tmpDir}] = acts.seen;
-    assert.equal(path.dirname(tmpDir), tmpBase);
+    const report = await doJob(validJob(path.relative(tmpBase, victim)));
+    assert.deepEqual(acts.seen, []);
+    assert.equal(report.jobData.aborted, true);
+    assert.equal(report.jobData.abortMessage, 'Bad job ID (must not contain /, \\, or control characters)');
     assert.equal(fs.readFileSync(path.join(victim, 'canary.txt'), 'utf8'), 'canary');
-    assert.equal(fs.existsSync(path.join(victim, 'report.json')), false);
   }
   finally {
     fs.rmSync(victim, {recursive: true, force: true});
   }
+});
+
+test('the directory name keeps only letters, digits, _, . and - from the job ID', async () => {
+  acts.seen = [];
+  await doJob(validJob('café ünï'));
+  const [{tmpDir}] = acts.seen;
+  assert.equal(path.dirname(tmpDir), tmpBase);
+  assert.match(path.basename(tmpDir), /^caf___n_-.{6}$/);
 });
 
 test('the temporary directory is deleted when the job fails', async () => {

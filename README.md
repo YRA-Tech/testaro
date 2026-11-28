@@ -150,7 +150,7 @@ Here is a sample job, showing properties that you can set:
 
 ```javaScript
 {
-  id: 'healthcheck2611', // Job identifier
+  id: 'healthcheck2611', // Job identifier: no /, \, or control characters, because it names the job's files
   what: 'monthly health check', // Job description
   strict: true, // Whether to reject redirections from the target URL
   standard: 'only', // Report native (no), standard (only), or both (also) results
