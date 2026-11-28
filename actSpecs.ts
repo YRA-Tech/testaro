@@ -1,0 +1,253 @@
+/*
+  © 2021–2024 CVS Health and/or one of its affiliates. All rights reserved.
+  © 2026 Jeff Witt.
+  © 2025–2026 Jonathan Robert Pool.
+
+  Licensed under the MIT License. See LICENSE file at the project root or
+  https://opensource.org/license/mit/ for details.
+
+  SPDX-License-Identifier: MIT
+*/
+
+// IMPORTS
+
+import type {ActSpecs} from './types';
+
+/*
+  actSpecs
+  Validator for acts of a job. Compiled to actSpecs.js by tsc (issue #73); edit this file, not
+  the emitted one. The specifications are checked against the act types of types.ts (ActSpecs):
+  each act type has a specification of exactly its properties, with the required flag and the
+  type of each property agreeing with the act type.
+*/
+
+export const actSpecs = {
+  etc: {
+    button: [
+      'Click a button or submit input',
+      {
+        selector: [false, 'string', 'hasLength', 'Playwright selector of the element, instead of an element type and text substring'],
+        which: [false, 'string', 'hasLength', 'substring of button text'],
+        index: [false, 'number', '', 'index among matches if not 0'],
+        what: [false, 'string', 'hasLength', 'comment']
+      }
+    ],
+    checkpoint: [
+      'Snapshot the current page state (catalog, page image, ARIA snapshot) as a checkpoint that subsequent test acts observe',
+      {
+        which: [true, 'string', 'hasLength', 'checkpoint name, unique within the job'],
+        what: [false, 'string', 'hasLength', 'comment']
+      }
+    ],
+    checkbox: [
+      'Check a checkbox',
+      {
+        selector: [false, 'string', 'hasLength', 'Playwright selector of the element, instead of an element type and text substring'],
+        which: [false, 'string', 'hasLength', 'substring of checkbox text (required unless selector is given)'],
+        index: [false, 'number', '', 'index among matches if not 0'],
+        what: [false, 'string', 'hasLength', 'comment']
+      }
+    ],
+    focus: [
+      'Put the specified element into focus',
+      {
+        what: [true, 'string', 'isFocusable', 'selector of element to be focused'],
+        index: [false, 'number', '', 'index among matches if not 0'],
+        which: [false, 'string', 'hasLength', 'substring of element text']
+      }
+    ],
+    launch: [
+      'Launch a Playwright browser',
+      {
+        target: [false, 'object', '', 'target different from target of the job'],
+        browserID: [false, 'string', 'isBrowserID', 'browser type different from browserID of the job'],
+        shoot: [false, 'object', '', 'if screenshot to be made, exclusionSelector, colorType, and action'],
+        what: [false, 'string', 'hasLength', 'comment']
+      }
+    ],
+    link: [
+      'Click a link and wait for the page to be idle or loaded',
+      {
+        selector: [false, 'string', 'hasLength', 'Playwright selector of the element, instead of an element type and text substring'],
+        which: [false, 'string', 'hasLength', 'substring of link text'],
+        index: [false, 'number', '', 'index among matches if not 0'],
+        what: [false, 'string', 'hasLength', 'comment']
+      }
+    ],
+    next: [
+      'Specify the next command if the last result requires',
+      {
+        if: [
+          true, 'array', '', 'act result property tree in a.b.c format; if to exist, also one of “<=>!” and criterion'
+        ],
+        jump: [false, 'number', '', 'offset of next command from this one, or 0 to stop'],
+        next: [false, 'string', 'hasLength', 'name of next command'],
+        what: [false, 'string', 'hasLength', 'comment']
+      }
+    ],
+    page: [
+      'Switch to the last-opened browser tab',
+      {
+        what: [false, 'string', 'hasLength', 'comment']
+      }
+    ],
+    press: [
+      'Press a key',
+      {
+        which: [true, 'string', 'hasLength', 'key name'],
+        what: [false, 'string', 'hasLength', 'comment'],
+        again: [false, 'number', '', 'number of additional times to press the key']
+      }
+    ],
+    presses: [
+      'Repeatedly press a navigation key',
+      {
+        navKey: [true, 'string', 'hasLength', 'navigation-keyname'],
+        what: [false, 'string', 'hasLength', 'tag name of element'],
+        which: [false, 'array', 'areStrings', 'substrings any of which matches element text'],
+        text: [false, 'string', 'hasLength', 'text to enter after reaching element'],
+        action: [false, 'string', 'hasLength', 'name of key to press, after text entry if any'],
+        withItems: [true, 'boolean', '', 'itemize']
+      }
+    ],
+    radio: [
+      'Check a radio button',
+      {
+        selector: [false, 'string', 'hasLength', 'Playwright selector of the element, instead of an element type and text substring'],
+        which: [false, 'string', 'hasLength', 'substring of radio-button text (required unless selector is given)'],
+        index: [false, 'number', '', 'index among matches if not 0'],
+        what: [false, 'string', 'hasLength', 'comment']
+      }
+    ],
+    reveal: [
+      'Make all elements visible',
+      {
+        what: [false, 'string', 'hasLength', 'comment']
+      }
+    ],
+    search: [
+      'Enter text into a search input, optionally with 1 placeholder for an all-caps literal environment variable',
+      {
+        selector: [false, 'string', 'hasLength', 'Playwright selector of the element, instead of an element type and text substring'],
+        which: [false, 'string', 'hasLength', 'substring of input text'],
+        index: [false, 'number', '', 'index among matches if not 0'],
+        what: [true, 'string', 'hasLength', 'text to enter, with optional __PLACEHOLDER__']
+      }
+    ],
+    select: [
+      'Select a select option',
+      {
+        selector: [false, 'string', 'hasLength', 'Playwright selector of the element, instead of an element type and text substring'],
+        which: [false, 'string', 'hasLength', 'substring of select-list text'],
+        index: [false, 'number', '', 'index among matches if not 0'],
+        what: [true, 'string', 'hasLength', 'substring of option text content']
+      }
+    ],
+    shoot: [
+      'Create and dispose of a full-page screenshot as a base-64-encoded PNG',
+      {
+        exclusionSelector: [false, 'string', 'hasLength', 'CSS selector for an element to mask'],
+        colorType: [false, 'number', '', '0=grayscale, 2=RGB, 4=grayscale alpha, 6=RGBA (default)'],
+        action: [true, 'string', 'hasLength', 'disposition: return, report, file'],
+        what: [false, 'string', 'hasLength', 'comment']
+      }
+    ],
+    state: [
+      'Wait until the page reaches a load state',
+      {
+        which: [true, 'string', 'isState', '“loaded” or “idle”'],
+        what: [false, 'string', 'hasLength', 'comment']
+      }
+    ],
+    test: [
+      'Perform tests of a tool',
+      {
+        which: [true, 'string', 'isTest', 'tool name'],
+        launch: [false, 'object', '', 'new target, browserID, and/or what, if any'],
+        rules: [false, 'array', 'areStrings', 'rule IDs (for testaro, exactly the rules to test for) or (for nuVal or nuVnu) specifications, if not all'],
+        scope: [false, 'string', 'isScope', 'page (default) or changed (only the subtrees changed since the previous checkpoint, for rules and tools that can be so restricted)']
+      }
+    ],
+    text: [
+      'Enter text into a text input, optionally with 1 placeholder for an all-caps literal environment variable',
+      {
+        selector: [false, 'string', 'hasLength', 'Playwright selector of the element, instead of an element type and text substring'],
+        which: [false, 'string', 'hasLength', 'substring of input text'],
+        index: [false, 'number', '', 'index among matches if not 0'],
+        what: [true, 'string', 'hasLength', 'text to enter, with optional __PLACEHOLDER__'],
+        clear: [false, 'boolean', '', 'whether to replace any existing value instead of appending']
+      }
+    ],
+    url: [
+      'Navigate to a new URL',
+      {
+        which: [true, 'string', 'isURL', 'URL (if file://, path relative to main project directory'],
+        what: [false, 'string', 'hasLength', 'comment'],
+        id: [false, 'string', 'hasLength', 'ID of the host']
+      }
+    ],
+    wait: [
+      'Wait until something appears',
+      {
+        what: [true, 'string', 'isWaitable', 'waitable item type (url, title, or body)'],
+        which: [true, 'string', 'hasLength', 'substring of waitable-item text']
+      }
+    ]
+  },
+  tools: {
+    axe: [
+      'Perform Axe tests',
+      {
+        detailLevel: [true, 'number', '', '0 = least, 4 = most']
+      }
+    ],
+    ibm: [
+      'Perform IBM Equal Access tests',
+      {
+        withItems: [true, 'boolean', '', 'itemize']
+      }
+    ],
+    nuVal: [
+      'Perform NuVal tests',
+      {
+        withSource: [false, 'boolean', '', 'whether to use the page source and not the browser page']
+      }
+    ],
+    nuVnu: [
+      'Perform NuVnu tests',
+      {
+        withSource: [false, 'boolean', '', 'whether to use the page source and not the browser page']
+      }
+    ],
+    qualWeb: [
+      'Perform QualWeb tests',
+      {
+        stealth: [false, 'boolean', '', 'ignored: qualWeb runs in the page under test, not in a browser of its own'],
+        adBlock: [false, 'boolean', '', 'ignored: qualWeb runs in the page under test, not in a browser of its own']
+      }
+    ],
+    testaro: [
+      'Perform Testaro tests',
+      {
+        withItems: [true, 'boolean', '', 'itemize'],
+        stopOnFail: [true, 'boolean', '', 'whether testing is to stop after first failure'],
+        args: [false, 'object', 'areArrays', 'extra arguments of rules taking any'],
+        rulesForcedOn: [false, 'array', 'areStrings', 'IDs of rules to test for in addition to the default rules (not with rules)'],
+        rulesForcedOff: [false, 'array', 'areStrings', 'IDs of default rules not to test for (not with rules)'],
+        retries: [false, 'number', '', 'launch retries per rule (default TESTARO_RULE_RETRIES, else 2)']
+      }
+    ],
+    wave: [
+      'Perform WAVE tests',
+      {
+        reportType: [true, 'number', '', 'WAVE report type (1, 2, 3, or 4)'],
+        // Kept as it is (issue #73; see #224): the type is isURL, which is a subtype, so a wave act
+        // that sets url is always invalid. It should be [false, 'string', 'isURL', …].
+        // @ts-expect-error isURL is not a SpecType.
+        url: [false, 'isURL', '', 'URL of stand-alone WAVE API'],
+        prescript: [false, 'string', '', 'content of pre-load script, if any'],
+        postscript: [false, 'string', '', 'content of post-load script, if any']
+      }
+    ]
+  }
+} satisfies ActSpecs;

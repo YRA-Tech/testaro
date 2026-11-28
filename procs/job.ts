@@ -1,0 +1,441 @@
+/*
+  © 2024 CVS Health and/or one of its affiliates. All rights reserved.
+  © 2026 Jeff Witt.
+  © 2026 Jonathan Robert Pool.
+
+  Licensed under the MIT License. See LICENSE file at the project root or  https://opensource.org/license/mit/ for details.
+
+  SPDX-License-Identifier: MIT
+*/
+
+// IMPORTS
+
+// Requirements for acts.
+import {actSpecs} from '../actSpecs';
+// Load states a navigation can wait for.
+import {waitStates} from './config';
+// Data on devices.
+import {devices} from 'playwright';
+// Module to get dates from time stamps.
+import {dateOf} from './dateTime';
+import type {JobActType, SpecSubtype, SpecType, TestScope, ToolID} from '../types';
+
+/*
+  job
+  Utilities about jobs and acts. Compiled to job.js by tsc (issue #73); edit this file, not the
+  emitted one. The validators take untrusted job JSON, so their arguments are typed loosely.
+*/
+
+// TYPES
+
+// What a tool tests: a live page, the live page's HTML, or only a URL.
+export type ToolInput = 'page' | 'html' | 'url';
+// The isolation level of test acts.
+export type IsolationLevel = 'process' | 'browser' | 'page';
+// The specification of one act property: required, type, subtype, description.
+type PropSpec = readonly [boolean, SpecType, SpecSubtype, string];
+// The result of validating a job.
+export interface JobValidity {
+  isValid: boolean;
+  error?: string;
+}
+
+// CONSTANTS
+
+// Names and descriptions of tools.
+export const tools: Record<ToolID, string> = {
+  alfa: 'Alfa',
+  aslint: 'ASLint',
+  axe: 'Axe',
+  ed11y: 'Editoria11y',
+  htmlcs: 'HTML CodeSniffer',
+  ibm: 'Accessibility Checker',
+  nuVal: 'Html Checker API',
+  nuVnu: 'Html Checker',
+  pour: 'Pour Engine',
+  qualWeb: 'QualWeb',
+  surea11y: 'SureA11y',
+  testaro: 'Testaro',
+  wave: 'WAVE',
+};
+/*
+  What each tool tests: a live page (page), the live page's HTML (html), or only a URL (url).
+  Tools that test a page or its HTML observe a checkpoint reached by interaction acts, because
+  the test act's browser replays those acts; a tool that tests a URL can observe only a
+  checkpoint reached by navigation.
+*/
+export const toolInputs: Record<ToolID, ToolInput> = {
+  alfa: 'page',
+  aslint: 'page',
+  axe: 'page',
+  ed11y: 'page',
+  htmlcs: 'page',
+  ibm: 'page',
+  nuVal: 'html',
+  nuVnu: 'html',
+  pour: 'page',
+  qualWeb: 'html',
+  surea11y: 'page',
+  testaro: 'page',
+  wave: 'url'
+};
+
+/*
+  Scopes of a test act: page (the default) tests the whole page of its checkpoint; changed tests
+  only the subtrees that changed since the previous checkpoint, for rules and tools that can be
+  so restricted (toolScopes), and the whole page for the rest.
+*/
+export const testScopes: TestScope[] = ['page', 'changed'];
+/*
+  Tools that can restrict their tests to subtree roots (scope: 'changed'): axe by its include
+  context, surea11y by its context selector, and testaro by filtering the candidates of its
+  element-local rules. Other tools test the whole page whatever the scope.
+*/
+export const toolScopes: Partial<Record<ToolID, boolean>> = {
+  axe: true,
+  surea11y: true,
+  testaro: true
+};
+
+/*
+  Isolation levels for test acts:
+    process: each test act runs in a child process with its own browser (the default).
+    browser: test acts run in the job's process, each in a fresh context of one shared browser.
+    page: test acts run in the job's process on the live page of the current checkpoint.
+*/
+export const isolationLevels: IsolationLevel[] = ['process', 'browser', 'page'];
+
+// FUNCTIONS
+
+// Returns the isolation level of a job: its own, else the ISOLATION environment variable, else process.
+export const getIsolation = (job?: {isolation?: unknown} | null): IsolationLevel => {
+  if (job && isolationLevels.includes(job.isolation as IsolationLevel)) {
+    return job.isolation as IsolationLevel;
+  }
+  return isolationLevels.includes(process.env.ISOLATION as IsolationLevel)
+    ? process.env.ISOLATION as IsolationLevel
+    : 'process';
+};
+// Validates a browser type.
+export const isBrowserID = (type: unknown): boolean => ['chromium', 'firefox', 'webkit'].includes(type as string);
+// Returns whether a variable has a specified type.
+const hasType = (variable: unknown, type: string): boolean => {
+  if (type === 'string') {
+    return typeof variable === 'string';
+  }
+  else if (type === 'array') {
+    return Array.isArray(variable);
+  }
+  else if (type === 'boolean') {
+    return typeof variable === 'boolean';
+  }
+  else if (type === 'number') {
+    return typeof variable === 'number';
+  }
+  else if (type === 'object') {
+    return typeof variable === 'object' && ! Array.isArray(variable);
+  }
+  else {
+    return false;
+  }
+};
+// Returns whether a variable has a specified subtype.
+// Its value is truthy if so; for isTest, it is the name of the tool.
+const hasSubtype = (variable: unknown, subtype: string): unknown => {
+  if (subtype) {
+    if (subtype === 'hasLength') {
+      return (variable as {length: number}).length > 0;
+    }
+    else if (subtype === 'isURL') {
+      return isURL(variable);
+    }
+    else if (subtype === 'isBrowserID') {
+      return isBrowserID(variable);
+    }
+    else if (subtype === 'isFocusable') {
+      return isFocusable(variable);
+    }
+    else if (subtype === 'isTest') {
+      return tools[variable as ToolID];
+    }
+    else if (subtype === 'isWaitable') {
+      return ['url', 'title', 'body'].includes(variable as string);
+    }
+    else if (subtype === 'areNumbers') {
+      return areNumbers(variable as unknown[]);
+    }
+    else if (subtype === 'areStrings') {
+      return areStrings(variable as unknown[]);
+    }
+    else if (subtype === 'areArrays') {
+      return areArrays(variable as object);
+    }
+    else if (subtype === 'isState') {
+      return isState(variable);
+    }
+    else if (subtype === 'isScope') {
+      return testScopes.includes(variable as TestScope);
+    }
+    else {
+      console.log(`ERROR: ${subtype} not a known subtype`);
+      return false;
+    }
+  }
+  else {
+    return true;
+  }
+};
+// Validates a device ID.
+export const isDeviceID = (deviceID: unknown): boolean => deviceID === 'default' || !! devices[deviceID as string];
+// Validates a load state.
+const isState = (string: unknown): boolean => ['loaded', 'idle'].includes(string as string);
+// Validates a URL.
+export const isURL = (string: unknown): boolean => /^(?:https?|file):\/\/[^\s]+$/.test(string as string);
+// Validates a focusable tag name.
+const isFocusable = (string: unknown): boolean => ['a', 'button', 'input', 'select'].includes(string as string);
+// Returns whether all elements of an array are numbers.
+const areNumbers = (array: unknown[]): boolean => array.every(element => typeof element === 'number');
+// Returns whether all elements of an array are strings.
+const areStrings = (array: unknown[]): boolean => array.every(element => typeof element === 'string');
+// Returns whether all properties of an object have array values.
+const areArrays = (object: object): boolean => Object.values(object).every(value => Array.isArray(value));
+// Validates an act by reference to actSpecs.js.
+/*
+  Kept as it is (issue #73; see #224): the act type and the tool are looked up as properties of
+  objects, so an inherited name such as constructor passes as an act type (its validator is
+  empty, so the act is valid) and as a tool.
+*/
+export const isValidAct = (act: Record<string, unknown>): boolean => {
+  // Identify the type of the act.
+  const type = act.type as JobActType;
+  // If the type exists and is known:
+  if (type && actSpecs.etc[type]) {
+    // Copy the validator of the type for possible expansion.
+    const validator: Record<string, PropSpec> = Object.assign({}, actSpecs.etc[type][1]);
+    // If the type is test:
+    if (type === 'test') {
+      // Identify the test.
+      const toolID = act.which as ToolID;
+      // If one was specified and is known:
+      if (toolID && tools[toolID]) {
+        // If it has special properties:
+        if (actSpecs.tools[toolID as keyof typeof actSpecs.tools]) {
+          // Expand the validator by adding them.
+          Object.assign(validator, actSpecs.tools[toolID as keyof typeof actSpecs.tools][1]);
+        }
+      }
+      // Otherwise, i.e. if no or an unknown test was specified:
+      else {
+        // Return invalidity.
+        return false;
+      }
+    }
+    // A checkbox or radio act needs a text substring or a selector to identify its element.
+    if (['checkbox', 'radio'].includes(type) && ! act.which && ! act.selector) {
+      return false;
+    }
+    // Return whether the act is valid.
+    return Object.keys(validator).every(property => {
+      if (property === 'name') {
+        return true;
+      }
+      else {
+        const vP = validator[property];
+        const aP = act[property];
+        // If it is optional and omitted or is present and valid:
+        const optAndNone = ! vP[0] && ! aP;
+        const isValid = aP !== undefined && hasType(aP, vP[1]) && hasSubtype(aP, vP[2]);
+        return optAndNone || isValid;
+      }
+    });
+  }
+  // Otherwise, i.e. if the act has an unknown or no type:
+  else {
+    // Return invalidity.
+    return false;
+  }
+};
+// Returns whether a job is valid and, if not, why not.
+export const isValidJob = (job: Record<string, unknown> | null | undefined): JobValidity => {
+  // If any job was provided:
+  if (job) {
+    // Get its properties.
+    const {
+      id,
+      strict,
+      standard,
+      device,
+      browserID,
+      stealth,
+      creationTimeStamp,
+      executionTimeStamp,
+      target,
+      sources,
+      acts,
+      jobData
+    } = job;
+    // Return an error for the first missing or invalid property.
+    if (! id || typeof id !== 'string') {
+      return {
+        isValid: false,
+        error: 'Bad job ID'
+      };
+    }
+    if (typeof strict !== 'boolean') {
+      return {
+        isValid: false,
+        error: 'Bad job strict'
+      };
+    }
+    if (! ['also', 'only', 'no'].includes(standard as string)) {
+      return {
+        isValid: false,
+        error: 'Bad job standard'
+      };
+    }
+    // Kept as it is (issue #73; see #224): a job without a device makes this throw.
+    if (! isDeviceID((device as {id: unknown}).id)) {
+      return {
+        isValid: false,
+        error: 'Bad job deviceID'
+      };
+    }
+    if (! isBrowserID(browserID)) {
+      return {
+        isValid: false,
+        error: 'Bad job browserID'
+      };
+    }
+    // `stealth` is optional. When omitted, Testaro defaults to enabling the
+    // puppeteer-extra-plugin-stealth evasions on Chromium (historical
+    // behavior). When present, it must be a boolean.
+    if (job.isolation !== undefined && ! isolationLevels.includes(job.isolation as IsolationLevel)) {
+      return {
+        isValid: false,
+        error: 'Bad job isolation (must be process, browser, or page if present)'
+      };
+    }
+    if (stealth !== undefined && typeof stealth !== 'boolean') {
+      return {
+        isValid: false,
+        error: 'Bad job stealth (must be boolean if present)'
+      };
+    }
+    if (
+      ! (creationTimeStamp && typeof creationTimeStamp === 'string' && dateOf(creationTimeStamp))
+    ) {
+      return {
+        isValid: false,
+        error: 'Bad job creationTimeStamp'
+      };
+    }
+    if (
+      ! (executionTimeStamp && typeof executionTimeStamp === 'string' && dateOf(executionTimeStamp))
+    ) {
+      return {
+        isValid: false,
+        error: 'Bad job executionTimeStamp'
+      };
+    }
+    // Kept as it is (issue #73; see #224): typeof null is object, so a null target makes this throw.
+    if (
+      typeof target !== 'object'
+      || (target as {url?: unknown}).url && ! isURL((target as {url?: unknown}).url)
+      || (target as {what?: unknown}).what === ''
+    ) {
+      return {
+        isValid: false,
+        error: 'Bad job target'
+      };
+    }
+    if (sources && typeof sources !== 'object') {
+      return {
+        isValid: false,
+        error: 'Bad job sources'
+      };
+    }
+    if (
+      ! acts
+      || ! Array.isArray(acts)
+      || ! acts.length
+      || ! acts.every(act => act.type && typeof act.type === 'string')
+    ) {
+      return {
+        isValid: false,
+        error: 'Bad job acts'
+      };
+    }
+    const invalidAct = acts.find(act => ! isValidAct(act));
+    if (invalidAct) {
+      return {
+        isValid: false,
+        error: `Invalid act:\n${JSON.stringify(invalidAct, null, 2)}`
+      };
+    }
+    // Checkpoint acts must be uniquely named and must follow a launch act.
+    const checkpointNames = acts.filter(act => act.type === 'checkpoint').map(act => act.which);
+    if (new Set(checkpointNames).size !== checkpointNames.length || checkpointNames.includes('start')) {
+      return {
+        isValid: false,
+        error: 'Bad job checkpoint names (must be unique and not "start")'
+      };
+    }
+    const firstCheckpointIndex = acts.findIndex(act => act.type === 'checkpoint');
+    const firstLaunchIndex = acts.findIndex(act => act.type === 'launch');
+    if (firstCheckpointIndex > -1 && (firstLaunchIndex === -1 || firstLaunchIndex > firstCheckpointIndex)) {
+      return {
+        isValid: false,
+        error: 'Bad job acts (a checkpoint act precedes any launch act)'
+      };
+    }
+    // A changed-scope test act needs checkpoints to compare.
+    if (firstCheckpointIndex === -1 && acts.some(act => act.type === 'test' && act.scope === 'changed')) {
+      return {
+        isValid: false,
+        error: 'Bad job acts (a test act has scope changed but the job has no checkpoint act)'
+      };
+    }
+    if (jobData && typeof jobData !== 'object') {
+      return {
+        isValid: false,
+        error: 'Bad job jobData'
+      };
+    }
+    // Deployment options, if present, must be well formed.
+    const {navigation, browserChannel} = job as {
+      navigation?: Record<string, unknown> | null;
+      browserChannel?: unknown;
+    };
+    if (
+      navigation !== undefined && (
+        ! navigation || typeof navigation !== 'object'
+        || (navigation.waitUntil !== undefined && ! waitStates.includes(navigation.waitUntil as typeof waitStates[number]))
+        || (navigation.timeout !== undefined && ! (Number.isInteger(navigation.timeout) && (navigation.timeout as number) > 0))
+        || (navigation.failFast4xx !== undefined && typeof navigation.failFast4xx !== 'boolean')
+        || (navigation.rotateBrowsers !== undefined && typeof navigation.rotateBrowsers !== 'boolean')
+      )
+    ) {
+      return {
+        isValid: false,
+        error: 'Bad job navigation (waitUntil networkidle, load, or domcontentloaded; timeout a positive integer; failFast4xx and rotateBrowsers booleans)'
+      };
+    }
+    if (browserChannel !== undefined && ! ['bundled', 'chrome', 'msedge'].includes(browserChannel as string)) {
+      return {
+        isValid: false,
+        error: 'Bad job browserChannel (must be bundled, chrome, or msedge if present)'
+      };
+    }
+    return {
+      isValid: true
+    };
+  }
+  // Otherwise, i.e. if no job was provided:
+  else {
+    // Return this.
+    return {
+      isValid: false,
+      error: 'No job'
+    };
+  }
+};

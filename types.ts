@@ -155,6 +155,136 @@ export interface Checkpoint {
   structure?: StructureDiff;
 }
 
+/*
+  The acts of a job as the job specifies them, one type per act type: the properties that
+  actSpecs.js validates. (Act, below, is an act in a report, which also carries what its
+  performance added.) actSpecs.ts is checked against these types with ActSpecs, so the two
+  cannot drift apart (issue #73, hazard 8).
+*/
+// An optional comment, which most act types allow.
+interface Commented {
+  what?: string;
+}
+// Properties that identify the element of a move: a Playwright selector, or the element type
+// with a substring of its text and an index among the matches.
+interface MoveTarget {
+  selector?: string;
+  which?: string;
+  index?: number;
+}
+export interface ButtonAct extends MoveTarget, Commented {type: 'button'}
+export interface CheckpointAct extends Commented {type: 'checkpoint'; which: string}
+export interface CheckboxAct extends MoveTarget, Commented {type: 'checkbox'}
+export interface FocusAct {type: 'focus'; what: string; index?: number; which?: string}
+export interface LaunchAct extends Commented {
+  type: 'launch';
+  target?: {what?: string; url?: string};
+  browserID?: BrowserID;
+  shoot?: {exclusionSelector?: string; colorType?: number; action?: string};
+}
+export interface LinkAct extends MoveTarget, Commented {type: 'link'}
+export interface NextAct extends Commented {
+  type: 'next';
+  if: (string | number)[];
+  jump?: number;
+  next?: string;
+}
+export interface PageAct extends Commented {type: 'page'}
+export interface PressAct extends Commented {type: 'press'; which: string; again?: number}
+export interface PressesAct {
+  type: 'presses';
+  navKey: string;
+  what?: string;
+  which?: string[];
+  text?: string;
+  action?: string;
+  withItems: boolean;
+}
+export interface RadioAct extends MoveTarget, Commented {type: 'radio'}
+export interface RevealAct extends Commented {type: 'reveal'}
+export interface SearchAct extends MoveTarget {type: 'search'; what: string}
+export interface SelectAct extends MoveTarget {type: 'select'; what: string}
+export interface ShootAct extends Commented {
+  type: 'shoot';
+  exclusionSelector?: string;
+  colorType?: number;
+  action: string;
+}
+export interface StateAct extends Commented {type: 'state'; which: 'loaded' | 'idle'}
+export interface TextAct extends MoveTarget {type: 'text'; what: string; clear?: boolean}
+export interface URLAct extends Commented {type: 'url'; which: string; id?: string}
+export interface WaitAct {type: 'wait'; what: 'url' | 'title' | 'body'; which: string}
+// The properties of every test act.
+export interface TestActBase {
+  type: 'test';
+  which: ToolID;
+  launch?: {target?: {what?: string; url?: string}; browserID?: BrowserID; what?: string};
+  rules?: string[];
+  scope?: TestScope;
+}
+// The properties that particular tools add to a test act.
+export interface ToolActProperties {
+  axe: {detailLevel: number};
+  ibm: {withItems: boolean};
+  nuVal: {withSource?: boolean};
+  nuVnu: {withSource?: boolean};
+  qualWeb: {stealth?: boolean; adBlock?: boolean};
+  testaro: {
+    withItems: boolean;
+    stopOnFail: boolean;
+    args?: Record<string, unknown[]>;
+    rulesForcedOn?: string[];
+    rulesForcedOff?: string[];
+    retries?: number;
+  };
+  wave: {reportType: number; url?: string; prescript?: string; postscript?: string};
+}
+// A test act of each tool, discriminated by which.
+export type TestAct = {
+  [T in ToolID]: TestActBase & {which: T} & (T extends keyof ToolActProperties ? ToolActProperties[T] : {});
+}[ToolID];
+// An act of a job.
+export type JobAct =
+  | ButtonAct | CheckpointAct | CheckboxAct | FocusAct | LaunchAct | LinkAct | NextAct
+  | PageAct | PressAct | PressesAct | RadioAct | RevealAct | SearchAct | SelectAct | ShootAct
+  | StateAct | TestAct | TextAct | URLAct | WaitAct;
+// The act types.
+export type JobActType = JobAct['type'];
+
+// The type of the value of an act property, as actSpecs names it.
+export type SpecType = 'string' | 'number' | 'boolean' | 'array' | 'object';
+// A further requirement on the value of an act property, as procs/job.js tests it.
+export type SpecSubtype =
+  | '' | 'hasLength' | 'isURL' | 'isBrowserID' | 'isFocusable' | 'isTest' | 'isWaitable'
+  | 'areNumbers' | 'areStrings' | 'areArrays' | 'isState' | 'isScope';
+// The spec type of a property value type.
+type SpecTypeOf<V> =
+  V extends string ? 'string'
+  : V extends number ? 'number'
+  : V extends boolean ? 'boolean'
+  : V extends unknown[] ? 'array'
+  : V extends object ? 'object'
+  : never;
+// The spec of property K of act type A: whether it is required, its type, its subtype, and a
+// description. The required flag and the type must agree with A.
+type PropSpecFor<A, K extends keyof A> = readonly [
+  {} extends Pick<A, K> ? false : true,
+  SpecTypeOf<NonNullable<A[K]>>,
+  SpecSubtype,
+  string
+];
+// The spec of an act type, or of the properties a tool adds: a description, and a spec for each
+// property of A except its type.
+type SpecFor<A> = readonly [string, {[K in Exclude<keyof A, 'type'>]: PropSpecFor<A, K>}];
+// The act specifications of actSpecs.ts: one per act type, and one per tool that adds properties.
+// The spec of the test act covers the properties of TestActBase only.
+export interface ActSpecs {
+  etc: {[T in Exclude<JobActType, 'test'>]: SpecFor<Extract<JobAct, {type: T}>>} & {
+    test: SpecFor<TestActBase>;
+  };
+  tools: {[T in keyof ToolActProperties]: SpecFor<ToolActProperties[T]>};
+}
+
 // One act of a job. Permissive in Phase 0; see the file comment.
 export interface Act {
   type: string;
