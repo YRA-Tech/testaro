@@ -1,3 +1,4 @@
+"use strict";
 /*
   © 2022–2024 CVS Health and/or one of its affiliates. All rights reserved.
   © 2026 Jonathan Robert Pool.
@@ -7,7 +8,40 @@
 
   SPDX-License-Identifier: MIT
 */
-
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", { value: true });
 /*
   call
   Invokes Testaro modules.
@@ -18,95 +52,84 @@
   Usage examples:
     node call run ts99
     node call dirWatch true 30
+  Compiled to call.js by tsc (issue #73); edit this file, not the emitted one.
 */
-
 // IMPORTS
-
 require('dotenv').config();
-const fs = require('fs/promises');
-const {doJob} = require('./run');
-const {dirWatch} = require('./dirWatch');
-const {netWatch} = require('./netWatch');
-
+const fs = __importStar(require("fs/promises"));
+const run_1 = require("./run");
+const dirWatch_1 = require("./dirWatch");
+const netWatch_1 = require("./netWatch");
 // CONSTANTS
-
 const fn = process.argv[2];
 const fnArgs = process.argv.slice(3);
 const jobDir = process.env.JOBDIR;
 const todoDir = `${jobDir}/todo`;
 const reportDir = process.env.REPORTDIR;
 const rawDir = `${reportDir}/raw`;
-
 // FUNCTIONS
-
 // Fulfills a request to perform a job.
-const callRun = async jobIDStart => {
-  // Find the job.
-  const jobDirFileNames = await fs.readdir(todoDir);
-  const jobFileNames = jobDirFileNames.filter(fileName => fileName.endsWith('.json'));
-  const specifiedJobFileNames = jobIDStart
-    ? jobFileNames.filter(fileName => fileName.startsWith(jobIDStart))
-    : jobFileNames;
-  const jobFileName = specifiedJobFileNames[0];
-  // If it exists:
-  if (jobFileName) {
-    // Get it.
-    const jobJSON = await fs.readFile(`${todoDir}/${jobFileName}`, 'utf8');
-    let report = JSON.parse(jobJSON);
-    const {id} = report;
-    // Run the job.
-    report = await doJob(report);
-    // Archive it.
-    await fs.rename(`${todoDir}/${jobFileName}`, `${jobDir}/done/${id}.json`);
-    // Save the report.
-    await fs.writeFile(`${rawDir}/${id}.json`, `${JSON.stringify(report, null, 2)}\n`);
-    console.log(`Job completed and report ${id} saved in ${rawDir}`);
-  }
-  // Otherwise, i.e. if the job does not exist.
-  else {
-    // Report the error.
-    console.log('ERROR: Specified job does not exist');
-  }
+const callRun = async (jobIDStart) => {
+    // Find the job.
+    const jobDirFileNames = await fs.readdir(todoDir);
+    const jobFileNames = jobDirFileNames.filter(fileName => fileName.endsWith('.json'));
+    const specifiedJobFileNames = jobIDStart
+        ? jobFileNames.filter(fileName => fileName.startsWith(jobIDStart))
+        : jobFileNames;
+    const jobFileName = specifiedJobFileNames[0];
+    // If it exists:
+    if (jobFileName) {
+        // Get it.
+        const jobJSON = await fs.readFile(`${todoDir}/${jobFileName}`, 'utf8');
+        let report = JSON.parse(jobJSON);
+        const { id } = report;
+        // Run the job.
+        report = await (0, run_1.doJob)(report);
+        // Archive it.
+        await fs.rename(`${todoDir}/${jobFileName}`, `${jobDir}/done/${id}.json`);
+        // Save the report.
+        await fs.writeFile(`${rawDir}/${id}.json`, `${JSON.stringify(report, null, 2)}\n`);
+        console.log(`Job completed and report ${id} saved in ${rawDir}`);
+    }
+    // Otherwise, i.e. if the job does not exist.
+    else {
+        // Report the error.
+        console.log('ERROR: Specified job does not exist');
+    }
 };
 // Starts a directory watch, converting the interval argument to a number.
 const callDirWatch = async (isForever, intervalInSeconds) => {
-  await dirWatch(isForever === 'true', Math.max(5, Number.parseInt(intervalInSeconds, 10)));
+    await (0, dirWatch_1.dirWatch)(isForever === 'true', Math.max(5, Number.parseInt(intervalInSeconds, 10)));
 };
 // Starts a network watch, converting the interval argument to a number.
 const callNetWatch = async (isForever, intervalInSeconds, isCertTolerant) => {
-  return await netWatch(
-    isForever === 'true',
-    Number.parseInt(intervalInSeconds, 10),
-    isCertTolerant ? isCertTolerant === 'true' : undefined
-  );
+    return await (0, netWatch_1.netWatch)(isForever === 'true', Number.parseInt(intervalInSeconds, 10), isCertTolerant ? isCertTolerant === 'true' : undefined);
 };
-
 // OPERATION
-
 // Execute the requested function.
 if (fn === 'run' && fnArgs.length < 2) {
-  callRun(fnArgs[0])
-  .then(() => {
-    console.log('Execution completed\n');
-    process.exit(0);
-  });
+    callRun(fnArgs[0])
+        .then(() => {
+        console.log('Execution completed\n');
+        process.exit(0);
+    });
 }
 else if (fn === 'dirWatch' && fnArgs.length === 2) {
-  callDirWatch(... fnArgs)
-  .then(() => {
-    console.log('Directory watch ended');
-    process.exit(0);
-  });
+    callDirWatch(...fnArgs)
+        .then(() => {
+        console.log('Directory watch ended');
+        process.exit(0);
+    });
 }
 else if (fn === 'netWatch' && [2, 3].includes(fnArgs.length)) {
-  callNetWatch(... fnArgs)
-  .then(isOK => {
-    console.log('Network watch ended');
-    // Exit with a failure code if the watch was misconfigured or aborted, so supervisors notice.
-    process.exit(isOK ? 0 : 1);
-  });
+    callNetWatch(...fnArgs)
+        .then(isOK => {
+        console.log('Network watch ended');
+        // Exit with a failure code if the watch was misconfigured or aborted, so supervisors notice.
+        process.exit(isOK ? 0 : 1);
+    });
 }
 else {
-  console.log('ERROR: Invalid statement');
-  process.exit(1);
+    console.log('ERROR: Invalid statement');
+    process.exit(1);
 }

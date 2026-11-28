@@ -445,6 +445,8 @@ export interface Report {
   imageScale?: number;
   // Whether Chromium runs stealth evasions (default true; Chromium only).
   stealth?: boolean;
+  // Where test acts run (default ISOLATION, else process).
+  isolation?: IsolationLevel;
   // Branded Chromium channel to run instead of the bundled build (chrome or msedge).
   browserChannel?: 'bundled' | 'chrome' | 'msedge';
   // Scanner identity sent as the X-YRA-Scanner request header to the site being tested (default
@@ -480,8 +482,13 @@ export interface Report {
   flow?: Flow;
   jobData?: {
     aborted?: boolean;
-    // The index of the act during which the job was aborted, or none.
-    abortedAct?: number | 'none';
+    // The index of the act during which the job was aborted, or none ('none' after an act that
+    // has no index, null if the job was invalid or not aborted).
+    abortedAct?: number | 'none' | null;
+    // Why and when the job was aborted, if it was.
+    abortMessage?: string;
+    abortTime?: string;
+    startTime?: string;
     endTime?: string;
     elapsedSeconds?: number;
     visitLatency?: number;
@@ -497,8 +504,9 @@ export interface Report {
     // The key presses performed and the amount of text read by interaction acts.
     presses?: number;
     amountRead?: number;
-    // The job's temporary directory, and where its test acts run.
-    tmpDir?: string;
+    // The job's temporary directory (null if no writable one was found), and where its test acts
+    // run.
+    tmpDir?: string | null;
     isolation?: IsolationLevel;
     // Warnings about the job's acts, added by doActs.
     warnings?: string[];
@@ -528,6 +536,14 @@ export interface CatalogData {
   }>>;
 }
 
+// An event that doJob (run.js) reports to an onProgress callback (#44), besides those of doActs.
+export type JobProgressEvent =
+  | {event: 'jobStart'; id: string}
+  | {event: 'catalogStart'}
+  | {event: 'catalogEnd'; elapsedMs: number}
+  | {event: 'jobEnd'; id: string; aborted: boolean};
+// An event that doJob reports to an onProgress callback.
+export type ProgressEvent = JobProgressEvent | ActsProgressEvent;
 // An event that doActs reports to an onProgress callback (#44).
 export type ActsProgressEvent =
   | {event: 'actStart'; index: number; type: string; which: string | undefined}

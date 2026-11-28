@@ -369,6 +369,7 @@ export interface Report {
     imageColor?: number;
     imageScale?: number;
     stealth?: boolean;
+    isolation?: IsolationLevel;
     browserChannel?: 'bundled' | 'chrome' | 'msedge';
     scannerId?: string;
     scroll?: boolean;
@@ -392,7 +393,10 @@ export interface Report {
     flow?: Flow;
     jobData?: {
         aborted?: boolean;
-        abortedAct?: number | 'none';
+        abortedAct?: number | 'none' | null;
+        abortMessage?: string;
+        abortTime?: string;
+        startTime?: string;
         endTime?: string;
         elapsedSeconds?: number;
         visitLatency?: number;
@@ -407,7 +411,7 @@ export interface Report {
         toolTimes?: Partial<Record<ToolID, number>>;
         presses?: number;
         amountRead?: number;
-        tmpDir?: string;
+        tmpDir?: string | null;
         isolation?: IsolationLevel;
         warnings?: string[];
         catalogData?: CatalogData;
@@ -434,6 +438,20 @@ export interface CatalogData {
         catalogPercent: number | null;
     }>>;
 }
+export type JobProgressEvent = {
+    event: 'jobStart';
+    id: string;
+} | {
+    event: 'catalogStart';
+} | {
+    event: 'catalogEnd';
+    elapsedMs: number;
+} | {
+    event: 'jobEnd';
+    id: string;
+    aborted: boolean;
+};
+export type ProgressEvent = JobProgressEvent | ActsProgressEvent;
 export type ActsProgressEvent = {
     event: 'actStart';
     index: number;
