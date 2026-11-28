@@ -2,7 +2,7 @@
 
 **Status:** Active · **Owner:** Jeff Witt · **Written:** 2026-11-27 · **Updated:** 2026-11-27
 
-Phases 0–3 of the migration in issue #73 merged on 22–23 August 2026. This plan covers Phase 4, the engine. Its decisions were confirmed on 27 November 2026; no batch has started.
+Phases 0–3 of the migration in issue #73 merged on 22–23 August 2026. This plan covers Phase 4, the engine. Its decisions were confirmed on 27 November 2026. Batches 4.1–4.5 merged on 27 November 2026 (#213, #214, #216, #218, #225), 4.1–4.4 released in 78.9.0, and 4.6 is #227. #160 merged and #170 closed, so nothing holds the remaining batches (decision 3).
 
 ## Where things stand
 

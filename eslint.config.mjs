@@ -50,6 +50,7 @@ export default defineConfig([
     'procs/testAct.js',
     'procs/doTestAct.js',
     'procs/job.js',
+    'procs/launch.js',
     'actSpecs.js',
     'procs/standard.js',
     'procs/testaro.js',

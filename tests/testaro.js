@@ -630,6 +630,7 @@ const selectRules = (act) => {
 };
 exports.selectRules = selectRules;
 // Conducts and reports Testaro tests.
+// The page is null after a failed relaunch (launch returns null), as before the typing of launch.
 const reporter = async (page, report, actIndex) => {
     const act = report.acts[actIndex];
     const givenPage = page;

@@ -728,7 +728,8 @@ export const selectRules = (act: RuleSpec): RuleSelection => {
 };
 
 // Conducts and reports Testaro tests.
-export const reporter = async (page: Page | undefined, report: Report, actIndex: number) => {
+// The page is null after a failed relaunch (launch returns null), as before the typing of launch.
+export const reporter = async (page: Page | null | undefined, report: Report, actIndex: number) => {
   const act = report.acts[actIndex] as TestaroAct;
   const givenPage = page;
   const {args, stopOnFail, withItems} = act;
