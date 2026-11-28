@@ -1,0 +1,115 @@
+{
+  "rule": "linkStyles",
+  "timeLimit": 30,
+  "acts": [
+    {
+      "type": "launch",
+      "target": {
+        "url": "file://validation/tests/targets/linkStyles/good.html",
+        "what": "page with consistent link styles"
+      }
+    },
+    {
+      "type": "test",
+      "which": "testaro",
+      "withItems": true,
+      "stopOnFail": true,
+      "expect": [
+        [
+          "standardResult.totals.0",
+          "=",
+          0
+        ],
+        [
+          "standardResult.instances.length",
+          "=",
+          0
+        ],
+        [
+          "data.ruleData.linkStyles.counts.1:adjacent",
+          "=",
+          9
+        ],
+        [
+          "data.ruleData.linkStyles.counts.1:list",
+          "=",
+          2
+        ]
+      ],
+      "rules": [
+        "linkStyles"
+      ]
+    },
+    {
+      "type": "url",
+      "which": "file://validation/tests/targets/linkStyles/bad.html",
+      "what": "page with inconsistent link styles"
+    },
+    {
+      "type": "test",
+      "which": "testaro",
+      "withItems": true,
+      "stopOnFail": true,
+      "expect": [
+        [
+          "standardResult.totals.0",
+          "=",
+          5
+        ],
+        [
+          "standardResult.instances.length",
+          "=",
+          5
+        ],
+        [
+          "standardResult.instances.0.ruleID",
+          "=",
+          "linkStyles"
+        ],
+        [
+          "standardResult.instances.0.what",
+          "=",
+          "Element color value is “rgb(255, 0, 0)”, but more list links in the same navigation region have “rgb(0, 0, 238)”"
+        ],
+        [
+          "standardResult.instances.0.ordinalSeverity",
+          "=",
+          0
+        ],
+        [
+          "standardResult.instances.0.outcome",
+          "=",
+          "failed"
+        ],
+        [
+          "standardResult.instances.1.what",
+          "=",
+          "Element text-decoration-line value is “none”, but more links in the same main region have “underline”"
+        ],
+        [
+          "standardResult.instances.2.what",
+          "=",
+          "Element color value is “rgb(255, 0, 0)”, but more links in the same main region have “rgb(0, 0, 238)”"
+        ],
+        [
+          "standardResult.instances.3.what",
+          "=",
+          "Element text-decoration-style value is “solid”, but another link in the same region has “wavy”"
+        ],
+        [
+          "standardResult.instances.4.what",
+          "=",
+          "Element text-decoration-style value is “wavy”, but another link in the same region has “solid”"
+        ],
+        [
+          "standardResult.outcomeTotals.failed",
+          "=",
+          5
+        ]
+      ],
+      "rules": [
+        "linkStyles"
+      ]
+    }
+  ]
+}

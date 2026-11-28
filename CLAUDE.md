@@ -107,21 +107,25 @@ Long comments are not broken into multiple lines per paragraph.
 
 | File | Purpose |
 | ---- | ------- |
-| `run.js` | `doJob()` — the main entry point |
+| `actSpecs.js` | Canonical specs for all 18 act types |
 | `call.js` | CLI wrapper for `run`, `dirWatch`, `netWatch` |
-| `procs/doActs.js` | Iterates acts; forks child for each tool; assigns test acts to checkpoints |
-| `procs/actDo.js` | Performs the acts that operate on a live page; replays a checkpoint's acts |
-| `procs/checkpoint.js` | Snapshots a live page as a checkpoint |
-| `procs/doTestAct.js` | Child-process entry point for tool invocations |
-| `procs/testaro.js` | `doTest` / `getBasicResult` helpers for Testaro rules |
-| `procs/launch.js` | Browser lifecycle (launch, goTo, nonce, wait) |
+| `procs/actDo.ts` | Performs the acts that operate on a live page; replays a checkpoint's acts |
 | `procs/catalog.ts` | Builds the element catalog from the DOM (checkpoint 0, and any live page for later checkpoints) |
+| `procs/checkpoint.ts` | Snapshots a live page as a checkpoint |
+| `procs/config.ts` | Shared configuration values |
+| `procs/doActs.js` | Iterates acts; forks child for each tool; assigns test acts to checkpoints |
+| `procs/doTestAct.ts` | Child-process entry point for tool invocations |
+| `procs/flow.ts` | Tracker of rule violation changes across checkpoints |
 | `procs/job.js` | Job validation; `tools` constant |
-| `actSpecs.ts` | Canonical specs for all 20 act types, checked against `JobAct` (`types.ts`) |
-| `tests/testaro.ts` | `allRules` registry for the testaro tool |
+| `procs/launch.js` | Browser lifecycle (launch, goTo, nonce, wait) |
 | `procs/standard.ts` | Builders for the standard result and its instances (`outcome`, `uncertainty`, `needed`) |
+| `procs/styleConsistency.ts` | Determines which style differences violate style-consistency rules |
+| `procs/testAct.ts` | Performs a test act |
+| `procs/testaro.ts` | `doTest` / `getBasicResult` helpers for Testaro rules |
+| `run.js` | `doJob()` — the main entry point |
+| `testaro/<ruleID>.ts` | One file per Testaro rule |
 | `testaro/registry.ts` | Generated map of rule IDs to rule modules (`npm run build:registry`) |
-| `testaro/<ruleID>.js` | One file per Testaro rule |
+| `tests/testaro.ts` | `allRules` registry for the testaro tool |
 | `validation/validateTest.js` | Core validation harness |
 
 ## License

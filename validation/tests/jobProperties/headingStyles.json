@@ -1,0 +1,110 @@
+{
+  "rule": "headingStyles",
+  "timeLimit": 30,
+  "acts": [
+    {
+      "type": "launch",
+      "target": {
+        "url": "file://validation/tests/targets/headingStyles/good.html",
+        "what": "page with consistent heading styles"
+      }
+    },
+    {
+      "type": "test",
+      "which": "testaro",
+      "withItems": true,
+      "stopOnFail": true,
+      "expect": [
+        [
+          "standardResult.totals.0",
+          "=",
+          0
+        ],
+        [
+          "standardResult.instances.length",
+          "=",
+          0
+        ],
+        [
+          "data.ruleData.headingStyles.counts.2",
+          "=",
+          4
+        ]
+      ],
+      "rules": [
+        "headingStyles"
+      ]
+    },
+    {
+      "type": "url",
+      "which": "file://validation/tests/targets/headingStyles/bad.html",
+      "what": "page with inconsistent heading styles"
+    },
+    {
+      "type": "test",
+      "which": "testaro",
+      "withItems": true,
+      "stopOnFail": true,
+      "expect": [
+        [
+          "standardResult.totals.0",
+          "=",
+          5
+        ],
+        [
+          "standardResult.instances.length",
+          "=",
+          5
+        ],
+        [
+          "standardResult.instances.0.ruleID",
+          "=",
+          "headingStyles"
+        ],
+        [
+          "standardResult.instances.0.what",
+          "=",
+          "Element color value is “rgb(255, 0, 0)”, but more level-2 headings have “rgb(0, 0, 0)”"
+        ],
+        [
+          "standardResult.instances.0.ordinalSeverity",
+          "=",
+          0
+        ],
+        [
+          "standardResult.instances.0.outcome",
+          "=",
+          "failed"
+        ],
+        [
+          "standardResult.instances.1.what",
+          "=",
+          "Element font-size value is “16px”, but more level-2 headings have “24px”"
+        ],
+        [
+          "standardResult.instances.2.what",
+          "=",
+          "Element font-weight value is “400”, but more level-2 headings have “700”"
+        ],
+        [
+          "standardResult.instances.3.what",
+          "=",
+          "Element letter-spacing value is “normal”, but another level-3 heading has “1px”"
+        ],
+        [
+          "standardResult.instances.4.what",
+          "=",
+          "Element letter-spacing value is “1px”, but another level-3 heading has “normal”"
+        ],
+        [
+          "standardResult.outcomeTotals.failed",
+          "=",
+          5
+        ]
+      ],
+      "rules": [
+        "headingStyles"
+      ]
+    }
+  ]
+}

@@ -94,6 +94,15 @@ const allRules = [
         defaultOn: true
     },
     {
+        id: 'buttonStyles',
+        what: 'buttons with style-property values that are not the most common among buttons',
+        contaminates: false,
+        needsAccessibleName: false,
+        local: false,
+        timeOut: 10,
+        defaultOn: false
+    },
+    {
         id: 'captionLoc',
         what: 'caption elements that are not first children of table elements',
         contaminates: false,
@@ -155,6 +164,15 @@ const allRules = [
         local: false,
         timeOut: 5,
         defaultOn: true
+    },
+    {
+        id: 'headingStyles',
+        what: 'headings with style-property values that are not the most common among headings of their levels',
+        contaminates: false,
+        needsAccessibleName: false,
+        local: false,
+        timeOut: 10,
+        defaultOn: false
     },
     {
         id: 'hr',
@@ -227,6 +245,15 @@ const allRules = [
         local: true,
         timeOut: 5,
         defaultOn: true
+    },
+    {
+        id: 'linkStyles',
+        what: 'links with style-property values that are not the most common among links of their kinds in their regions',
+        contaminates: false,
+        needsAccessibleName: false,
+        local: false,
+        timeOut: 10,
+        defaultOn: false
     },
     {
         id: 'linkUl',
@@ -302,7 +329,7 @@ const allRules = [
     },
     {
         id: 'styleDiff',
-        what: 'style inconsistencies',
+        what: 'style inconsistencies (to be superseded by future revisions of buttonStyles, headingStyles, and linkStyles)',
         contaminates: false,
         needsAccessibleName: false,
         local: false,

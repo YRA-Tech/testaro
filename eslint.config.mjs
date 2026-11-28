@@ -53,6 +53,7 @@ export default defineConfig([
     'procs/launch.js',
     'actSpecs.js',
     'procs/standard.js',
+    'procs/styleConsistency.js',
     'procs/testaro.js',
     'procs/xPath.js',
     'testaro/*.js',

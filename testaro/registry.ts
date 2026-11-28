@@ -39,6 +39,7 @@ export type RuleID =
   | 'autocomplete'
   | 'bulk'
   | 'buttonMenu'
+  | 'buttonStyles'
   | 'captionLoc'
   | 'datalistRef'
   | 'distortion'
@@ -52,6 +53,7 @@ export type RuleID =
   | 'focVis'
   | 'headEl'
   | 'headingAmb'
+  | 'headingStyles'
   | 'hovInd'
   | 'hover'
   | 'hr'
@@ -62,6 +64,7 @@ export type RuleID =
   | 'linkAmb'
   | 'linkExt'
   | 'linkOldAtt'
+  | 'linkStyles'
   | 'linkTo'
   | 'linkUl'
   | 'miniText'
@@ -96,6 +99,7 @@ export const ruleModules = {
   autocomplete: () => require('./autocomplete') as typeof import('./autocomplete'),
   bulk: () => require('./bulk') as typeof import('./bulk'),
   buttonMenu: () => require('./buttonMenu') as typeof import('./buttonMenu'),
+  buttonStyles: () => require('./buttonStyles') as typeof import('./buttonStyles'),
   captionLoc: () => require('./captionLoc') as typeof import('./captionLoc'),
   datalistRef: () => require('./datalistRef') as typeof import('./datalistRef'),
   distortion: () => require('./distortion') as typeof import('./distortion'),
@@ -109,6 +113,7 @@ export const ruleModules = {
   focVis: () => require('./focVis') as typeof import('./focVis'),
   headEl: () => require('./headEl') as typeof import('./headEl'),
   headingAmb: () => require('./headingAmb') as typeof import('./headingAmb'),
+  headingStyles: () => require('./headingStyles') as typeof import('./headingStyles'),
   hovInd: () => require('./hovInd') as typeof import('./hovInd'),
   hover: () => require('./hover') as typeof import('./hover'),
   hr: () => require('./hr') as typeof import('./hr'),
@@ -119,6 +124,7 @@ export const ruleModules = {
   linkAmb: () => require('./linkAmb') as typeof import('./linkAmb'),
   linkExt: () => require('./linkExt') as typeof import('./linkExt'),
   linkOldAtt: () => require('./linkOldAtt') as typeof import('./linkOldAtt'),
+  linkStyles: () => require('./linkStyles') as typeof import('./linkStyles'),
   linkTo: () => require('./linkTo') as typeof import('./linkTo'),
   linkUl: () => require('./linkUl') as typeof import('./linkUl'),
   miniText: () => require('./miniText') as typeof import('./miniText'),

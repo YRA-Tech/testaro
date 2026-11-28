@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<!--
+  © 2026 Jonathan Robert Pool.
+
+  Licensed under the MIT License. See LICENSE file at the project root or
+  https://opensource.org/license/mit/ for details.
+
+  SPDX-License-Identifier: MIT
+-->
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <title>Page with consistent link styles</title>
+    <meta name="description" content="tester">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+      body {
+        color: rgb(0, 0, 0);
+      }
+      a, [role~=link] {
+        color: rgb(0, 0, 238);
+        text-decoration-line: underline;
+      }
+      nav a {
+        color: rgb(255, 255, 255);
+        background-color: rgb(0, 0, 0);
+        text-decoration-line: none;
+      }
+      .menu a {
+        text-decoration-line: none;
+      }
+      footer a {
+        color: rgb(80, 80, 80);
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <nav aria-label="site">
+        <ul>
+          <li><a href="#a">Home</a></li>
+          <li><a href="#b">About</a></li>
+          <li><a href="#c">Contact</a></li>
+        </ul>
+      </nav>
+    </header>
+    <main>
+      <h1>Page with consistent link styles</h1>
+      <p>This paragraph contains a <a href="#d">plain link</a>, a <strong><a href="#e">strong link</a></strong>, an <em><a href="#f">emphasized link</a></em>, and a <span role="link" tabindex="0">link with a link role</span>. They differ in font properties, but those are not compared.</p>
+      <h2><a href="#g">Link in a heading</a></h2>
+      <p>The following list links have no underlines, unlike the adjacent links, but links of different kinds are not compared.</p>
+      <ul class="menu">
+        <li><a href="#h">First list link</a></li>
+        <li><a href="#i">Second list link</a></li>
+      </ul>
+      <p>The following list item contains 2 image links, so they are adjacent links, not list links, and are not compared with the list links above.</p>
+      <ul>
+        <li><a href="#o"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16'/%3E" alt="Previous" width="16" height="16"></a> <a href="#p"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16'/%3E" alt="Next" width="16" height="16"></a></li>
+      </ul>
+      <p>This paragraph contains <span role=" link " tabindex="0">a link with a spaced role</span>, and links with deviant styles that are not tested, because they are invisible: <a href="#q" style="color: red; visibility: hidden">unseen link</a> <a href="#r" style="color: red; opacity: 0">transparent link</a>.</p>
+      <section>
+        <p>This unnamed section is not a landmark, so <a href="#j">its link</a> is compared with the other links in the main region.</p>
+      </section>
+      <p>Links with deviant styles that are not tested, because one is hidden and one has a button role, follow: <a href="#k" style="color: red; display: none">hidden link</a> <a href="#l" style="color: red" role="button">button link</a>.</p>
+    </main>
+    <footer>
+      <p>The links in the content-information region are gray, unlike those in the main region, but links in different regions are not compared: <a href="#m">first footer link</a>, <a href="#n">second footer link</a>.</p>
+    </footer>
+  </body>
+</html>

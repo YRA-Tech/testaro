@@ -1,0 +1,131 @@
+{
+  "rule": "buttonStyles",
+  "timeLimit": 30,
+  "acts": [
+    {
+      "type": "launch",
+      "target": {
+        "url": "file://validation/tests/targets/buttonStyles/good.html",
+        "what": "page with consistent button styles"
+      }
+    },
+    {
+      "type": "test",
+      "which": "testaro",
+      "withItems": true,
+      "stopOnFail": true,
+      "expect": [
+        [
+          "standardResult.totals.0",
+          "=",
+          0
+        ],
+        [
+          "standardResult.instances.length",
+          "=",
+          0
+        ],
+        [
+          "data.ruleData.buttonStyles.counts.button",
+          "=",
+          6
+        ]
+      ],
+      "rules": [
+        "buttonStyles"
+      ]
+    },
+    {
+      "type": "url",
+      "which": "file://validation/tests/targets/buttonStyles/bad.html",
+      "what": "page with a button with deviant styles"
+    },
+    {
+      "type": "test",
+      "which": "testaro",
+      "withItems": true,
+      "stopOnFail": true,
+      "expect": [
+        [
+          "standardResult.totals.0",
+          "=",
+          2
+        ],
+        [
+          "standardResult.instances.length",
+          "=",
+          2
+        ],
+        [
+          "standardResult.instances.0.ruleID",
+          "=",
+          "buttonStyles"
+        ],
+        [
+          "standardResult.instances.0.what",
+          "=",
+          "Element color value is “rgb(255, 0, 0)”, but more buttons have “rgb(0, 0, 0)”"
+        ],
+        [
+          "standardResult.instances.0.ordinalSeverity",
+          "=",
+          0
+        ],
+        [
+          "standardResult.instances.0.outcome",
+          "=",
+          "failed"
+        ],
+        [
+          "standardResult.instances.1.what",
+          "=",
+          "Element border-radius value is “12px”, but more buttons have “4px”"
+        ],
+        [
+          "standardResult.outcomeTotals.failed",
+          "=",
+          2
+        ]
+      ],
+      "rules": [
+        "buttonStyles"
+      ]
+    },
+    {
+      "type": "url",
+      "which": "file://validation/tests/targets/buttonStyles/tie.html",
+      "what": "page with 2 buttons with different styles"
+    },
+    {
+      "type": "test",
+      "which": "testaro",
+      "withItems": true,
+      "stopOnFail": true,
+      "expect": [
+        [
+          "standardResult.totals.0",
+          "=",
+          2
+        ],
+        [
+          "standardResult.instances.length",
+          "=",
+          2
+        ],
+        [
+          "standardResult.instances.0.what",
+          "=",
+          "Element padding value is “4px 8px”, but another button has “4px 16px”"
+        ],
+        [
+          "standardResult.instances.1.what",
+          "=",
+          "Element padding value is “4px 16px”, but another button has “4px 8px”"
+        ]
+      ],
+      "rules": [
+        "buttonStyles"
+      ]
+    }
+  ]
+}
