@@ -60,6 +60,7 @@ const fs = __importStar(require("fs/promises"));
 const run_1 = require("./run");
 const dirWatch_1 = require("./dirWatch");
 const netWatch_1 = require("./netWatch");
+const job_1 = require("./procs/job");
 // CONSTANTS
 const fn = process.argv[2];
 const fnArgs = process.argv.slice(3);
@@ -85,11 +86,19 @@ const callRun = async (jobIDStart) => {
         const { id } = report;
         // Run the job.
         report = await (0, run_1.doJob)(report);
-        // Archive it.
-        await fs.rename(`${todoDir}/${jobFileName}`, `${jobDir}/done/${id}.json`);
-        // Save the report.
-        await fs.writeFile(`${rawDir}/${id}.json`, `${JSON.stringify(report, null, 2)}\n`);
-        console.log(`Job completed and report ${id} saved in ${rawDir}`);
+        // If its ID can name a file (the ID of an invalid job may not):
+        if ((0, job_1.isSafeJobID)(id)) {
+            // Archive it.
+            await fs.rename(`${todoDir}/${jobFileName}`, `${jobDir}/done/${id}.json`);
+            // Save the report.
+            await fs.writeFile(`${rawDir}/${id}.json`, `${JSON.stringify(report, null, 2)}\n`);
+            console.log(`Job completed and report ${id} saved in ${rawDir}`);
+        }
+        // Otherwise, i.e. if the ID could name a file outside the directories:
+        else {
+            // Leave the job where it is, and report this.
+            console.log(`ERROR: Job ID ${JSON.stringify(id)} cannot name a file, so the job was not archived and its report was not saved`);
+        }
     }
     // Otherwise, i.e. if the job does not exist.
     else {

@@ -9,12 +9,12 @@
 
 /*
   jobValidity.test.js
-  Unit tests of the validation of jobs and acts (isValidJob and isValidAct in procs/job.ts). They need no browser. They cover the defects of #224: a wave act that set url was always invalid, a job with a null target or without a device made the validator throw, a job with an array as its target was valid, and an inherited property name such as constructor passed as an act type or a tool.
+  Unit tests of the validation of jobs and acts (isValidJob, isValidAct and isSafeJobID in procs/job.ts). They need no browser. They cover the rejection of job IDs that cannot name a file (#231), and the defects of #224: a wave act that set url was always invalid, a job with a null target or without a device made the validator throw, a job with an array as its target was valid, and an inherited property name such as constructor passed as an act type or a tool.
 */
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {isValidAct, isValidJob} = require('../procs/job');
+const {isSafeJobID, isValidAct, isValidJob} = require('../procs/job');
 
 // Returns a minimal valid job.
 const validJob = () => ({
@@ -87,4 +87,32 @@ test('an inherited property name is not a tool', () => {
 test('a known act type and a known tool are still valid', () => {
   assert.equal(isValidAct({type: 'wait', what: 'body', which: 'text'}), true);
   assert.equal(isValidAct({type: 'test', which: 'axe', detailLevel: 2}), true);
+});
+
+test('a job ID that could name a file outside its directory is invalid', () => {
+  for (const id of ['../x', '../../etc/x', 'a/b', '/abs', 'a\\b', 'a\u0000b', 'tab\there', 'line\nbreak']) {
+    assert.equal(isSafeJobID(id), false, JSON.stringify(id));
+    assert.deepEqual(
+      isValidJob({...validJob(), id}),
+      {isValid: false, error: 'Bad job ID (must not contain /, \\, or control characters)'},
+      JSON.stringify(id)
+    );
+  }
+});
+
+test('the job IDs in use are valid', () => {
+  for (const id of [
+    'job_1764337200000', 'job_1764337200000_c12_u3', 'job_1764337200000_course_u0',
+    'userpath_8f14e45f-ceea-467f-a0e7-123456789abc_1764337200000', '240101T1200-simple-example',
+    'a11y-marketing-home', 'e2e-tools-process', 'with space', 'café', '..'
+  ]) {
+    assert.equal(isSafeJobID(id), true, id);
+    assert.deepEqual(isValidJob({...validJob(), id}), {isValid: true}, id);
+  }
+});
+
+test('an ID that is not a nonempty string cannot name a file', () => {
+  for (const id of ['', 7, null, undefined, {}, ['a']]) {
+    assert.equal(isSafeJobID(id), false, JSON.stringify(id));
+  }
 });

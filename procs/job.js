@@ -9,7 +9,7 @@
   SPDX-License-Identifier: MIT
 */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.isValidJob = exports.isValidAct = exports.isURL = exports.isDeviceID = exports.isBrowserID = exports.getIsolation = exports.isolationLevels = exports.toolScopes = exports.testScopes = exports.toolInputs = exports.tools = void 0;
+exports.isValidJob = exports.isSafeJobID = exports.isValidAct = exports.isURL = exports.isDeviceID = exports.isBrowserID = exports.getIsolation = exports.isolationLevels = exports.toolScopes = exports.testScopes = exports.toolInputs = exports.tools = void 0;
 // IMPORTS
 // Requirements for acts.
 const actSpecs_1 = require("../actSpecs");
@@ -233,6 +233,9 @@ const isValidAct = (act) => {
     }
 };
 exports.isValidAct = isValidAct;
+// Returns whether a job ID can name a file: a nonempty string without a path separator or a control character, so that a file named <ID>.json stays in its directory. dirWatch and call save a job's files under its ID, and job validation rejects any other ID.
+const isSafeJobID = (id) => typeof id === 'string' && id.length > 0 && !/[/\\\u0000-\u001f\u007f]/.test(id);
+exports.isSafeJobID = isSafeJobID;
 // Returns whether a job is valid and, if not, why not.
 const isValidJob = (job) => {
     // If any job was provided:
@@ -244,6 +247,12 @@ const isValidJob = (job) => {
             return {
                 isValid: false,
                 error: 'Bad job ID'
+            };
+        }
+        if (!(0, exports.isSafeJobID)(id)) {
+            return {
+                isValid: false,
+                error: 'Bad job ID (must not contain /, \\, or control characters)'
             };
         }
         if (typeof strict !== 'boolean') {

@@ -254,6 +254,8 @@ export const isValidAct = (act: Record<string, unknown>): boolean => {
     return false;
   }
 };
+// Returns whether a job ID can name a file: a nonempty string without a path separator or a control character, so that a file named <ID>.json stays in its directory. dirWatch and call save a job's files under its ID, and job validation rejects any other ID.
+export const isSafeJobID = (id: unknown): boolean => typeof id === 'string' && id.length > 0 && ! /[/\\\u0000-\u001f\u007f]/.test(id);
 // Returns whether a job is valid and, if not, why not.
 export const isValidJob = (job: Record<string, unknown> | null | undefined): JobValidity => {
   // If any job was provided:
@@ -278,6 +280,12 @@ export const isValidJob = (job: Record<string, unknown> | null | undefined): Job
       return {
         isValid: false,
         error: 'Bad job ID'
+      };
+    }
+    if (! isSafeJobID(id)) {
+      return {
+        isValid: false,
+        error: 'Bad job ID (must not contain /, \\, or control characters)'
       };
     }
     if (typeof strict !== 'boolean') {

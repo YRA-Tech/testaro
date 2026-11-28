@@ -23,6 +23,8 @@ import * as fs from 'fs/promises';
 import {doJob} from './run';
 // Module to get dates from time stamps.
 import {dateOf, nowString} from './procs/dateTime';
+// Function to check that a job ID can name a file.
+import {isSafeJobID} from './procs/job';
 import type {Report} from './types';
 
 // ########## CONSTANTS
@@ -32,9 +34,13 @@ const reportDir = process.env.REPORTDIR;
 
 // ########## FUNCTIONS
 
-// Writes a directory report and returns whether it was saved.
+// Writes a directory report and returns whether it was saved. A report is saved under its job ID, so it is not saved if that ID could name a file outside the report directory (an invalid job's report can have such an ID).
 const writeDirReport = async (report: Report): Promise<boolean> => {
   const jobID = report && report.id;
+  if (jobID && ! isSafeJobID(jobID)) {
+    console.log(`ERROR: Job ID ${JSON.stringify(jobID)} cannot name a file, so the report was not saved`);
+    return false;
+  }
   if (jobID) {
     const rawDir = `${reportDir}/raw`;
     try {

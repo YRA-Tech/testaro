@@ -17,4 +17,5 @@ export declare const isBrowserID: (type: unknown) => boolean;
 export declare const isDeviceID: (deviceID: unknown) => boolean;
 export declare const isURL: (string: unknown) => boolean;
 export declare const isValidAct: (act: Record<string, unknown>) => boolean;
+export declare const isSafeJobID: (id: unknown) => boolean;
 export declare const isValidJob: (job: Record<string, unknown> | null | undefined) => JobValidity;
