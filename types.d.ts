@@ -2,6 +2,7 @@ export type ToolID = 'alfa' | 'aslint' | 'axe' | 'ed11y' | 'htmlcs' | 'ibm' | 'n
 export type Outcome = 'failed' | 'cantTell';
 export type UncertaintyCode = 'not-computable' | 'judgement-required' | 'runtime-dependent' | 'spec-only' | 'equivalence-unknown' | 'out-of-scope';
 export type BrowserID = 'chromium' | 'firefox' | 'webkit';
+export type IsolationLevel = 'process' | 'browser' | 'page';
 export type SeverityTotals = [number, number, number, number];
 export interface StandardInstance {
     ruleID: string;
@@ -12,7 +13,7 @@ export interface StandardInstance {
     needed?: string;
     count?: number;
     catalogIndex?: string | number;
-    checkpoint?: number;
+    checkpoint?: number | null;
     tagName?: string;
     id?: string;
     location?: {
@@ -114,7 +115,7 @@ export interface LinkAct extends MoveTarget, Commented {
 }
 export interface NextAct extends Commented {
     type: 'next';
-    if: (string | number)[];
+    if: Expectation;
     jump?: number;
     next?: string;
 }
@@ -251,12 +252,21 @@ export interface ActSpecs {
         [T in keyof ToolActProperties]: SpecFor<ToolActProperties[T]>;
     };
 }
+export type Relation = '=' | '<' | '>' | '!' | 'i' | '!i' | 'e';
+export type Expectation = [property: string, relation?: Relation, criterion?: unknown];
+export interface ExpectationResult {
+    property: string;
+    relation: Relation | undefined;
+    criterion: unknown;
+    actual: unknown;
+    passed: boolean | undefined;
+}
 export interface Act {
     type: string;
     which?: string;
     what?: string;
-    startTime?: string;
-    endTime?: string;
+    startTime?: number;
+    endTime?: number;
     actualURL?: string;
     data?: Record<string, unknown>;
     result?: {
@@ -264,7 +274,8 @@ export interface Act {
         standardResult?: StandardResult;
         [key: string]: unknown;
     };
-    expectations?: unknown;
+    expect?: Expectation[];
+    expectations?: ExpectationResult[];
     expectationFailures?: number;
     checkpoint?: number | null;
     scope?: TestScope;
@@ -396,10 +407,57 @@ export interface Report {
         toolTimes?: Partial<Record<ToolID, number>>;
         presses?: number;
         amountRead?: number;
+        tmpDir?: string;
+        isolation?: IsolationLevel;
+        warnings?: string[];
+        catalogData?: CatalogData;
         [key: string]: unknown;
     };
     [key: string]: unknown;
 }
+export interface CatalogData {
+    elementCount: number;
+    entryCount: number;
+    checkpoints: Record<number, {
+        elementCount: number;
+        entryCount: number;
+    }>;
+    text: {
+        count: number;
+        countPercent: number;
+        linkableCount: number;
+        linkablePercent: number;
+    };
+    tools: Partial<Record<ToolID, {
+        instanceCount: number;
+        catalogCount: number;
+        catalogPercent: number | null;
+    }>>;
+}
+export type ActsProgressEvent = {
+    event: 'actStart';
+    index: number;
+    type: string;
+    which: string | undefined;
+} | {
+    event: 'actEnd';
+    index: number;
+    type: string;
+    which: string | undefined;
+    checkpoint: number | null | undefined;
+    outcome: 'timedOut' | 'prevented' | 'success';
+    elapsedMs: number;
+} | {
+    event: 'checkpointStart';
+    index: number;
+    name: string;
+} | {
+    event: 'checkpointEnd';
+    index: number;
+    name: string;
+    kind: Checkpoint['kind'];
+    elapsedMs: number;
+};
 export type TestActMessage = {
     status: 'ok';
 } | {

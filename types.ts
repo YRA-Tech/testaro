@@ -50,6 +50,10 @@ export type UncertaintyCode =
 // The browser types a job may specify.
 export type BrowserID = 'chromium' | 'firefox' | 'webkit';
 
+// Where test acts run: each in a child process, in a browser of its own in the job's process, or
+// on the job's live page.
+export type IsolationLevel = 'process' | 'browser' | 'page';
+
 // Rule-violation counts at the 4 ordinal severities, least severe first.
 export type SeverityTotals = [number, number, number, number];
 
@@ -67,8 +71,9 @@ export interface StandardInstance {
   count?: number;
   // Key of the violating element in the report catalog (v70+ reports).
   catalogIndex?: string | number;
-  // Index of the checkpoint (page state) the instance was found in (v78.2+ reports).
-  checkpoint?: number;
+  // Index of the checkpoint (page state) the instance was found in (v78.2+ reports), or null if
+  // its test act had a target of its own, outside the checkpoints.
+  checkpoint?: number | null;
   // Inline element identifiers of pre-catalog (v60) reports; absent on v70+.
   tagName?: string;
   id?: string;
@@ -185,7 +190,7 @@ export interface LaunchAct extends Commented {
 export interface LinkAct extends MoveTarget, Commented {type: 'link'}
 export interface NextAct extends Commented {
   type: 'next';
-  if: (string | number)[];
+  if: Expectation;
   jump?: number;
   next?: string;
 }
@@ -285,13 +290,33 @@ export interface ActSpecs {
   tools: {[T in keyof ToolActProperties]: SpecFor<ToolActProperties[T]>};
 }
 
+// A relation of an expectation: equal, less, greater, unequal, includes, excludes, or equal as
+// JSON.
+export type Relation = '=' | '<' | '>' | '!' | 'i' | '!i' | 'e';
+/*
+  An expectation of a test act (act.expect) or the condition of a next act (act.if): a property
+  path in a.b.c format, alone (the property must not exist) or with a relation and a criterion.
+  isTrue (procs/doActs) evaluates it. Nothing validates a test act's expectations.
+*/
+export type Expectation = [property: string, relation?: Relation, criterion?: unknown];
+// Whether a test act fulfilled one of its expectations (act.expectations).
+export interface ExpectationResult {
+  property: string;
+  relation: Relation | undefined;
+  criterion: unknown;
+  actual: unknown;
+  // Undefined if the relation is not one of the relations.
+  passed: boolean | undefined;
+}
+
 // One act of a job. Permissive in Phase 0; see the file comment.
 export interface Act {
   type: string;
   which?: string;
   what?: string;
-  startTime?: string;
-  endTime?: string;
+  // Milliseconds since the epoch, added by doActs.
+  startTime?: number;
+  endTime?: number;
   actualURL?: string;
   data?: Record<string, unknown>;
   result?: {
@@ -299,7 +324,9 @@ export interface Act {
     standardResult?: StandardResult;
     [key: string]: unknown;
   };
-  expectations?: unknown;
+  // The expectations of a test act, and whether they were fulfilled.
+  expect?: Expectation[];
+  expectations?: ExpectationResult[];
   expectationFailures?: number;
   // The checkpoint a test act belongs to, assigned by doActs.
   checkpoint?: number | null;
@@ -470,10 +497,57 @@ export interface Report {
     // The key presses performed and the amount of text read by interaction acts.
     presses?: number;
     amountRead?: number;
+    // The job's temporary directory, and where its test acts run.
+    tmpDir?: string;
+    isolation?: IsolationLevel;
+    // Warnings about the job's acts, added by doActs.
+    warnings?: string[];
+    // Counts of the catalog's entries, added by doActs.
+    catalogData?: CatalogData;
     [key: string]: unknown;
   };
   [key: string]: unknown;
 }
+
+// Counts of a report's catalog entries before and after pruning (report.jobData.catalogData).
+export interface CatalogData {
+  // Entries ever made, and entries left after pruning.
+  elementCount: number;
+  entryCount: number;
+  // By checkpoint index.
+  checkpoints: Record<number, {elementCount: number; entryCount: number}>;
+  // Remaining entries with text and with linkable text. A percentage is NaN (null in the
+  // report) if its base is 0.
+  text: {count: number; countPercent: number; linkableCount: number; linkablePercent: number};
+  // By tool: its standard instances, those with a catalog index, and their percentage (null if
+  // the tool reported no instances).
+  tools: Partial<Record<ToolID, {
+    instanceCount: number;
+    catalogCount: number;
+    catalogPercent: number | null;
+  }>>;
+}
+
+// An event that doActs reports to an onProgress callback (#44).
+export type ActsProgressEvent =
+  | {event: 'actStart'; index: number; type: string; which: string | undefined}
+  | {
+    event: 'actEnd';
+    index: number;
+    type: string;
+    which: string | undefined;
+    checkpoint: number | null | undefined;
+    outcome: 'timedOut' | 'prevented' | 'success';
+    elapsedMs: number;
+  }
+  | {event: 'checkpointStart'; index: number; name: string}
+  | {
+    event: 'checkpointEnd';
+    index: number;
+    name: string;
+    kind: Checkpoint['kind'];
+    elapsedMs: number;
+  };
 
 // The message the child process of a test act under process isolation (procs/doTestAct) sends
 // its parent (procs/doActs): ok, or an error naming what failed.

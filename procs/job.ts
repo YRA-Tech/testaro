@@ -18,7 +18,7 @@ import {waitStates} from './config';
 import {devices} from 'playwright';
 // Module to get dates from time stamps.
 import {dateOf} from './dateTime';
-import type {JobActType, SpecSubtype, SpecType, TestScope, ToolID} from '../types';
+import type {IsolationLevel, JobActType, SpecSubtype, SpecType, TestScope, ToolID} from '../types';
 
 /*
   job
@@ -30,8 +30,8 @@ import type {JobActType, SpecSubtype, SpecType, TestScope, ToolID} from '../type
 
 // What a tool tests: a live page, the live page's HTML, or only a URL.
 export type ToolInput = 'page' | 'html' | 'url';
-// The isolation level of test acts.
-export type IsolationLevel = 'process' | 'browser' | 'page';
+// The isolation level of test acts (declared in types.ts, where the report records it).
+export type {IsolationLevel};
 // The specification of one act property: required, type, subtype, description.
 type PropSpec = readonly [boolean, SpecType, SpecSubtype, string];
 // The result of validating a job.
