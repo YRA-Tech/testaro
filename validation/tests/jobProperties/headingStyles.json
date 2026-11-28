@@ -32,7 +32,6 @@
         ]
       ],
       "rules": [
-        "y",
         "headingStyles"
       ]
     },
@@ -104,7 +103,6 @@
         ]
       ],
       "rules": [
-        "y",
         "headingStyles"
       ]
     }

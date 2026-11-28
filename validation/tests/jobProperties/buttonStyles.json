@@ -89,7 +89,6 @@
         ]
       ],
       "rules": [
-        "y",
         "buttonStyles"
       ]
     },
@@ -126,7 +125,6 @@
         ]
       ],
       "rules": [
-        "y",
         "buttonStyles"
       ]
     }
