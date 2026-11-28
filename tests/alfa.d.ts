@@ -25,6 +25,18 @@ interface AlfaEvalItem {
     code?: string;
     path?: string;
 }
+interface SheetLoss {
+    sheet: string;
+    browserRules: number;
+    alfaRules: number;
+    lostRules: Record<string, number>;
+}
+export interface StyleLosses {
+    sheets: number;
+    losses: SheetLoss[];
+    lostRules: number;
+    unreadable: string[];
+}
 interface AlfaNativeResult {
     totals: {
         failed: number;
@@ -36,6 +48,8 @@ export declare const reporter: (page: Page, report: Report, actIndex: number) =>
     data: {
         prevented?: boolean;
         error?: string;
+        styleLosses?: StyleLosses;
+        styleLossesError?: string;
     };
     result: {
         nativeResult: AlfaNativeResult;

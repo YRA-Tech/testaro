@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Style sheets that Alfa's page reader loses</title>
+    <style>
+      body { background: #fff; }
+      h1 { color: #000; }
+    </style>
+    <style>
+      .low { color: #aaa; }
+      @container (min-width: 10px) { .card { padding: 1px; } }
+      main { display: block; }
+    </style>
+    <style>
+      .card { color: #222; & .title { color: #767676; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Style losses</h1>
+      <p>The first sheet is read in full. Alfa 0.120.0 gives no rules for the second (it holds a <code>@container</code> rule), misses the nested rule of the third, and gives no rules for the adopted sheet (it holds a <code>@property</code> rule).</p>
+      <div class="card"><p class="title">Grey title</p><p class="low">Low contrast</p></div>
+    </main>
+    <script>
+      const sheet = new CSSStyleSheet();
+      sheet.replaceSync('@property --x { syntax: "<length>"; inherits: false; initial-value: 0px; } .adopted { color: red; }');
+      document.adoptedStyleSheets = [sheet];
+    </script>
+  </body>
+</html>

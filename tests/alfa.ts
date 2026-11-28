@@ -62,6 +62,32 @@ interface AlfaEvalItem {
   code?: string;
   path?: string;
 }
+// What the browser holds in one style sheet of the document: its rule counts by rule type
+// (CSSStyleRule, CSSMediaRule, …), including the rules of nested, grouping and imported rules,
+// or null if the page cannot read its rules (a cross-origin sheet loaded without CORS).
+interface BrowserSheet {
+  sheet: string;
+  counts: Record<string, number> | null;
+  // The URLs of imported sheets whose rules the page cannot read.
+  unreadableImports: string[];
+}
+// What Alfa did not see in one style sheet.
+interface SheetLoss {
+  sheet: string;
+  browserRules: number;
+  alfaRules: number;
+  lostRules: Record<string, number>;
+}
+// The record of the styles that Alfa did not see.
+export interface StyleLosses {
+  // The number of the document's style sheets (including adopted ones).
+  sheets: number;
+  // The rules the page can read and Alfa did not receive, per sheet.
+  losses: SheetLoss[];
+  lostRules: number;
+  // The sheets, including imported ones, whose rules neither the page nor Alfa can read.
+  unreadable: string[];
+}
 // The native result: violation totals and element-specific items.
 interface AlfaNativeResult {
   totals: {
@@ -77,7 +103,128 @@ interface AlfaNativeResult {
   Compiled to alfa.js by tsc (issue #73); edit this file, not the emitted one.
 */
 
+// CONSTANTS
+
+// The browser's rule class of each rule type of Alfa's page reader.
+const ruleClasses: Record<string, string> = {
+  'font-face': 'CSSFontFaceRule',
+  import: 'CSSImportRule',
+  keyframe: 'CSSKeyframeRule',
+  keyframes: 'CSSKeyframesRule',
+  'layer-block': 'CSSLayerBlockRule',
+  'layer-statement': 'CSSLayerStatementRule',
+  media: 'CSSMediaRule',
+  namespace: 'CSSNamespaceRule',
+  page: 'CSSPageRule',
+  style: 'CSSStyleRule',
+  supports: 'CSSSupportsRule'
+};
+
 // FUNCTIONS
+
+/*
+  Counts, in the page, the rules of each style sheet of the document, by rule type, as Alfa's
+  page reader lists the sheets: document.styleSheets, then document.adoptedStyleSheets. The rules
+  of grouping rules (@media, @container, …), of style rules (nesting), and of imported sheets are
+  counted with them. Runs in the page, so it refers to nothing outside itself.
+*/
+const getBrowserSheets = (): BrowserSheet[] => {
+  const sheets = [
+    ...Array.from(document.styleSheets),
+    ...(document.adoptedStyleSheets ?? [])
+  ];
+  let inlineIndex = 0;
+  let adoptedIndex = 0;
+  return sheets.map(sheet => {
+    const owner = sheet.ownerNode as Element | null;
+    const name = sheet.href
+      || (owner ? `inline <${owner.tagName.toLowerCase()}> ${inlineIndex++}` : `adopted ${adoptedIndex++}`);
+    const counts: Record<string, number> = {};
+    const unreadableImports: string[] = [];
+    const tally = (rules: CSSRuleList) => {
+      for (const rule of Array.from(rules)) {
+        const ruleClass = rule.constructor.name;
+        counts[ruleClass] = (counts[ruleClass] ?? 0) + 1;
+        const imported = (rule as CSSImportRule).styleSheet;
+        if (ruleClass === 'CSSImportRule' && imported) {
+          try {
+            tally(imported.cssRules);
+          }
+          catch (error) {
+            unreadableImports.push((rule as CSSImportRule).href);
+          }
+        }
+        const children = (rule as CSSGroupingRule).cssRules;
+        if (children) {
+          tally(children);
+        }
+      }
+    };
+    try {
+      tally(sheet.cssRules);
+    }
+    catch (error) {
+      return {sheet: name, counts: null, unreadableImports};
+    }
+    return {sheet: name, counts, unreadableImports};
+  });
+};
+// Counts the rules of the JSON of a sheet of Alfa's page, by browser rule class.
+const countAlfaRules = (rules: {type: string; rules?: unknown[]}[], counts: Record<string, number>) => {
+  for (const rule of rules) {
+    const ruleClass = ruleClasses[rule.type] ?? rule.type;
+    counts[ruleClass] = (counts[ruleClass] ?? 0) + 1;
+    if (Array.isArray(rule.rules)) {
+      countAlfaRules(rule.rules as {type: string; rules?: unknown[]}[], counts);
+    }
+  }
+  return counts;
+};
+/*
+  Returns what Alfa did not see of the document's style sheets: for each sheet the page can read,
+  the rules of each type it holds beyond those Alfa received, and the sheets nobody can read.
+  Alfa's page reader (alfa-dom 0.120.0) gives no rules for a whole sheet that contains one rule of
+  a type it does not serialise, such as @container or @property (Siteimprove/alfa#2188), and none
+  for rules nested in style rules (Siteimprove/alfa#1752). Sheets in shadow trees are not counted.
+*/
+const getStyleLosses = (browserSheets: BrowserSheet[], alfaSheets: {rules: unknown[]}[]) => {
+  const styleLosses: StyleLosses = {
+    sheets: browserSheets.length,
+    losses: [],
+    lostRules: 0,
+    unreadable: []
+  };
+  browserSheets.forEach(({sheet, counts, unreadableImports}, index) => {
+    styleLosses.unreadable.push(...unreadableImports);
+    if (! counts) {
+      styleLosses.unreadable.push(sheet);
+      return;
+    }
+    const alfaCounts = countAlfaRules(
+      (alfaSheets[index]?.rules ?? []) as {type: string; rules?: unknown[]}[], {}
+    );
+    const lostRules: Record<string, number> = {};
+    let browserRules = 0;
+    let alfaRules = 0;
+    let lost = 0;
+    for (const [ruleClass, count] of Object.entries(counts)) {
+      browserRules += count;
+      const alfaCount = alfaCounts[ruleClass] ?? 0;
+      if (alfaCount < count) {
+        lostRules[ruleClass] = count - alfaCount;
+        lost += count - alfaCount;
+      }
+    }
+    for (const count of Object.values(alfaCounts)) {
+      alfaRules += count;
+    }
+    if (lost) {
+      styleLosses.losses.push({sheet, browserRules, alfaRules, lostRules});
+      styleLosses.lostRules += lost;
+    }
+  });
+  return styleLosses;
+};
 
 // Conducts and reports the alfa tests.
 export const reporter = async (page: Page, report: Report, actIndex: number) => {
@@ -91,7 +238,12 @@ export const reporter = async (page: Page, report: Report, actIndex: number) => 
     );
   }
   // Initialize the act report.
-  const data: {prevented?: boolean; error?: string} = {};
+  const data: {
+    prevented?: boolean;
+    error?: string;
+    styleLosses?: StyleLosses;
+    styleLossesError?: string;
+  } = {};
   const result: {nativeResult: AlfaNativeResult; standardResult: StandardResult} = {
     nativeResult: {
       totals: {
@@ -120,6 +272,23 @@ export const reporter = async (page: Page, report: Report, actIndex: number) => 
     }
     const doc = await page.evaluateHandle('document');
     const alfaPage = await Playwright.toPage(doc);
+    /*
+      Record the styles Alfa did not see, so that a consumer can tell how far its results reflect
+      the page's styles. The act is not prevented: Alfa's results stand, as before.
+    */
+    try {
+      const browserSheets = await page.evaluate(getBrowserSheets);
+      const alfaSheets = [...alfaPage.document.style].map(
+        (sheet: {toJSON: () => {rules: unknown[]}}) => sheet.toJSON()
+      );
+      const styleLosses = getStyleLosses(browserSheets, alfaSheets);
+      if (styleLosses.losses.length || styleLosses.unreadable.length) {
+        data.styleLosses = styleLosses;
+      }
+    }
+    catch (error) {
+      data.styleLossesError = (error as Error).message;
+    }
     // Test the page content with the specified rules.
     const audit = Audit.of(alfaPage, alfaRules);
     // Get the evaluations.
