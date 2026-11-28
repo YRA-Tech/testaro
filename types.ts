@@ -192,6 +192,8 @@ export interface NextAct extends Commented {
   type: 'next';
   if: Expectation;
   jump?: number;
+  // The name property of the act to perform next. Any act may have a name, which no act spec
+  // lists and isValidAct does not check.
   next?: string;
 }
 export interface PageAct extends Commented {type: 'page'}

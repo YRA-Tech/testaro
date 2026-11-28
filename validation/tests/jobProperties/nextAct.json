@@ -1,0 +1,122 @@
+{
+  "rule": "nextAct",
+  "timeLimit": 60,
+  "expectReport": [
+    [
+      "acts.1.result.jumpRequired",
+      "=",
+      false
+    ],
+    [
+      "acts.2.result.success",
+      "=",
+      true
+    ],
+    [
+      "acts.3.result.jumpRequired",
+      "=",
+      true
+    ],
+    [
+      "acts.4.result"
+    ],
+    [
+      "acts.5.result.jumpRequired",
+      "=",
+      false
+    ],
+    [
+      "acts.6.result.success",
+      "=",
+      true
+    ],
+    [
+      "acts.7.result.jumpRequired",
+      "=",
+      true
+    ],
+    [
+      "acts.8.result"
+    ],
+    [
+      "acts.9.result.success",
+      "=",
+      true
+    ]
+  ],
+  "acts": [
+    {
+      "type": "launch",
+      "target": {
+        "url": "file://validation/tests/targets/checkpoint/index.html",
+        "what": "page for next-act validation"
+      }
+    },
+    {
+      "type": "next",
+      "if": [
+        "success",
+        "=",
+        true
+      ],
+      "jump": 2,
+      "what": "right after the launch act, which has no result, so no jump"
+    },
+    {
+      "type": "state",
+      "which": "loaded",
+      "what": "performed, because the previous next act did not jump"
+    },
+    {
+      "type": "next",
+      "if": [
+        "success",
+        "=",
+        true
+      ],
+      "next": "resume",
+      "what": "jump to the act named resume"
+    },
+    {
+      "type": "state",
+      "which": "loaded",
+      "what": "skipped by the named jump"
+    },
+    {
+      "type": "next",
+      "name": "resume",
+      "if": [
+        "success",
+        "=",
+        true
+      ],
+      "jump": 2,
+      "what": "after the skipped act, which has no result, so no jump"
+    },
+    {
+      "type": "state",
+      "which": "loaded",
+      "what": "performed, because the previous next act did not jump"
+    },
+    {
+      "type": "next",
+      "if": [
+        "success",
+        "=",
+        true
+      ],
+      "jump": 2,
+      "what": "a numerical jump past the next act"
+    },
+    {
+      "type": "state",
+      "which": "loaded",
+      "what": "skipped by the numerical jump"
+    },
+    {
+      "type": "state",
+      "which": "loaded",
+      "what": "performed after the numerical jump"
+    }
+  ]
+}
