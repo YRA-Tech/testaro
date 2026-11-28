@@ -156,7 +156,7 @@ const hasSubtype = (variable: unknown, subtype: string): unknown => {
       return isFocusable(variable);
     }
     else if (subtype === 'isTest') {
-      return tools[variable as ToolID];
+      return typeof variable === 'string' && Object.hasOwn(tools, variable) && tools[variable as ToolID];
     }
     else if (subtype === 'isWaitable') {
       return ['url', 'title', 'body'].includes(variable as string);
@@ -201,15 +201,14 @@ const areStrings = (array: unknown[]): boolean => array.every(element => typeof 
 const areArrays = (object: object): boolean => Object.values(object).every(value => Array.isArray(value));
 // Validates an act by reference to actSpecs.js.
 /*
-  Kept as it is (issue #73; see #224): the act type and the tool are looked up as properties of
-  objects, so an inherited name such as constructor passes as an act type (its validator is
-  empty, so the act is valid) and as a tool.
+  The act type and the tool are looked up as own properties only, so an inherited name such as
+  constructor or toString is not mistaken for one (#224).
 */
 export const isValidAct = (act: Record<string, unknown>): boolean => {
   // Identify the type of the act.
   const type = act.type as JobActType;
   // If the type exists and is known:
-  if (type && actSpecs.etc[type]) {
+  if (type && Object.hasOwn(actSpecs.etc, type)) {
     // Copy the validator of the type for possible expansion.
     const validator: Record<string, PropSpec> = Object.assign({}, actSpecs.etc[type][1]);
     // If the type is test:
@@ -217,9 +216,9 @@ export const isValidAct = (act: Record<string, unknown>): boolean => {
       // Identify the test.
       const toolID = act.which as ToolID;
       // If one was specified and is known:
-      if (toolID && tools[toolID]) {
+      if (toolID && Object.hasOwn(tools, toolID)) {
         // If it has special properties:
-        if (actSpecs.tools[toolID as keyof typeof actSpecs.tools]) {
+        if (Object.hasOwn(actSpecs.tools, toolID)) {
           // Expand the validator by adding them.
           Object.assign(validator, actSpecs.tools[toolID as keyof typeof actSpecs.tools][1]);
         }
@@ -293,8 +292,8 @@ export const isValidJob = (job: Record<string, unknown> | null | undefined): Job
         error: 'Bad job standard'
       };
     }
-    // Kept as it is (issue #73; see #224): a job without a device makes this throw.
-    if (! isDeviceID((device as {id: unknown}).id)) {
+    // A missing or null device is a bad device ID, not an exception (#224).
+    if (! isDeviceID((device as {id?: unknown} | null | undefined)?.id)) {
       return {
         isValid: false,
         error: 'Bad job deviceID'
@@ -337,9 +336,11 @@ export const isValidJob = (job: Record<string, unknown> | null | undefined): Job
         error: 'Bad job executionTimeStamp'
       };
     }
-    // Kept as it is (issue #73; see #224): typeof null is object, so a null target makes this throw.
+    // typeof null and typeof an array are object, so both are excluded explicitly (#224).
     if (
-      typeof target !== 'object'
+      ! target
+      || typeof target !== 'object'
+      || Array.isArray(target)
       || (target as {url?: unknown}).url && ! isURL((target as {url?: unknown}).url)
       || (target as {what?: unknown}).what === ''
     ) {

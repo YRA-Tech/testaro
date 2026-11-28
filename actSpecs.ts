@@ -241,10 +241,7 @@ export const actSpecs = {
       'Perform WAVE tests',
       {
         reportType: [true, 'number', '', 'WAVE report type (1, 2, 3, or 4)'],
-        // Kept as it is (issue #73; see #224): the type is isURL, which is a subtype, so a wave act
-        // that sets url is always invalid. It should be [false, 'string', 'isURL', …].
-        // @ts-expect-error isURL is not a SpecType.
-        url: [false, 'isURL', '', 'URL of stand-alone WAVE API'],
+        url: [false, 'string', 'isURL', 'URL of stand-alone WAVE API'],
         prescript: [false, 'string', '', 'content of pre-load script, if any'],
         postscript: [false, 'string', '', 'content of post-load script, if any']
       }
