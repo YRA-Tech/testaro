@@ -486,6 +486,19 @@ Checkpoint acts are optional. A job without one behaves as before: every test ac
 
 The rule engines whose tests Testaro performs have particularities described below.
 
+### Alfa
+
+Alfa audits a copy of the page that its page reader (in `@siteimprove/alfa-dom`) serializes, and the reader does not always receive the page's styles. In Alfa 0.120.0, a style sheet that contains one rule of a type the reader does not serialize, such as `@container`, `@property`, or `@starting-style`, yields no rules at all ([Siteimprove/alfa#2188](https://github.com/Siteimprove/alfa/issues/2188)), and rules nested in style rules are dropped ([Siteimprove/alfa#1752](https://github.com/Siteimprove/alfa/issues/1752)). The rules of a cross-origin style sheet loaded without CORS are unreadable to the page, and so to the reader. Alfa then audits the page without those styles, which matters most to its rules about color contrast, visibility, and layout.
+
+So that a consumer can tell how far an `alfa` act reflects the page's styles, the act records in `data.styleLosses` what Alfa did not receive, whenever anything is missing:
+
+- `sheets`: the number of the document's style sheets, adopted ones included.
+- `losses`: for each sheet the page can read but whose rules Alfa did not all receive, the sheet (its URL, or `inline <style> n` or `adopted n`), the numbers of rules the browser holds (`browserRules`) and Alfa received (`alfaRules`), and the missing rules by type (`lostRules`, for example `{"CSSContainerRule": 1, "CSSStyleRule": 3}`). Rules are counted with the rules they contain, including those of imported sheets.
+- `lostRules`: the total of the missing rules.
+- `unreadable`: the URLs of the sheets, imported ones included, whose rules the page cannot read.
+
+The act is not prevented: Alfa's results stand as they are. Sheets inside shadow trees are not counted. If the accounting itself fails, its error is in `data.styleLossesError`.
+
 ### ASLint
 
 The `aslint` rule engine makes use of the [`aslint-testaro` fork](https://www.npmjs.com/package/aslint-testaro) of the [`aslint` repository](https://github.com/essentialaccessibility/aslint), which, unlike the published `aslint` package, contains the `aslint.bundle.js` file.

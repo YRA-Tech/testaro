@@ -24,7 +24,7 @@ const {spawn} = require('child_process');
 const ruleDir = `${__dirname}/../../testaro`;
 const validatorDir = `${__dirname}/../tests/jobProperties`;
 // Validators of features other than rules, run after the rule validators.
-const featureValidatorIDs = ['checkpoint', 'checkpoint-browser', 'checkpoint-page', 'userPath', 'ruleSelection'];
+const featureValidatorIDs = ['checkpoint', 'checkpoint-browser', 'checkpoint-page', 'userPath', 'ruleSelection', 'alfaStyleLosses'];
 // Maximum number of seconds allowed for the validation of one rule.
 const ruleTimeLimit = 180;
 /*
