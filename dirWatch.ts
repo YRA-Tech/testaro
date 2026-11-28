@@ -32,26 +32,27 @@ const reportDir = process.env.REPORTDIR;
 
 // ########## FUNCTIONS
 
-// Writes a directory report.
-const writeDirReport = async (report: Report) => {
+// Writes a directory report and returns whether it was saved.
+const writeDirReport = async (report: Report): Promise<boolean> => {
   const jobID = report && report.id;
   if (jobID) {
+    const rawDir = `${reportDir}/raw`;
     try {
       const reportJSON = JSON.stringify(report, null, 2);
       const reportName = `${jobID}.json`;
-      const rawDir = `${reportDir}/raw`;
       await fs.mkdir(rawDir, {recursive: true});
       await fs.writeFile(`${rawDir}/${reportName}`, `${reportJSON}\n`);
       console.log(`Report ${jobID} saved in ${rawDir}`);
+      return true;
     }
     catch(error) {
-      // Kept as it is (issue #73; see #231): rawDir is declared in the try block, so this throws a ReferenceError instead of logging, and the job is not archived.
-      // @ts-expect-error rawDir is not in scope here.
       console.log(`ERROR: Failed to save report ${jobID} in ${rawDir} (${(error as Error).message})`);
+      return false;
     }
   }
   else {
     console.log('ERROR: Job has no ID');
+    return false;
   }
 };
 // Archives a job.
@@ -68,6 +69,13 @@ const archiveJob = async (job: Report, todoFileName: string) => {
     await fs.rm(`${jobDir}/todo/${todoFileName}`);
   }
   console.log(`Job ${id} from ${todoFileName} archived in ${doneDir} (${nowString()})`);
+};
+// Moves a job that was not completed from the todo subdirectory to the failed subdirectory, so that it is not run again (#231). If this fails, it throws, and the watch stops.
+const setAsideJob = async (todoFileName: string) => {
+  const failedDir = `${jobDir}/failed`;
+  await fs.mkdir(failedDir, {recursive: true});
+  await fs.rename(`${jobDir}/todo/${todoFileName}`, `${failedDir}/${todoFileName}`);
+  console.log(`Job file ${todoFileName} moved to ${failedDir} (${nowString()})`);
 };
 // Waits.
 const wait = (ms: number) => {
@@ -102,6 +110,7 @@ export const dirWatch = async (isForever: boolean, intervalInSeconds: number): P
         if (Date.now() > (dateOf(firstJobTimeStamp) as unknown as number)) {
           // Get it.
           const jobJSON = await fs.readFile(`${jobDir}/todo/${jobFileName}`, 'utf8');
+          let isCompleted = false;
           try {
             const job: Report = JSON.parse(jobJSON);
             let report: Report = JSON.parse(jobJSON);
@@ -110,13 +119,18 @@ export const dirWatch = async (isForever: boolean, intervalInSeconds: number): P
             // Perform it and get a report.
             report = await doJob(report);
             console.log(`Job ${id} finished (${nowString()})`);
-            // Save the report.
-            await writeDirReport(report);
-            // Archive the job.
-            await archiveJob(job, jobFileName);
+            // Save the report and, if it was saved, archive the job.
+            if (await writeDirReport(report)) {
+              await archiveJob(job, jobFileName);
+              isCompleted = true;
+            }
           }
           catch(error) {
             console.log(`ERROR processing directory job (${(error as Error).message})`);
+          }
+          // If the job was not completed (it is not JSON, it failed, or its report was not saved), move it aside, so that it is not run again.
+          if (! isCompleted) {
+            await setAsideJob(jobFileName);
           }
           notYetRun = false;
         }

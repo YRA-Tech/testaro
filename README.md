@@ -317,6 +317,8 @@ node call dirWatch true 300
 
 In both cases, the first argument of `dirWatch` tells Testaro whether to continue polling after performing one job, and the second argument tells Testaro how many seconds to wait after not finding a job to perform, before polling again.
 
+If a job file in the `todo` subdirectory cannot be completed, because it is not JSON, the job fails, or its report cannot be saved, `dirWatch` moves the file to the `failed` subdirectory of the `JOBDIR` directory, so that it is not performed again. To retry such a job, move its file back to `todo`.
+
 ### Server polling
 
 Testaro can poll a server for jobs to be performed. The server can act as the “controller” described in [How to run a thousand accessibility tests](https://medium.com/cvs-health-tech-blog/how-to-run-a-thousand-accessibility-tests-63692ad120c3). The server is responsible for preparing Testaro jobs, assigning them to Testaro workers, receiving reports back from those workers, and performing any further processing of the reports, including enhancement, storage, and disclosure to audiences. It can be any server reachable with a URL. That includes a server running on the same host as Testaro, with a URL such as `localhost:3000`.

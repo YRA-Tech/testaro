@@ -247,8 +247,8 @@ const doActs = async (report, opts = {}) => {
     // Get the path to a writable temporary directory.
     const { tmpDir } = report.jobData;
     let reportPath;
-    // Get a path for temporary reports.
-    reportPath = path.join(tmpDir, `${tempReport.id}.json`);
+    // Get a path for temporary reports. The directory is the job's own (run.js), so the name is fixed: one made from the job ID could contain "../" and leave the directory (#231).
+    reportPath = path.join(tmpDir, 'report.json');
     // Initialize the count of completed acts.
     let actCount = 0;
     /*
