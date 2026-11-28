@@ -1,8 +1,8 @@
 # TypeScript Phase 4: the engine
 
-**Status:** Active · **Owner:** Jeff Witt · **Written:** 2026-11-27 · **Updated:** 2026-11-27
+**Status:** Shipped · **Owner:** Jeff Witt · **Written:** 2026-11-27 · **Updated:** 2026-11-28
 
-Phases 0–3 of the migration in issue #73 merged on 22–23 August 2026. This plan covers Phase 4, the engine. Its decisions were confirmed on 27 November 2026. Batches 4.1–4.5 merged on 27 November 2026 (#213, #214, #216, #218, #225) and 4.6 on 28 November (#227), 4.1–4.4 released in 78.9.0, and 4.7 is #229. #160 merged and #170 closed, so nothing holds the remaining batches (decision 3).
+Phases 0–3 of the migration in issue #73 merged on 22–23 August 2026. This plan covers Phase 4, the engine. Its decisions were confirmed on 27 November 2026. All eight batches have merged: 4.1–4.5 on 27 November 2026 (#213, #214, #216, #218, #225) and 4.6–4.8 on 28 November (#227, #229, #234). 4.1–4.4 were released in 78.9.0; 4.5–4.8 are not released yet. Every engine file is now TypeScript, and the six hand-written declaration files are gone. What remains in JavaScript is what decision 2 leaves out, `procs/aslint.js`, and the vendored bundles. The defects that the batches kept are filed as #224, #228 and #231 (#212, #215 and #217 are fixed).
 
 ## Where things stand
 

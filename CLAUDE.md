@@ -40,7 +40,7 @@ Testaro is an ensemble accessibility test runner. It integrates 12 external tool
 ### Job → Report lifecycle
 
 1. A caller provides a **job** — a plain JS/JSON object with a `target` URL, `browserID`, optional `device`, and an `acts` array.
-2. `run.js` exports `doJob(job)`, which validates the job (`procs/job.ts`), builds a DOM **catalog** (`procs/catalog.ts`) as checkpoint 0, then delegates to `procs/doActs.ts`.
+2. `run.ts` exports `doJob(job)`, which validates the job (`procs/job.ts`), builds a DOM **catalog** (`procs/catalog.ts`) as checkpoint 0, then delegates to `procs/doActs.ts`.
 3. `procs/doActs.ts` iterates the acts array. For `test` acts it forks a child process running `procs/doTestAct.ts` (one per tool invocation) and enforces per-tool time limits. Non-test acts (browser interactions) execute in the parent through `procs/actDo.ts`. A `checkpoint` act snapshots the live page (`procs/checkpoint.ts`) as a page state that later test acts observe: the child's launcher replays the recorded interaction acts before the tool runs (`docs/checkpoint-scanning.md`).
 4. Each tool's test module lives in `tests/<toolID>.ts` (compiled to a committed `tests/<toolID>.js`). It calls the tool's library and converts the native result to the **standard result** shape (`prevented`, `totals[4]`, `outcomeTotals`, `instances[]`) using the helpers in `procs/standard.ts`. Every instance carries an `outcome` (`failed` or `cantTell`) that is the authoritative certainty signal; `ordinalSeverity` still encodes certainty per tool until it is redefined as impact only (see `docs/standard-result-outcome.md`).
 5. `doJob` returns the job object with `jobData` and `catalog` added at the top level and `result` added inside each `test` act. The job's `standard` property controls what `result` contains: `'no'` → `nativeResult` only; `'only'` → `standardResult` only; `'also'` → both.
@@ -95,6 +95,9 @@ These are TypeScript sources, and their `.js` and `.d.ts` outputs are committed 
 - the rule modules in `testaro/`
 - the tool adapters in `tests/` and their registry, `tests/registry.ts`
 - `actSpecs.ts`
+- `call.ts`
+- `dirWatch.ts`
+- `netWatch.ts`
 - `procs/actDo.ts`
 - `procs/catalog.ts`
 - `procs/checkpoint.ts`
@@ -117,6 +120,7 @@ These are TypeScript sources, and their `.js` and `.d.ts` outputs are committed 
 - `procs/userPath.ts`
 - `procs/xPath.ts`
 - `procs/xPathScript.ts`
+- `run.ts`
 - `types.ts`
 
 Edit the `.ts` file, then run `npm run build:ts` (and `npm run build:registry` after adding or removing a rule module) and commit the regenerated outputs; CI fails if they drift. Files without a `.ts` counterpart are still plain JavaScript. See `CONTRIBUTING.md`.
@@ -137,7 +141,9 @@ Long comments are not broken into multiple lines per paragraph.
 | File | Purpose |
 | ---- | ------- |
 | `actSpecs.ts` | Canonical specs for all 20 act types, checked against `JobAct` (`types.ts`) |
-| `call.js` | CLI wrapper for `run`, `dirWatch`, `netWatch` |
+| `call.ts` | CLI wrapper for `run`, `dirWatch`, `netWatch` |
+| `dirWatch.ts` | Watches a directory for jobs and saves their reports |
+| `netWatch.ts` | Polls a server for jobs and submits their reports |
 | `procs/actDo.ts` | Performs the acts that operate on a live page; replays a checkpoint's acts |
 | `procs/catalog.ts` | Builds the element catalog from the DOM (checkpoint 0, and any live page for later checkpoints) |
 | `procs/checkpoint.ts` | Snapshots a live page as a checkpoint |
@@ -151,7 +157,7 @@ Long comments are not broken into multiple lines per paragraph.
 | `procs/styleConsistency.ts` | Determines which style differences violate style-consistency rules |
 | `procs/testAct.ts` | Performs a test act |
 | `procs/testaro.ts` | `doTest` / `getBasicResult` helpers for Testaro rules |
-| `run.js` | `doJob()` — the main entry point |
+| `run.ts` | `doJob()` — the main entry point |
 | `testaro/<ruleID>.ts` | One file per Testaro rule |
 | `testaro/registry.ts` | Generated map of rule IDs to rule modules (`npm run build:registry`) |
 | `tests/testaro.ts` | `allRules` registry for the testaro tool |
