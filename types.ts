@@ -502,7 +502,25 @@ declare global {
     getXPath: (element: Element) => string | null | undefined;
     getAccessibleName: (element: Element) => string;
     computeAccessibleName: (element: Element) => string;
-    getProtoInstance: (element: Element) => unknown;
+    // A standard proto-instance of a violation of a rule, with the XPath of its element if any.
+    getProtoInstance: (
+      element: Element | null | undefined,
+      ruleID: string,
+      what: string,
+      count?: number,
+      ordinalSeverity?: number,
+      summaryTagName?: string,
+      outcome?: Outcome
+    ) => {
+      ruleID: string;
+      what: string;
+      count: number;
+      ordinalSeverity: number | undefined;
+      outcome: Outcome;
+      pathID?: string | null | undefined;
+    };
+    // Set by the automation-masking script of procs/launch.js.
+    chrome?: {runtime: object};
     // Set by the HTML CodeSniffer bundle while the htmlcs tool runs.
     HTMLCS_WCAG?: unknown;
     HTMLCS_RUNNER?: {run: (standard: string) => string[]};

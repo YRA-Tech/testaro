@@ -13,7 +13,7 @@ export interface RuleSelection {
     warnings: string[];
 }
 export declare const selectRules: (act: RuleSpec) => RuleSelection;
-export declare const reporter: (page: Page | undefined, report: Report, actIndex: number) => Promise<{
+export declare const reporter: (page: Page | null | undefined, report: Report, actIndex: number) => Promise<{
     data: {
         prevented: boolean;
         error: string;

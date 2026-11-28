@@ -416,7 +416,17 @@ declare global {
         getXPath: (element: Element) => string | null | undefined;
         getAccessibleName: (element: Element) => string;
         computeAccessibleName: (element: Element) => string;
-        getProtoInstance: (element: Element) => unknown;
+        getProtoInstance: (element: Element | null | undefined, ruleID: string, what: string, count?: number, ordinalSeverity?: number, summaryTagName?: string, outcome?: Outcome) => {
+            ruleID: string;
+            what: string;
+            count: number;
+            ordinalSeverity: number | undefined;
+            outcome: Outcome;
+            pathID?: string | null | undefined;
+        };
+        chrome?: {
+            runtime: object;
+        };
         HTMLCS_WCAG?: unknown;
         HTMLCS_RUNNER?: {
             run: (standard: string) => string[];
