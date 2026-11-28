@@ -136,7 +136,7 @@ export declare const actSpecs: {
         }];
         wave: [string, {
             reportType: [true, "number", "", string];
-            url: [false, "isURL", "", string];
+            url: [false, "string", "isURL", string];
             prescript: [false, "string", "", string];
             postscript: [false, "string", "", string];
         }];
