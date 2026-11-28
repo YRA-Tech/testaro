@@ -40,12 +40,12 @@ Testaro is an ensemble accessibility test runner. It integrates 12 external tool
 ### Job → Report lifecycle
 
 1. A caller provides a **job** — a plain JS/JSON object with a `target` URL, `browserID`, optional `device`, and an `acts` array.
-2. `run.js` exports `doJob(job)`, which validates the job (`procs/job.js`), builds a DOM **catalog** (`procs/catalog.ts`) as checkpoint 0, then delegates to `procs/doActs.js`.
-3. `doActs.js` iterates the acts array. For `test` acts it forks a child process running `procs/doTestAct.js` (one per tool invocation) and enforces per-tool time limits. Non-test acts (browser interactions) execute in the parent through `procs/actDo.js`. A `checkpoint` act snapshots the live page (`procs/checkpoint.js`) as a page state that later test acts observe: the child's launcher replays the recorded interaction acts before the tool runs (`docs/checkpoint-scanning.md`).
+2. `run.js` exports `doJob(job)`, which validates the job (`procs/job.ts`), builds a DOM **catalog** (`procs/catalog.ts`) as checkpoint 0, then delegates to `procs/doActs.ts`.
+3. `procs/doActs.ts` iterates the acts array. For `test` acts it forks a child process running `procs/doTestAct.ts` (one per tool invocation) and enforces per-tool time limits. Non-test acts (browser interactions) execute in the parent through `procs/actDo.ts`. A `checkpoint` act snapshots the live page (`procs/checkpoint.ts`) as a page state that later test acts observe: the child's launcher replays the recorded interaction acts before the tool runs (`docs/checkpoint-scanning.md`).
 4. Each tool's test module lives in `tests/<toolID>.ts` (compiled to a committed `tests/<toolID>.js`). It calls the tool's library and converts the native result to the **standard result** shape (`prevented`, `totals[4]`, `outcomeTotals`, `instances[]`) using the helpers in `procs/standard.ts`. Every instance carries an `outcome` (`failed` or `cantTell`) that is the authoritative certainty signal; `ordinalSeverity` still encodes certainty per tool until it is redefined as impact only (see `docs/standard-result-outcome.md`).
 5. `doJob` returns the job object with `jobData` and `catalog` added at the top level and `result` added inside each `test` act. The job's `standard` property controls what `result` contains: `'no'` → `nativeResult` only; `'only'` → `standardResult` only; `'also'` → both.
 
-The 20 act types are defined and documented in `actSpecs.ts` (`etc` property), and typed one by one as `JobAct` in `types.ts`, against which `actSpecs` is checked. The main interactive types are `button`, `checkbox`, `focus`, `link`, `press`, `presses`, `radio`, `reveal`, `search`, `select`, `text`, `url`, `wait`. The `test` type runs a tool. `launch`, `next`, `page`, `state` control flow. `checkpoint` snapshots a page state. A `test` act's optional `scope` (`page` or `changed`) restricts element-local rules to the subtrees changed since the previous checkpoint (`procs/scope.js`); reports with two or more checkpoints gain `flow`, the issue deltas between checkpoints (`procs/flow.js`). Move acts accept a Playwright `selector`; `procs/userPath.js` converts a recorded user path (yra-monitor's action shape) into acts. See `docs/checkpoint-scanning.md`.
+The 20 act types are defined and documented in `actSpecs.ts` (`etc` property), and typed one by one as `JobAct` in `types.ts`, against which `actSpecs` is checked. The main interactive types are `button`, `checkbox`, `focus`, `link`, `press`, `presses`, `radio`, `reveal`, `search`, `select`, `text`, `url`, `wait`. The `test` type runs a tool. `launch`, `next`, `page`, `state` control flow. `checkpoint` snapshots a page state. A `test` act's optional `scope` (`page` or `changed`) restricts element-local rules to the subtrees changed since the previous checkpoint (`procs/scope.ts`); reports with two or more checkpoints gain `flow`, the issue deltas between checkpoints (`procs/flow.ts`). Move acts accept a Playwright `selector`; `procs/userPath.ts` converts a recorded user path (yra-monitor's action shape) into acts. See `docs/checkpoint-scanning.md`.
 
 ### Testaro rules (`testaro/` directory)
 
@@ -57,8 +57,8 @@ A rule with `concurrent: true` (currently only `motion`) is taken out of that se
 
 Two implementation patterns exist:
 
-- **`doTest`** (`procs/testaro.js`): for rules whose verdict on each element can be computed in-browser via `page.evaluate`. The caller passes a CSS selector and a serialized `getBadWhat(element)` function string. This is the preferred pattern (~48 of ~50 rules).
-- **`getBasicResult`** (`procs/testaro.js`): for rules that need Playwright APIs or cross-element state (currently only `hover` and `role`).
+- **`doTest`** (`procs/testaro.ts`): for rules whose verdict on each element can be computed in-browser via `page.evaluate`. The caller passes a CSS selector and a serialized `getBadWhat(element)` function string. This is the preferred pattern (~48 of ~50 rules).
+- **`getBasicResult`** (`procs/testaro.ts`): for rules that need Playwright APIs or cross-element state (currently only `hover` and `role`).
 
 ### Validation
 
@@ -86,11 +86,11 @@ Key variables:
 - `JOBDIR` / `REPORTDIR` — root directories for job files and report output
 - `NETWATCH_URL_JOB`/`NETWATCH_URL_REPORT`/`NETWATCH_AUTH_TYPE`/`NETWATCH_WORKER_ID`/`NETWATCH_WORKER_SECRET` — server polling configuration
 - `TIMEOUT_MULTIPLIER` — scales all per-tool time limits (default 1)
-- `NAV_WAIT_UNTIL`/`NAV_TIMEOUT`/`NAV_FAIL_FAST_4XX`/`NAV_ROTATE_BROWSERS`, `SCANNER_ID`, `PRESCAN_SCROLL`, `TESTARO_RULE_RETRIES` — deployment defaults that job properties (`navigation`, `scannerId`, `scroll`, `browserChannel`; `retries` on test acts) override (`procs/config.js`). (`QUALWEB_STEALTH`/`QUALWEB_ADBLOCK` and a `qualWeb` act's `stealth`/`adBlock` no longer have any effect: qualWeb runs in the page under test.)
+- `NAV_WAIT_UNTIL`/`NAV_TIMEOUT`/`NAV_FAIL_FAST_4XX`/`NAV_ROTATE_BROWSERS`, `SCANNER_ID`, `PRESCAN_SCROLL`, `TESTARO_RULE_RETRIES` — deployment defaults that job properties (`navigation`, `scannerId`, `scroll`, `browserChannel`; `retries` on test acts) override (`procs/config.ts`). (`QUALWEB_STEALTH`/`QUALWEB_ADBLOCK` and a `qualWeb` act's `stealth`/`adBlock` no longer have any effect: qualWeb runs in the page under test.)
 
 ## Code style
 
-The rule modules, the tool adapters and their registry (`tests/registry.ts`), `procs/testaro.ts`, `procs/catalog.ts`, `procs/xPath.ts`, `procs/standard.ts`, `procs/config.ts`, `procs/dateTime.ts`, `procs/error.ts`, `procs/getSource.ts`, `procs/nu.ts`, `procs/shoot.ts`, `procs/xPathScript.ts`, `procs/scope.ts`, `procs/userPath.ts`, `procs/flow.ts`, `procs/checkpoint.ts`, `procs/actDo.ts`, `procs/testAct.ts`, `procs/doTestAct.ts`, `procs/job.ts`, `procs/launch.ts`, `procs/doActs.ts`, `actSpecs.ts`, and `types.ts` are TypeScript sources; their `.js` and `.d.ts` outputs are committed. Edit the `.ts` file, then run `npm run build:ts` (and `npm run build:registry` after adding or removing a rule module) and commit the regenerated outputs; CI fails if they drift. Files without a `.ts` counterpart are still plain JavaScript. See `CONTRIBUTING.md`.
+The rule modules, the tool adapters and their registry (`tests/registry.ts`), `procs/testaro.ts`, `procs/catalog.ts`, `procs/xPath.ts`, `procs/standard.ts`, `procs/config.ts`, `procs/dateTime.ts`, `procs/error.ts`, `procs/getSource.ts`, `procs/nu.ts`, `procs/shoot.ts`, `procs/xPathScript.ts`, `procs/scope.ts`, `procs/userPath.ts`, `procs/flow.ts`, `procs/checkpoint.ts`, `procs/actDo.ts`, `procs/testAct.ts`, `procs/doTestAct.ts`, `procs/job.ts`, `procs/launch.ts`, `procs/doActs.ts`, `procs/styleConsistency.ts`, `actSpecs.ts`, and `types.ts` are TypeScript sources; their `.js` and `.d.ts` outputs are committed. Edit the `.ts` file, then run `npm run build:ts` (and `npm run build:registry` after adding or removing a rule module) and commit the regenerated outputs; CI fails if they drift. Files without a `.ts` counterpart are still plain JavaScript. See `CONTRIBUTING.md`.
 
 ESLint (`eslint.config.mjs`): 2-space indent, single quotes, semicolons, Stroustrup brace style (`else`/`catch` on a new line after `}`), `no-use-before-define`. Emitted `.js` files are excluded from linting. The vendored `htmlcs/HTMLCS.js`, `ed11y`, `surea11y`, and `pour` bundles are excluded from linting; `htmlcs/HTMLCS.js` must not be reformatted.
 
@@ -107,17 +107,17 @@ Long comments are not broken into multiple lines per paragraph.
 
 | File | Purpose |
 | ---- | ------- |
-| `actSpecs.js` | Canonical specs for all 18 act types |
+| `actSpecs.ts` | Canonical specs for all 20 act types, checked against `JobAct` (`types.ts`) |
 | `call.js` | CLI wrapper for `run`, `dirWatch`, `netWatch` |
 | `procs/actDo.ts` | Performs the acts that operate on a live page; replays a checkpoint's acts |
 | `procs/catalog.ts` | Builds the element catalog from the DOM (checkpoint 0, and any live page for later checkpoints) |
 | `procs/checkpoint.ts` | Snapshots a live page as a checkpoint |
 | `procs/config.ts` | Shared configuration values |
-| `procs/doActs.js` | Iterates acts; forks child for each tool; assigns test acts to checkpoints |
+| `procs/doActs.ts` | Iterates acts; forks child for each tool; assigns test acts to checkpoints |
 | `procs/doTestAct.ts` | Child-process entry point for tool invocations |
 | `procs/flow.ts` | Tracker of rule violation changes across checkpoints |
-| `procs/job.js` | Job validation; `tools` constant |
-| `procs/launch.js` | Browser lifecycle (launch, goTo, nonce, wait) |
+| `procs/job.ts` | Job validation; `tools` constant |
+| `procs/launch.ts` | Browser lifecycle (launch, goTo, nonce, wait) |
 | `procs/standard.ts` | Builders for the standard result and its instances (`outcome`, `uncertainty`, `needed`) |
 | `procs/styleConsistency.ts` | Determines which style differences violate style-consistency rules |
 | `procs/testAct.ts` | Performs a test act |
