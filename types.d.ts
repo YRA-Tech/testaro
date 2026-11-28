@@ -72,6 +72,185 @@ export interface Checkpoint {
     testActs: number[];
     structure?: StructureDiff;
 }
+interface Commented {
+    what?: string;
+}
+interface MoveTarget {
+    selector?: string;
+    which?: string;
+    index?: number;
+}
+export interface ButtonAct extends MoveTarget, Commented {
+    type: 'button';
+}
+export interface CheckpointAct extends Commented {
+    type: 'checkpoint';
+    which: string;
+}
+export interface CheckboxAct extends MoveTarget, Commented {
+    type: 'checkbox';
+}
+export interface FocusAct {
+    type: 'focus';
+    what: string;
+    index?: number;
+    which?: string;
+}
+export interface LaunchAct extends Commented {
+    type: 'launch';
+    target?: {
+        what?: string;
+        url?: string;
+    };
+    browserID?: BrowserID;
+    shoot?: {
+        exclusionSelector?: string;
+        colorType?: number;
+        action?: string;
+    };
+}
+export interface LinkAct extends MoveTarget, Commented {
+    type: 'link';
+}
+export interface NextAct extends Commented {
+    type: 'next';
+    if: (string | number)[];
+    jump?: number;
+    next?: string;
+}
+export interface PageAct extends Commented {
+    type: 'page';
+}
+export interface PressAct extends Commented {
+    type: 'press';
+    which: string;
+    again?: number;
+}
+export interface PressesAct {
+    type: 'presses';
+    navKey: string;
+    what?: string;
+    which?: string[];
+    text?: string;
+    action?: string;
+    withItems: boolean;
+}
+export interface RadioAct extends MoveTarget, Commented {
+    type: 'radio';
+}
+export interface RevealAct extends Commented {
+    type: 'reveal';
+}
+export interface SearchAct extends MoveTarget {
+    type: 'search';
+    what: string;
+}
+export interface SelectAct extends MoveTarget {
+    type: 'select';
+    what: string;
+}
+export interface ShootAct extends Commented {
+    type: 'shoot';
+    exclusionSelector?: string;
+    colorType?: number;
+    action: string;
+}
+export interface StateAct extends Commented {
+    type: 'state';
+    which: 'loaded' | 'idle';
+}
+export interface TextAct extends MoveTarget {
+    type: 'text';
+    what: string;
+    clear?: boolean;
+}
+export interface URLAct extends Commented {
+    type: 'url';
+    which: string;
+    id?: string;
+}
+export interface WaitAct {
+    type: 'wait';
+    what: 'url' | 'title' | 'body';
+    which: string;
+}
+export interface TestActBase {
+    type: 'test';
+    which: ToolID;
+    launch?: {
+        target?: {
+            what?: string;
+            url?: string;
+        };
+        browserID?: BrowserID;
+        what?: string;
+    };
+    rules?: string[];
+    scope?: TestScope;
+}
+export interface ToolActProperties {
+    axe: {
+        detailLevel: number;
+    };
+    ibm: {
+        withItems: boolean;
+    };
+    nuVal: {
+        withSource?: boolean;
+    };
+    nuVnu: {
+        withSource?: boolean;
+    };
+    qualWeb: {
+        stealth?: boolean;
+        adBlock?: boolean;
+    };
+    testaro: {
+        withItems: boolean;
+        stopOnFail: boolean;
+        args?: Record<string, unknown[]>;
+        rulesForcedOn?: string[];
+        rulesForcedOff?: string[];
+        retries?: number;
+    };
+    wave: {
+        reportType: number;
+        url?: string;
+        prescript?: string;
+        postscript?: string;
+    };
+}
+export type TestAct = {
+    [T in ToolID]: TestActBase & {
+        which: T;
+    } & (T extends keyof ToolActProperties ? ToolActProperties[T] : {});
+}[ToolID];
+export type JobAct = ButtonAct | CheckpointAct | CheckboxAct | FocusAct | LaunchAct | LinkAct | NextAct | PageAct | PressAct | PressesAct | RadioAct | RevealAct | SearchAct | SelectAct | ShootAct | StateAct | TestAct | TextAct | URLAct | WaitAct;
+export type JobActType = JobAct['type'];
+export type SpecType = 'string' | 'number' | 'boolean' | 'array' | 'object';
+export type SpecSubtype = '' | 'hasLength' | 'isURL' | 'isBrowserID' | 'isFocusable' | 'isTest' | 'isWaitable' | 'areNumbers' | 'areStrings' | 'areArrays' | 'isState' | 'isScope';
+type SpecTypeOf<V> = V extends string ? 'string' : V extends number ? 'number' : V extends boolean ? 'boolean' : V extends unknown[] ? 'array' : V extends object ? 'object' : never;
+type PropSpecFor<A, K extends keyof A> = readonly [
+    {} extends Pick<A, K> ? false : true,
+    SpecTypeOf<NonNullable<A[K]>>,
+    SpecSubtype,
+    string
+];
+type SpecFor<A> = readonly [string, {
+    [K in Exclude<keyof A, 'type'>]: PropSpecFor<A, K>;
+}];
+export interface ActSpecs {
+    etc: {
+        [T in Exclude<JobActType, 'test'>]: SpecFor<Extract<JobAct, {
+            type: T;
+        }>>;
+    } & {
+        test: SpecFor<TestActBase>;
+    };
+    tools: {
+        [T in keyof ToolActProperties]: SpecFor<ToolActProperties[T]>;
+    };
+}
 export interface Act {
     type: string;
     which?: string;
@@ -250,3 +429,4 @@ declare global {
         module?: unknown;
     }
 }
+export {};
