@@ -1,0 +1,48 @@
+{
+  "rule": "alfaStyleLosses",
+  "timeLimit": 120,
+  "what": "the alfa tool records, without preventing its act, the style rules that Alfa's page reader does not receive (alfa-dom 0.120.0: a sheet with a rule of a type it does not serialise gives no rules; nested rules are dropped). When Alfa's reader is fixed (Siteimprove/alfa#2188, #1752), the first act's expectations change.",
+  "acts": [
+    {
+      "type": "launch",
+      "target": {
+        "url": "file://validation/tests/targets/alfaStyleLosses/index.html",
+        "what": "page with sheets that Alfa loses"
+      }
+    },
+    {
+      "type": "test",
+      "which": "alfa",
+      "expect": [
+        ["data.prevented"],
+        ["data.styleLosses.sheets", "=", 4],
+        ["data.styleLosses.losses.length", "=", 3],
+        ["data.styleLosses.losses.0.sheet", "=", "inline <style> 1"],
+        ["data.styleLosses.losses.0.alfaRules", "=", 0],
+        ["data.styleLosses.losses.0.lostRules.CSSContainerRule", "=", 1],
+        ["data.styleLosses.losses.0.lostRules.CSSStyleRule", "=", 3],
+        ["data.styleLosses.losses.1.sheet", "=", "inline <style> 2"],
+        ["data.styleLosses.losses.1.lostRules.CSSStyleRule", "=", 1],
+        ["data.styleLosses.losses.2.sheet", "=", "adopted 0"],
+        ["data.styleLosses.losses.2.lostRules.CSSPropertyRule", "=", 1],
+        ["data.styleLosses.lostRules", "=", 7],
+        ["data.styleLosses.unreadable.length", "=", 0]
+      ]
+    },
+    {
+      "type": "launch",
+      "target": {
+        "url": "file://validation/tests/targets/alfaStyleLosses/clean.html",
+        "what": "page whose sheet Alfa reads in full"
+      }
+    },
+    {
+      "type": "test",
+      "which": "alfa",
+      "expect": [
+        ["data.prevented"],
+        ["data.styleLosses"]
+      ]
+    }
+  ]
+}

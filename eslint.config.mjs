@@ -49,6 +49,8 @@ export default defineConfig([
     'procs/actDo.js',
     'procs/testAct.js',
     'procs/doTestAct.js',
+    'procs/job.js',
+    'actSpecs.js',
     'procs/standard.js',
     'procs/styleConsistency.js',
     'procs/testaro.js',
