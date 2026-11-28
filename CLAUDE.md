@@ -90,7 +90,36 @@ Key variables:
 
 ## Code style
 
-The rule modules, the tool adapters and their registry (`tests/registry.ts`), `procs/testaro.ts`, `procs/catalog.ts`, `procs/xPath.ts`, `procs/standard.ts`, `procs/config.ts`, `procs/dateTime.ts`, `procs/error.ts`, `procs/getSource.ts`, `procs/nu.ts`, `procs/shoot.ts`, `procs/xPathScript.ts`, `procs/scope.ts`, `procs/userPath.ts`, `procs/flow.ts`, `procs/checkpoint.ts`, `procs/actDo.ts`, `procs/testAct.ts`, `procs/doTestAct.ts`, `procs/job.ts`, `procs/launch.ts`, `procs/doActs.ts`, `procs/styleConsistency.ts`, `actSpecs.ts`, and `types.ts` are TypeScript sources; their `.js` and `.d.ts` outputs are committed. Edit the `.ts` file, then run `npm run build:ts` (and `npm run build:registry` after adding or removing a rule module) and commit the regenerated outputs; CI fails if they drift. Files without a `.ts` counterpart are still plain JavaScript. See `CONTRIBUTING.md`.
+These are TypeScript sources, and their `.js` and `.d.ts` outputs are committed (keep the list in alphabetical order, one file per line):
+
+- the rule modules in `testaro/`
+- the tool adapters in `tests/` and their registry, `tests/registry.ts`
+- `actSpecs.ts`
+- `procs/actDo.ts`
+- `procs/catalog.ts`
+- `procs/checkpoint.ts`
+- `procs/config.ts`
+- `procs/dateTime.ts`
+- `procs/doActs.ts`
+- `procs/doTestAct.ts`
+- `procs/error.ts`
+- `procs/flow.ts`
+- `procs/getSource.ts`
+- `procs/job.ts`
+- `procs/launch.ts`
+- `procs/nu.ts`
+- `procs/scope.ts`
+- `procs/shoot.ts`
+- `procs/standard.ts`
+- `procs/styleConsistency.ts`
+- `procs/testAct.ts`
+- `procs/testaro.ts`
+- `procs/userPath.ts`
+- `procs/xPath.ts`
+- `procs/xPathScript.ts`
+- `types.ts`
+
+Edit the `.ts` file, then run `npm run build:ts` (and `npm run build:registry` after adding or removing a rule module) and commit the regenerated outputs; CI fails if they drift. Files without a `.ts` counterpart are still plain JavaScript. See `CONTRIBUTING.md`.
 
 ESLint (`eslint.config.mjs`): 2-space indent, single quotes, semicolons, Stroustrup brace style (`else`/`catch` on a new line after `}`), `no-use-before-define`. Emitted `.js` files are excluded from linting. The vendored `htmlcs/HTMLCS.js`, `ed11y`, `surea11y`, and `pour` bundles are excluded from linting; `htmlcs/HTMLCS.js` must not be reformatted.
 
