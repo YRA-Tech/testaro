@@ -329,7 +329,7 @@ const allRules = [
     },
     {
         id: 'styleDiff',
-        what: 'style inconsistencies (to be superseded by revisions of buttonStyles, headingStyles, and linkStyles)',
+        what: 'style inconsistencies (to be superseded by future revisions of buttonStyles, headingStyles, and linkStyles)',
         contaminates: false,
         needsAccessibleName: false,
         local: false,
