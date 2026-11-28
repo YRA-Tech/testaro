@@ -89,7 +89,6 @@
         ]
       ],
       "rules": [
-        "y",
         "motion"
       ]
     },
@@ -139,7 +138,6 @@
         ]
       ],
       "rules": [
-        "y",
         "motion"
       ]
     },
@@ -189,7 +187,6 @@
         ]
       ],
       "rules": [
-        "y",
         "motion"
       ]
     },
@@ -232,7 +229,6 @@
         ]
       ],
       "rules": [
-        "y",
         "motion"
       ]
     },
@@ -248,7 +244,6 @@
       "stopOnFail": false,
       "withItems": true,
       "rules": [
-        "y",
         "motion"
       ],
       "args": {
@@ -313,7 +308,6 @@
       "stopOnFail": false,
       "withItems": false,
       "rules": [
-        "y",
         "motion"
       ],
       "args": {
@@ -356,7 +350,6 @@
       "which": "testaro",
       "withItems": true,
       "rules": [
-        "y",
         "motion"
       ],
       "args": {
@@ -395,7 +388,6 @@
       "which": "testaro",
       "withItems": true,
       "rules": [
-        "y",
         "motion"
       ],
       "args": {
