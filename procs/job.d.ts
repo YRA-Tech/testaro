@@ -1,6 +1,6 @@
-import type { TestScope, ToolID } from '../types';
+import type { IsolationLevel, TestScope, ToolID } from '../types';
 export type ToolInput = 'page' | 'html' | 'url';
-export type IsolationLevel = 'process' | 'browser' | 'page';
+export type { IsolationLevel };
 export interface JobValidity {
     isValid: boolean;
     error?: string;
