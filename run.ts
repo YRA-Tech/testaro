@@ -26,6 +26,7 @@ import {nowString} from './procs/dateTime';
 import {chromium} from 'playwright-extra';
 const fs = (require('fs') as typeof import('fs')).promises;
 import * as os from 'os';
+import * as path from 'path';
 /*
   Module to evade detection of Chromium automation. Injects launch flags
   (e.g., `--disable-blink-features=AutomationControlled`) and patches
@@ -46,49 +47,30 @@ export interface DoJobOptions extends DoActsOptions {
 
 // FUNCTIONS
 
-// Returns whether a value is a primitive that, in sloppy mode, silently ignores an assignment to a property, where strict mode throws (issue #73, hazard 7). null and undefined throw in both.
+// Returns whether a value is a string, number or boolean, which cannot hold a property (in strict mode, assigning one throws; issue #73, hazard 7).
 const ignoresAssignment = (value: unknown): boolean => ['string', 'number', 'boolean'].includes(typeof value);
 /*
-  Returns an operating-system-compatible absolute path to a temporary directory.
-  Kept as it is (issue #73; see #231): the path is made from the job ID, which may contain "../", and if the directory cannot be created the path falls back to the system's temporary directory. doJob deletes the directory recursively at the end of the job either way.
+  Creates a temporary directory for a job and returns its path, or null if no location is writable.
+  The directory is new and uniquely named (fs.mkdtemp), in Testaro's tmp directory or, if that is not writable, in the system's temporary directory. So the job's ID cannot name a directory elsewhere, and deleting the directory at the end of the job deletes nothing but what the job put there (#231). The name begins with the ID, reduced to safe characters, so that the directory can be recognized.
 */
 const getTmpDirPath = async (jobName: string): Promise<string | null> => {
-  let jobTmpDir: string | null = `${__dirname}/tmp/${jobName}`;
-  try {
-    // Ensure that a temporary directory exists.
-    await fs.mkdir(jobTmpDir, {recursive: true});
-  }
-  catch (error) {
-    console.log(`ERROR: Could not create temporary directory (${(error as Error).message})`);
-    jobTmpDir = null;
-  }
-  const tmpDirs = [os.tmpdir(), '/tmp'];
-  if (jobTmpDir) {
-    tmpDirs.unshift(jobTmpDir);
-  }
-  let tmpDir: string | null = null;
-  // For each potential temporary directory:
-  for (const tmpDirAlternative of tmpDirs) {
+  const prefix = `${jobName.replace(/[^\w.-]/g, '_').slice(0, 64)}-`;
+  // For each location, in order of preference:
+  for (const base of [...new Set([`${__dirname}/tmp`, os.tmpdir(), '/tmp'])]) {
     try {
-      // Verify that it is writable.
-      await fs.access(tmpDirAlternative, fs.constants.W_OK);
-      tmpDir = tmpDirAlternative;
-      // If it is, stop checking alternatives.
-      break;
+      // Ensure that it exists, and create a new directory in it.
+      await fs.mkdir(base, {recursive: true});
+      return await fs.mkdtemp(path.join(base, prefix));
     }
-    // If it is not:
+    // If either fails:
     catch(error) {
-      // Report this and continue checking alternatives.
-      console.log(`ERROR: ${tmpDirAlternative} not writable for temporary files`);
+      // Report this and try the next location.
+      console.log(`ERROR: ${base} not writable for temporary files (${(error as Error).message})`);
     }
   }
-  // If no writable temporary directory was found:
-  if (! tmpDir) {
-    // Report this.
-    console.log('ERROR: No writable temporary directory was found');
-  }
-  // Return the directory path or a failure.
-  return tmpDir;
+  // Report that no location was writable.
+  console.log('ERROR: No writable temporary directory was found');
+  return null;
 };
 // Runs a job and returns a report.
 export const doJob = async (job: Report, opts: DoJobOptions = {}): Promise<Report> => {
@@ -108,9 +90,9 @@ export const doJob = async (job: Report, opts: DoJobOptions = {}): Promise<Repor
   };
   // Initialize a report as a copy of the job.
   let report: Report = JSON.parse(JSON.stringify(job));
-  // A job that is a string, number or boolean cannot hold job data (see ignoresAssignment).
-  if (! ignoresAssignment(report)) {
-    report.jobData ??= {};
+  // Give the report job data, unless the job is a string, number or boolean, which cannot hold it. Job data that is not an object, which makes the job invalid, is replaced, so that the report can record the abort (#231).
+  if (! ignoresAssignment(report) && (! report.jobData || typeof report.jobData !== 'object')) {
+    report.jobData = {};
   }
   const {jobData} = report;
   // Get whether the job is valid and, if not, why not.
@@ -119,12 +101,10 @@ export const doJob = async (job: Report, opts: DoJobOptions = {}): Promise<Repor
   if (! jobInvalidity.isValid) {
     // Report this.
     console.log(`ERROR: ${jobInvalidity.error}`);
-    // Job data that is not an object makes the job invalid, so here it may be a primitive (see ignoresAssignment). Kept as it is (issue #73; see #231): such a report records no abort.
-    if (! ignoresAssignment(jobData)) {
-      jobData!.aborted = true;
-      jobData!.abortedAct = null;
-      jobData!.abortMessage = jobInvalidity.error;
-    }
+    // (Job data is undefined only if the job is a string, number or boolean; then these throw.)
+    jobData!.aborted = true;
+    jobData!.abortedAct = null;
+    jobData!.abortMessage = jobInvalidity.error;
   }
   // Otherwise, i.e. if it is valid:
   else {
@@ -156,31 +136,39 @@ export const doJob = async (job: Report, opts: DoJobOptions = {}): Promise<Repor
       preventions: {},
       isolation: getIsolation(job)
     };
-    // Kept as it is (issue #73; see #231): this adds a listener for every job the process runs.
-    process.on('message', message => {
+    // Quit if a parent process interrupts the job. The listener is removed when the job ends, so that a process that runs many jobs does not accumulate listeners (#231).
+    const onMessage = (message: unknown) => {
       if (message === 'interrupt') {
         console.log('ERROR: Terminal interrupted the job');
         process.exit();
       }
-    });
-    // If the job specifies a browser ID and a target and requires standardization:
-    if (job.browserID && job.target && job.standard !== 'no') {
-      // Initialize a catalog so it precedes any page images in the report.
-      report.catalog = {};
-      // getCatalog() navigates to the target (procs/catalog.js) — which, on a
-      // slow, blocked, or dead target, can retry across browser types — before
-      // any act runs. Bracket it with events so a consumer can heartbeat through
-      // this phase instead of seeing the job fall silent until the first act.
-      emitProgress({event: 'catalogStart'});
-      const catalogStartMs = Date.now();
-      // Add a catalog of the target, and a page image if required, to the report.
-      report.catalog = await getCatalog(report);
-      emitProgress({event: 'catalogEnd', elapsedMs: Date.now() - catalogStartMs});
+    };
+    process.on('message', onMessage);
+    try {
+      // If the job specifies a browser ID and a target and requires standardization:
+      if (job.browserID && job.target && job.standard !== 'no') {
+        // Initialize a catalog so it precedes any page images in the report.
+        report.catalog = {};
+        // getCatalog() navigates to the target (procs/catalog.js) — which, on a
+        // slow, blocked, or dead target, can retry across browser types — before
+        // any act runs. Bracket it with events so a consumer can heartbeat through
+        // this phase instead of seeing the job fall silent until the first act.
+        emitProgress({event: 'catalogStart'});
+        const catalogStartMs = Date.now();
+        // Add a catalog of the target, and a page image if required, to the report.
+        report.catalog = await getCatalog(report);
+        emitProgress({event: 'catalogEnd', elapsedMs: Date.now() - catalogStartMs});
+      }
+      // Perform the acts and revise the report.
+      report = await doActs(report, opts);
     }
-    // Perform the acts and revise the report.
-    report = await doActs(report, opts);
-    // Delete the temporary directory. (A null directory has already made doActs throw.)
-    await fs.rm(tmpDir!, {recursive: true, force: true});
+    finally {
+      process.off('message', onMessage);
+      // Delete the temporary directory, which getTmpDirPath created for this job alone, even if the job failed. (A null directory makes doActs throw.)
+      if (tmpDir) {
+        await fs.rm(tmpDir, {recursive: true, force: true});
+      }
+    }
     // Add the end time and duration to the report.
     const endTime = new Date();
     report.jobData!.endTime = nowString();

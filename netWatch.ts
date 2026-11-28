@@ -253,7 +253,6 @@ export const netWatch = async (
         // Request a job.
         client.request(jobURL!, options, response => {
           // Initialize a collection of data from the response.
-          // Kept as it is (issue #73; see #231): joining the chunks decodes each one alone, so a UTF-8 character split between two chunks is garbled.
           const chunks: Buffer[] = [];
           response
           // If the response throws an error:
@@ -272,7 +271,8 @@ export const netWatch = async (
           })
           // When the response is completed:
           .on('end', async () => {
-            const content = chunks.join('');
+            // Decode the chunks together, so that a UTF-8 character split between two of them is kept (#231).
+            const content = Buffer.concat(chunks).toString('utf8');
             // (A client's response has a status code.)
             const {statusCode} = response as {statusCode: number};
             // If the server reported a failure:
@@ -358,7 +358,7 @@ export const netWatch = async (
                       })
                       // When the response to the report is completed:
                       .on('end', async () => {
-                        const repContent = repChunks.join('');
+                        const repContent = Buffer.concat(repChunks).toString('utf8');
                         const repStatusCode = repResponse.statusCode!;
                         // If the server reported a failure:
                         if (repStatusCode < 200 || repStatusCode > 299) {
@@ -447,8 +447,7 @@ export const netWatch = async (
           // Otherwise, if it was any other error with a message:
           else if (error.message) {
             // Report this.
-            // Kept as it is (issue #73; see #231): logStart already ends with "got".
-            console.log(`ERROR: ${logStart}got error message ${error.message.slice(0, 200)}`);
+            console.log(`ERROR: ${logStart}error message ${error.message.slice(0, 200)}`);
           }
           // Otherwise, i.e. if it was any other error with no message:
           else {
